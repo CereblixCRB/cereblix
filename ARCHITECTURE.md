@@ -59,7 +59,8 @@ neuromorph/   NeuroMorph PoW virtual machine + 64 MiB dataset
 core/         chain, account state, mempool, consensus rules, checkpoints
 node/         P2P sync, JSON RPC, getwork/submitwork, built-in miner
 cmd/          cereblixd (node) · cereblix-miner · cereblix-wallet ·
-              cereblix-pool · cereblix-faucet · cereblix-checkpoint · cereblix-wasm
+              cereblix-pool · cereblix-stratum (XMRig bridge) · cereblix-faucet ·
+              cereblix-checkpoint · cereblix-wasm
 web/          project site, block explorer, web wallet, browser miner
 deploy/       systemd unit template
 ```
@@ -328,7 +329,36 @@ split among miners proportional to their shares (PROP, with a small pool fee) an
 paid out automatically once a miner crosses a threshold - paying only the
 *matured* (spendable) balance and in partial amounts as more coinbase matures.
 
-### 6.7. Faucet with a proof-of-useful-work captcha (`cmd/cereblix-faucet`)
+### 6.7. Stratum bridge (`cmd/cereblix-stratum`) - XMRig support
+XMRig-style miners speak **Stratum**, not the node's HTTP getwork, so a small
+**protocol adapter** sits between them. It is a pure proxy: it translates Stratum
+(`login`/`job`/`submit`, the Cryptonote/XMRig dialect) ⇄ getwork/submitwork, and
+the backend (pool or node) re-verifies every share, so pool accounting and
+extranonce binding are untouched. Two instances run: **pool** (`:3333` → pool API,
+steady payouts) and **solo** (`:3334` → node API, the full block reward). The
+official **fee-free `xmrig-cereblix`** build (developer donation removed, GPLv3
+source) is distributed alongside the bridge; on big multi-core CPUs - especially
+**AMD (Ryzen / EPYC)** - it is much faster than the native `cereblix-miner`.
+
+- **Nonce layout (8 LE bytes at `core.NonceOffset`):** bits 0-31 = the miner's
+  search space; bits 32-47 = a unique **per-connection id** the bridge assigns (so
+  multiple rigs on one address never collide - the multi-rig "duplicate" fix);
+  bits 48-63 = the address-bound extranonce the pool requires. On submit the bridge
+  reconstructs the full 64-bit nonce.
+- **Solo vardiff (`-solo`).** In solo the node's full network target means a normal
+  CPU almost never produces a share, so the miner looks dead. With `-solo` the
+  bridge instead serves an **easy share target with auto-vardiff**: the default
+  equals the pool's difficulty (`netTarget << 12`) and it auto-tunes per miner
+  toward ~one share / 12 s from the observed rate, bounded by the network
+  difficulty - so it tracks both the miner's hashrate and the network. A miner can
+  pin a fixed difficulty with `-p diff=N` or login `crb1...+N`. **The node remains
+  the sole authority on what is a block:** every submit is still forwarded; a
+  sub-target nonce ("insufficient proof of work") is surfaced to the miner as an
+  *accepted feedback share*, while a real block is forwarded and paid - so a found
+  block can never be lost in the bridge. `-v` logs each job and share with its
+  round-trip latency.
+
+### 6.8. Faucet with a proof-of-useful-work captcha (`cmd/cereblix-faucet`)
 A faucet that lets newcomers try the wallet without mining first. Its anti-bot
 captcha is **a real NeuroMorph share**: the browser mines one share (via the
 WebAssembly hasher) against a template paying a dedicated **captcha wallet** - so the
@@ -339,12 +369,12 @@ than relying on rare jackpots. The faucet then sends a tiered
 amount, rate-limited per address and per IP (real client IP taken from the last
 `X-Forwarded-For` hop, so the limit can't be header-spoofed).
 
-### 6.8. Authority checkpoint signer (`cmd/cereblix-checkpoint`)
+### 6.9. Authority checkpoint signer (`cmd/cereblix-checkpoint`)
 The operator-only tool that periodically signs a block a few behind the tip with
 the authority key and pushes it to the node (`POST /api/checkpoint`), which
 serves it to peers. See §5. The private key is kept off the network.
 
-### 6.9. Self-updating node (signed, verified, self-healing)
+### 6.10. Self-updating node (signed, verified, self-healing)
 The node keeps itself current without manual coordination - this is how network
 upgrades roll out. Every ~20 min it fetches an **authority-signed upgrade
 manifest** (`core.UpgradeManifest`, signed by the same key as checkpoints; tried

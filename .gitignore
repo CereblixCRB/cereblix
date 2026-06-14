@@ -42,5 +42,10 @@ Thumbs.db
 *.wasm
 shots/
 
-# P2P/OTC page kept LOCAL-only for now (deployed to the live site, not published in the repo)
+# P2P/OTC desk kept LOCAL-only until launch (deployed to the live site, NOT published in the repo)
 web/site/p2p.html
+web/site/p2p*.html
+web/site/p2p*.png
+otc/
+nacl.min.js
+wallet/nacl.min.js
