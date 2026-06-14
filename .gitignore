@@ -41,3 +41,6 @@ cerebra-wallet-linux-amd64
 Thumbs.db
 *.wasm
 shots/
+
+# P2P/OTC page kept LOCAL-only for now (deployed to the live site, not published in the repo)
+web/site/p2p.html
