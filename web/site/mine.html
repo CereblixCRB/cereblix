@@ -158,8 +158,9 @@ cereblix-miner -addr crb1YOUR_ADDRESS</div>
   <div class="muted" data-i-html="s_xmrig_src">GPL source: <a href="https://cereblix.com/xmrig-cereblix-src.tar.gz">xmrig-cereblix-src.tar.gz</a> · mirror on the <a href="https://github.com/CereblixCRB/cereblix/releases/tag/xmrig" target="_blank" rel="noopener">GitHub xmrig release</a>. Intel Macs build from source (the binary is native arm64).</div>
   <div class="cmd"># pool - steady payouts
 xmrig-cereblix -o stratum.cereblix.com:3333 -a nm/1 -u crb1YOUR_ADDRESS -p x
-# solo - whole 50 CRB blocks
+# solo - whole 50 CRB blocks (now shows steady feedback shares too; -p diff=N to pick difficulty)
 xmrig-cereblix -o stratum.cereblix.com:3334 -a nm/1 -u crb1YOUR_ADDRESS -p x</div>
+  <div class="muted" data-i-html="s_xmrig_solo">💡 Solo (<code>:3334</code>) now serves an easy <b>auto-vardiff</b> share target, so XMRig shows steady <b>"accepted"</b> shares + live hashrate just like the pool - while real blocks still pay the full 50 CRB. Choose your own difficulty with <code>-p diff=N</code>.</div>
 </section>
 
 <section class="sec" id="node">
@@ -217,6 +218,7 @@ const I = {
     s_xmrig_h:"⚡ 3 · XMRig - для мощных многоядерных CPU",
     s_xmrig_p:"Наша официальная сборка XMRig <b>без комиссии</b> (донат разработчику убран, исходники под GPL). На больших CPU масштабируется лучше нативного майнера. Говорит по Stratum - подключайте к нашему, пул или соло.",
     s_xmrig_src:'Исходники (GPL): <a href="https://cereblix.com/xmrig-cereblix-src.tar.gz">xmrig-cereblix-src.tar.gz</a> · зеркало в <a href="https://github.com/CereblixCRB/cereblix/releases/tag/xmrig" target="_blank" rel="noopener">релизе xmrig на GitHub</a>. Intel Mac - соберите из исходников (бинарник нативный arm64).',
+    s_xmrig_solo:'💡 Соло (<code>:3334</code>) теперь отдаёт лёгкий <b>авто-vardiff</b> share-target, так что XMRig стабильно показывает <b>«accepted»</b> и хешрейт - как на пуле, при этом настоящие блоки по-прежнему дают все 50 CRB. Свою сложность выбирайте через <code>-p diff=N</code>.',
     s_node_h:"🖧 4 · Своя нода",
     s_node_p:"Полная нода = независимая валидация цепочки и ваш голос в сети, без зависимости от наших серверов. Необязательно, но это по-настоящему доверительный (trustless) майнинг.",
     s_node_xm_h:"… и майнинг на свою ноду через XMRig",

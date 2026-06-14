@@ -156,6 +156,11 @@ xmrig-cereblix -o stratum.cereblix.com:3333 -a nm/1 -u crb1YOURADDRESS -p x
 xmrig-cereblix -o stratum.cereblix.com:3334 -a nm/1 -u crb1YOURADDRESS -p x
 ```
 
+Both endpoints show steady `accepted` shares: the **solo** endpoint uses
+**auto-vardiff**, so even a small CPU gets a live hashrate and feedback while real
+blocks still pay the full 50 CRB. Pick your own share difficulty with
+**`-p diff=50000`** (or login `crb1...+50000`).
+
 > The **only** official `xmrig-cereblix` is this one (cereblix.com or the `xmrig`
 > release). Any other "xmrig-cereblix" you find elsewhere is **not ours** — don't
 > run it. To mine with XMRig against *your own* node, see
