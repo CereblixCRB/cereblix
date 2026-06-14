@@ -128,6 +128,39 @@ cereblix-miner -addr crb1YOURADDRESS -node https://ru.cereblix.com/pool/api   # 
 cereblix-miner -addr crb1YOURADDRESS -node https://ru.cereblix.com/api        # solo
 ```
 
+### Mine with XMRig (Stratum — for big multi-core CPUs)
+
+The native `cereblix-miner` is the simplest path, but on large many-core CPUs
+**XMRig** scales better. We ship an **official, fee-free** XMRig build — the
+developer donation is removed and the **GPLv3 source is included** — that speaks
+our **Stratum** endpoint:
+
+| Platform | Download |
+|---|---|
+| Windows x64 | https://cereblix.com/xmrig-cereblix-windows-x64.exe |
+| Linux x64 | https://cereblix.com/xmrig-cereblix-linux-x64 |
+| Hive OS | https://cereblix.com/xmrig-cereblix-hive.tar.gz |
+| macOS (Apple Silicon) | https://cereblix.com/xmrig-cereblix-macos-arm64.tar.gz |
+| Source (GPLv3) | https://cereblix.com/xmrig-cereblix-src.tar.gz |
+
+Mirror: the [`xmrig` release](https://github.com/CereblixCRB/cereblix/releases/tag/xmrig).
+Intel Macs build from source (the macOS binary above is native arm64).
+
+Point it at our public Stratum — **pool** (`:3333`) for steady payouts, **solo**
+(`:3334`) for the whole block reward:
+
+```sh
+# pool — steady payouts
+xmrig-cereblix -o stratum.cereblix.com:3333 -a nm/1 -u crb1YOURADDRESS -p x
+# solo — whole 50 CRB blocks
+xmrig-cereblix -o stratum.cereblix.com:3334 -a nm/1 -u crb1YOURADDRESS -p x
+```
+
+> The **only** official `xmrig-cereblix` is this one (cereblix.com or the `xmrig`
+> release). Any other "xmrig-cereblix" you find elsewhere is **not ours** — don't
+> run it. To mine with XMRig against *your own* node, see
+> [Mine to your own node with XMRig](#mine-to-your-own-node-with-xmrig) below.
+
 ### Free faucet
 
 No coins yet? Grab a little from the faucet to try the wallet. The anti-bot check
@@ -155,6 +188,38 @@ upgrades roll out without manual coordination.
 **Fees** are a tiny flat anti-spam floor (~0.00001 CRB); under load blocks fill
 **highest-fee-first** (pay a bit more to confirm sooner), so the mempool never
 stalls. The wallet auto-suggests a fee from current network load.
+
+### Mine to your own node with XMRig
+
+Running your own node and want to mine to it with XMRig — fully trustless, no
+public pool or server involved? XMRig speaks **Stratum** while the node speaks
+**HTTP getwork**, so a tiny bridge, **`cereblix-stratum`**, sits between them.
+Run it locally against your node and every block you find pays 50 CRB straight
+to your address, validated by your own node.
+
+Downloads:
+[Linux](https://cereblix.com/cereblix-stratum-linux-amd64) ·
+[Windows](https://cereblix.com/cereblix-stratum-windows-amd64.exe) ·
+[macOS arm64](https://cereblix.com/cereblix-stratum-darwin-arm64) ·
+[macOS x64](https://cereblix.com/cereblix-stratum-darwin-amd64)
+— also on the [`xmrig` release](https://github.com/CereblixCRB/cereblix/releases/tag/xmrig),
+or build it yourself: `go build ./cmd/cereblix-stratum`.
+
+```sh
+# 1. run your node and let it sync
+cereblixd -datadir ./data
+
+# 2. bridge Stratum -> your node's getwork (solo, full-network target)
+cereblix-stratum -listen :3334 -pool http://127.0.0.1:18751/api
+
+# 3. point XMRig at your local bridge
+xmrig-cereblix -o 127.0.0.1:3334 -a nm/1 -u crb1YOURADDRESS -p x
+```
+
+The bridge `-pool` flag is just "the getwork HTTP API to mine against": the node
+RPC (`…:18751/api`) for trustless **solo**, or a pool API for **pool** payouts
+through your own local Stratum, e.g.
+`cereblix-stratum -listen :3333 -pool https://cereblix.com/pool/api`.
 
 ## Standalone CLI wallet
 
