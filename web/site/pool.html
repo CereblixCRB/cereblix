@@ -82,7 +82,7 @@ a{color:var(--acc)}
     <a href="wallet/" data-i="wallet">Wallet</a>
     <a href="faucet.html" data-i="faucet">Faucet</a>
     <a href="./#roadmap" data-i="roadmap">Roadmap</a>
-    <a href="https://github.com/Cereblix/cereblix" target="_blank" rel="noopener">GitHub</a>
+    <a href="https://github.com/CereblixCRB/cereblix" target="_blank" rel="noopener">GitHub</a>
     <span class="langsw"><button data-lang="en" onclick="setLang('en')">EN</button><button data-lang="ru" onclick="setLang('ru')">RU</button></span>
   </div>
 </nav>
@@ -98,8 +98,8 @@ a{color:var(--acc)}
   <div class="note" data-i-html="ru_note">🇷🇺 <b>RU / CIS</b> - if cereblix.com is slow or blocked, mine through our Moscow relay (same pool, no Cloudflare): <code>cereblix-miner -addr crb1YOURADDRESS -node https://ru.cereblix.com/pool/api</code></div>
   <div class="note" data-i-html="how_n">Your miner logs <b>"share accepted"</b> - those are shares (proofs of work at an easier target), not full blocks. Rewards arrive automatically as pool payouts once your balance crosses the minimum. Each share is <b>cryptographically bound to your address</b> (per-miner extranonce), so no one can claim your work.</div>
   <div class="note" data-i-html="pay_n">⏳ <b>Payouts take ~100 blocks (about 1.5–2 hours) to start.</b> A block reward only becomes spendable after <b>100 confirmations</b> (coinbase maturity) - a standard safeguard so the pool never pays out coins from a block that could still be reversed by a chain reorganization. Your earnings accrue immediately and are paid as soon as they mature and cross the minimum payout.</div>
-  <div class="note" data-i-html="hive_n">🐝 <b>Mining rig on Hive OS?</b> Add a <b>Custom miner</b> in your Flight Sheet: <b>Installation URL</b> <code>https://github.com/Cereblix/cereblix/releases/latest/download/cereblix-hiveos.tar.gz</code>, <b>Pool URL</b> <code>https://cereblix.com/pool/api</code>, and your <code>crb1…</code> wallet. Auto-starts, survives reboots, shows hashrate in the dashboard.</div>
-  <div class="note" data-i-html="win_n">🪟 <b>Windows / Linux / macOS?</b> Grab the official <code>cereblix-miner</code> from <a href="https://github.com/Cereblix/cereblix/releases/latest" target="_blank" rel="noopener">GitHub Releases</a> and run <code>cereblix-miner -addr crb1YOUR_ADDRESS -node https://cereblix.com/pool/api</code>. ⚠️ Only use the official miner - any "xmrig-cereblix" is NOT ours (XMRig can't mine NeuroMorph).</div>
+  <div class="note" data-i-html="hive_n">🐝 <b>Mining rig on Hive OS?</b> Add a <b>Custom miner</b> in your Flight Sheet: <b>Installation URL</b> <code>https://github.com/CereblixCRB/cereblix/releases/latest/download/cereblix-hiveos.tar.gz</code>, <b>Pool URL</b> <code>https://cereblix.com/pool/api</code>, and your <code>crb1…</code> wallet. Auto-starts, survives reboots, shows hashrate in the dashboard.</div>
+  <div class="note" data-i-html="win_n">🪟 <b>Windows / Linux / macOS?</b> Grab the official <code>cereblix-miner</code> from <a href="https://github.com/CereblixCRB/cereblix/releases/latest" target="_blank" rel="noopener">GitHub Releases</a> and run <code>cereblix-miner -addr crb1YOUR_ADDRESS -node https://cereblix.com/pool/api</code>. ⚠️ Only use the official miner - any "xmrig-cereblix" is NOT ours (XMRig can't mine NeuroMorph).</div>
 </div>
 
 <div class="card">
@@ -125,8 +125,8 @@ const I = { en:{}, ru:{
   how_t:"Майнить на пуле",
   how_n:'Майнер пишет <b>"share accepted"</b> - это шары (доказательства работы на облегчённой цели), а не целые блоки. Выплаты приходят автоматически, когда баланс превысит минимум. Каждая шара <b>криптографически привязана к твоему адресу</b> (extranonce на майнера), поэтому чужой твою работу не присвоит.',
   pay_n:'⏳ <b>Выплаты начинают доходить через ~100 блоков (примерно 1.5–2 часа).</b> Награда за блок становится тратимой только после <b>100 подтверждений</b> (coinbase maturity) - стандартная защита, чтобы пул не выплатил монеты с блока, который ещё может «откатиться» при реорганизации цепи. Твой заработок начисляется сразу, а выплачивается, как только дозреет и превысит минимальную сумму выплаты.',
-  hive_n:'🐝 <b>Риг на Hive OS?</b> Добавь <b>Custom miner</b> во Flight Sheet: <b>Installation URL</b> <code>https://github.com/Cereblix/cereblix/releases/latest/download/cereblix-hiveos.tar.gz</code>, <b>Pool URL</b> <code>https://cereblix.com/pool/api</code>, кошелёк <code>crb1…</code>. Автостарт, переживает ребут, хешрейт виден в дашборде.',
-  win_n:'🪟 <b>Windows / Linux / macOS?</b> Возьми официальный <code>cereblix-miner</code> из <a href="https://github.com/Cereblix/cereblix/releases/latest" target="_blank" rel="noopener">GitHub Releases</a> и запусти <code>cereblix-miner -addr crb1ТВОЙ_АДРЕС -node https://cereblix.com/pool/api</code>. ⚠️ Только официальный майнер - любой «xmrig-cereblix» НЕ наш (XMRig не умеет NeuroMorph).',
+  hive_n:'🐝 <b>Риг на Hive OS?</b> Добавь <b>Custom miner</b> во Flight Sheet: <b>Installation URL</b> <code>https://github.com/CereblixCRB/cereblix/releases/latest/download/cereblix-hiveos.tar.gz</code>, <b>Pool URL</b> <code>https://cereblix.com/pool/api</code>, кошелёк <code>crb1…</code>. Автостарт, переживает ребут, хешрейт виден в дашборде.',
+  win_n:'🪟 <b>Windows / Linux / macOS?</b> Возьми официальный <code>cereblix-miner</code> из <a href="https://github.com/CereblixCRB/cereblix/releases/latest" target="_blank" rel="noopener">GitHub Releases</a> и запусти <code>cereblix-miner -addr crb1ТВОЙ_АДРЕС -node https://cereblix.com/pool/api</code>. ⚠️ Только официальный майнер - любой «xmrig-cereblix» НЕ наш (XMRig не умеет NeuroMorph).',
   ru_note:'🇷🇺 <b>РФ / СНГ</b> - если cereblix.com медленный или не открывается, майнь через наш московский узел (тот же пул, без Cloudflare): <code>cereblix-miner -addr crb1ВАШ_АДРЕС -node https://ru.cereblix.com/pool/api</code>',
   you_t:"Твоя статистика", you_l:"Твой адрес CRB", you_hint:"Введи адрес, чтобы подсветить свою строку ниже.",
   miners_t:"Майнеры", loading:"Загрузка…",

@@ -232,7 +232,7 @@ footer .foot-sub{margin:0 auto;max-width:640px;line-height:1.6;opacity:.75}
     <a href="wallet/" data-i="nav_wallet">Wallet</a>
     <a href="faucet.html" data-i="nav_faucet">Faucet</a>
     <a href="#roadmap" data-i="nav_roadmap">Roadmap</a>
-    <a href="https://github.com/Cereblix/cereblix" target="_blank" rel="noopener">GitHub</a>
+    <a href="https://github.com/CereblixCRB/cereblix" target="_blank" rel="noopener">GitHub</a>
     <span class="langsw"><button data-lang="en" onclick="setLang('en')">EN</button><button data-lang="ru" onclick="setLang('ru')">RU</button></span>
   </div>
 </nav>
@@ -259,7 +259,7 @@ footer .foot-sub{margin:0 auto;max-width:640px;line-height:1.6;opacity:.75}
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24h-6.66l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         <span>X</span>
       </a>
-      <a href="https://github.com/Cereblix/cereblix" target="_blank" rel="noopener" title="GitHub" class="soc">
+      <a href="https://github.com/CereblixCRB/cereblix" target="_blank" rel="noopener" title="GitHub" class="soc">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .5C5.37.5 0 5.78 0 12.29c0 5.2 3.44 9.6 8.21 11.16.6.11.82-.25.82-.56v-2.17c-3.34.7-4.04-1.42-4.04-1.42-.55-1.37-1.34-1.74-1.34-1.74-1.08-.72.08-.71.08-.71 1.2.08 1.83 1.21 1.83 1.21 1.07 1.78 2.81 1.27 3.5.97.1-.76.42-1.27.76-1.56-2.67-.3-5.47-1.31-5.47-5.83 0-1.29.47-2.34 1.24-3.17-.12-.3-.54-1.52.12-3.16 0 0 1.01-.32 3.3 1.21a11.6 11.6 0 0 1 6 0c2.28-1.53 3.29-1.21 3.29-1.21.66 1.64.24 2.86.12 3.16.77.83 1.23 1.88 1.23 3.17 0 4.53-2.8 5.53-5.48 5.82.43.36.81 1.08.81 2.18v3.23c0 .31.21.68.82.56A12.01 12.01 0 0 0 24 12.29C24 5.78 18.63.5 12 .5z"/></svg>
         <span>GitHub</span>
       </a>
@@ -356,17 +356,17 @@ footer .foot-sub{margin:0 auto;max-width:640px;line-height:1.6;opacity:.75}
   </div>
   <div id="mine-app" class="steps">
     <div class="step"><div><b data-i="mine_s1_t">Create a wallet</b><br><span style="color:var(--mut)" data-i-html="mine_s1_b">Open the <a href="wallet/">web wallet</a>, click "Create", save your private key and copy your <code>crb1…</code> address.</span></div></div>
-    <div class="step"><div><b data-i="mine_s2_t">Download the miner</b><br><span style="color:var(--mut)" data-i-html="mine_s2_b">Latest builds on <a href="https://github.com/Cereblix/cereblix/releases/latest" target="_blank" rel="noopener">GitHub Releases</a>:
-      <a href="https://github.com/Cereblix/cereblix/releases/latest/download/cereblix-miner-windows-amd64.exe">Windows x64</a> ·
-      <a href="https://github.com/Cereblix/cereblix/releases/latest/download/cereblix-miner-linux-amd64">Linux x64</a>
-      &nbsp;(Intel and AMD; source is open - <a href="https://github.com/Cereblix/cereblix" target="_blank" rel="noopener">github.com/Cereblix/cereblix</a>)</span></div></div>
+    <div class="step"><div><b data-i="mine_s2_t">Download the miner</b><br><span style="color:var(--mut)" data-i-html="mine_s2_b">Latest builds on <a href="https://github.com/CereblixCRB/cereblix/releases/latest" target="_blank" rel="noopener">GitHub Releases</a>:
+      <a href="https://github.com/CereblixCRB/cereblix/releases/latest/download/cereblix-miner-windows-amd64.exe">Windows x64</a> ·
+      <a href="https://github.com/CereblixCRB/cereblix/releases/latest/download/cereblix-miner-linux-amd64">Linux x64</a>
+      &nbsp;(Intel and AMD; source is open - <a href="https://github.com/CereblixCRB/cereblix" target="_blank" rel="noopener">github.com/CereblixCRB/cereblix</a>)</span></div></div>
     <div class="step"><div><b data-i="mine_s3_t">Run it</b>
       <pre>cereblix-miner-windows-amd64.exe -addr crb1YOUR_ADDRESS</pre>
       <span style="color:var(--mut)" data-i-html="mine_s3_b">All cores are used by default; limit them with <code>-threads 4</code>. The miner connects to the public node by itself. Find a block - 50 CRB land on your address. The balance shows in the wallet within ~a minute.</span></div></div>
     <div class="step"><div><b data-i="mine_s4_t">(Optional) Run your own node</b>
       <pre>cereblixd -datadir ./data
 cereblix-miner -node http://127.0.0.1:18751/api -addr crb1YOUR_ADDRESS</pre>
-      <span style="color:var(--mut)" data-i-html="mine_s4_b">Your own node = your own vote in the network and independent chain validation. Download: <a href="https://github.com/Cereblix/cereblix/releases/latest/download/cereblixd-linux-amd64">Linux</a> · <a href="https://github.com/Cereblix/cereblix/releases/latest/download/cereblixd-windows-amd64.exe">Windows</a> · or build from <a href="https://github.com/Cereblix/cereblix" target="_blank" rel="noopener">source</a>.</span></div></div>
+      <span style="color:var(--mut)" data-i-html="mine_s4_b">Your own node = your own vote in the network and independent chain validation. Download: <a href="https://github.com/CereblixCRB/cereblix/releases/latest/download/cereblixd-linux-amd64">Linux</a> · <a href="https://github.com/CereblixCRB/cereblix/releases/latest/download/cereblixd-windows-amd64.exe">Windows</a> · or build from <a href="https://github.com/CereblixCRB/cereblix" target="_blank" rel="noopener">source</a>.</span></div></div>
   </div>
   <h2 style="margin-top:40px" data-i-html="sp_h">Solo or <em>pool</em>?</h2>
   <div class="grid" style="margin-bottom:16px">
@@ -383,8 +383,8 @@ cereblix-miner -node http://127.0.0.1:18751/api -addr crb1YOUR_ADDRESS</pre>
   </div>
   <div class="warn" data-i-html="sp_note">💡 On the pool your miner logs <b>"share accepted"</b> - those are <b>shares</b> (proofs of work at an easier target), not full blocks. Your real reward lands as automatic pool payouts to your address. Same miner either way - only the <code>-node</code> changes.</div>
   <div class="warn" data-i-html="ru_note">🇷🇺 <b>RU / CIS</b> and cereblix.com is slow or blocked? Mine through our Moscow relay node - same chain, same pool, no Cloudflare: <code>-node https://ru.cereblix.com/pool/api</code> (solo: <code>-node https://ru.cereblix.com/api</code>).</div>
-  <div class="warn" data-i-html="hive_note">🐝 <b>Mining rig on Hive OS?</b> Add a <b>Custom miner</b> in your Flight Sheet - Installation URL <code>https://github.com/Cereblix/cereblix/releases/latest/download/cereblix-hiveos.tar.gz</code>, Pool URL <code>https://cereblix.com/pool/api</code>, your <code>crb1…</code> wallet. It auto-starts, survives reboots and shows hashrate in the dashboard.</div>
-  <div class="warn" data-i-html="safe_note">⚠️ <b>Use only the official miner</b> from this page or <a href="https://github.com/Cereblix/cereblix/releases/latest" target="_blank" rel="noopener">GitHub Releases</a>. Anything called "xmrig-cereblix" is <b>not ours</b> - XMRig cannot mine NeuroMorph.</div>
+  <div class="warn" data-i-html="hive_note">🐝 <b>Mining rig on Hive OS?</b> Add a <b>Custom miner</b> in your Flight Sheet - Installation URL <code>https://github.com/CereblixCRB/cereblix/releases/latest/download/cereblix-hiveos.tar.gz</code>, Pool URL <code>https://cereblix.com/pool/api</code>, your <code>crb1…</code> wallet. It auto-starts, survives reboots and shows hashrate in the dashboard.</div>
+  <div class="warn" data-i-html="safe_note">⚠️ <b>Use only the official miner</b> from this page or <a href="https://github.com/CereblixCRB/cereblix/releases/latest" target="_blank" rel="noopener">GitHub Releases</a>. Anything called "xmrig-cereblix" is <b>not ours</b> - XMRig cannot mine NeuroMorph.</div>
 </section>
 
 <section id="spec">
@@ -515,7 +515,7 @@ cereblix-miner -node http://127.0.0.1:18751/api -addr crb1YOUR_ADDRESS</pre>
   <details><summary data-i="faq4_q">Is this a fork of Monero/RandomX?</summary>
     <p data-i="faq4_a">No. The codebase is written from scratch in Go (core + node + miner ~2500 lines, zero external dependencies). NeuroMorph conceptually extends RandomX's random-program idea, but adds the key part: epoch mutation of the VM semantics itself. RandomX is frozen forever - NeuroMorph is not frozen by principle.</p></details>
   <details><summary data-i="faq5_q">How can I support the network?</summary>
-    <p data-i-html="faq5_a">Mine (even 1-2 threads helps security), run a node, mirror the source. The code is open: <a href="https://github.com/Cereblix/cereblix" target="_blank" rel="noopener">github.com/Cereblix/cereblix</a>.</p></details>
+    <p data-i-html="faq5_a">Mine (even 1-2 threads helps security), run a node, mirror the source. The code is open: <a href="https://github.com/CereblixCRB/cereblix" target="_blank" rel="noopener">github.com/CereblixCRB/cereblix</a>.</p></details>
 </section>
 
 <footer>
@@ -526,7 +526,7 @@ cereblix-miner -node http://127.0.0.1:18751/api -addr crb1YOUR_ADDRESS</pre>
     <a href="https://bitcointalk.org/index.php?topic=5585629.0" target="_blank" rel="noopener">Bitcointalk EN</a>
     <a href="https://bitcointalk.org/index.php?topic=5585637.0" target="_blank" rel="noopener">Bitcointalk RU</a>
     <a href="https://www.altcoinstalks.com/index.php?topic=344237.0" target="_blank" rel="noopener">Altcoinstalks</a>
-    <a href="https://github.com/Cereblix/cereblix" target="_blank" rel="noopener">GitHub</a>
+    <a href="https://github.com/CereblixCRB/cereblix" target="_blank" rel="noopener">GitHub</a>
     <a href="wallet/" data-i="nav_wallet">Wallet</a>
   </div>
   <div class="foot-line" data-i-html="footer1">Cereblix · launched 11 June 2026 · no premine, no fund · open source</div>
@@ -616,16 +616,16 @@ const I18N = {
     mc_browser_t:"Майнить в браузере", mc_browser_b:"Проще всего. Телефон (iOS / Android), планшет или ПК. Без установки. Медленнее, но работает где угодно.", mc_browser_go:"Открыть браузерный майнер →",
     mc_app_t:"Майнить приложением", mc_app_b:"Быстрее. Скачайте нативный CPU-майнер для Windows или Linux и запустите со своим адресом.", mc_app_go:"К шагам ниже ↓",
     mine_s1_t:"Создайте кошелёк", mine_s1_b:'Откройте <a href="wallet/">веб-кошелёк</a>, нажмите «Создать», сохраните приватный ключ и скопируйте адрес <code>crb1…</code>',
-    mine_s2_t:"Скачайте майнер", mine_s2_b:'Свежие сборки - на <a href="https://github.com/Cereblix/cereblix/releases/latest" target="_blank" rel="noopener">GitHub Releases</a>: <a href="https://github.com/Cereblix/cereblix/releases/latest/download/cereblix-miner-windows-amd64.exe">Windows x64</a> · <a href="https://github.com/Cereblix/cereblix/releases/latest/download/cereblix-miner-linux-amd64">Linux x64</a> &nbsp;(Intel и AMD; код открыт - <a href="https://github.com/Cereblix/cereblix" target="_blank" rel="noopener">github.com/Cereblix/cereblix</a>)',
+    mine_s2_t:"Скачайте майнер", mine_s2_b:'Свежие сборки - на <a href="https://github.com/CereblixCRB/cereblix/releases/latest" target="_blank" rel="noopener">GitHub Releases</a>: <a href="https://github.com/CereblixCRB/cereblix/releases/latest/download/cereblix-miner-windows-amd64.exe">Windows x64</a> · <a href="https://github.com/CereblixCRB/cereblix/releases/latest/download/cereblix-miner-linux-amd64">Linux x64</a> &nbsp;(Intel и AMD; код открыт - <a href="https://github.com/CereblixCRB/cereblix" target="_blank" rel="noopener">github.com/CereblixCRB/cereblix</a>)',
     mine_s3_t:"Запустите", mine_s3_b:'По умолчанию используются все ядра; ограничить: <code>-threads 4</code>. Майнер сам подключится к публичной ноде. Нашли блок - 50 CRB упали на адрес. Баланс виден в кошельке через ~минуту.',
-    mine_s4_t:"(Необязательно) Поднимите свою ноду", mine_s4_b:'Своя нода = свой голос в сети и независимая проверка цепи. Скачать: <a href="https://github.com/Cereblix/cereblix/releases/latest/download/cereblixd-linux-amd64">Linux</a> · <a href="https://github.com/Cereblix/cereblix/releases/latest/download/cereblixd-windows-amd64.exe">Windows</a> · или собрать из <a href="https://github.com/Cereblix/cereblix" target="_blank" rel="noopener">исходников</a>',
+    mine_s4_t:"(Необязательно) Поднимите свою ноду", mine_s4_b:'Своя нода = свой голос в сети и независимая проверка цепи. Скачать: <a href="https://github.com/CereblixCRB/cereblix/releases/latest/download/cereblixd-linux-amd64">Linux</a> · <a href="https://github.com/CereblixCRB/cereblix/releases/latest/download/cereblixd-windows-amd64.exe">Windows</a> · или собрать из <a href="https://github.com/CereblixCRB/cereblix" target="_blank" rel="noopener">исходников</a>',
     sp_h:'Соло или <em>пул</em>?',
     solo_t:"Соло", solo_b:"Майнишь напрямую против сети. Нашёл блок - забираешь все 50 CRB. Но это лотерея: на слабом CPU между блоками можно ждать часами или днями. Подходит, если у тебя мощный многоядерник.",
     pool_t:"Пул", pool_b:"Майнишь вместе со всеми. Получаешь стабильный ручеёк пропорционально своей работе, и пул сам платит на твой адрес по достижении 0.05 CRB (комиссия 1%). Лучший вариант для ноутбуков и обычных CPU - намного меньше разброса.",
     sp_note:'💡 На пуле майнер пишет <b>«share accepted»</b> - это <b>шары</b> (доказательства работы на облегчённой цели), а не полные блоки. Реальная награда приходит автоматическими выплатами пула на твой адрес. Майнер тот же - меняется только <code>-node</code>.',
     ru_note:'🇷🇺 <b>РФ / СНГ</b> и cereblix.com медленный или не открывается? Майнь через наш московский узел - та же сеть, тот же пул, без Cloudflare: <code>-node https://ru.cereblix.com/pool/api</code> (соло: <code>-node https://ru.cereblix.com/api</code>).',
-    hive_note:'🐝 <b>Риг на Hive OS?</b> Добавь <b>Custom miner</b> во Flight Sheet - Installation URL <code>https://github.com/Cereblix/cereblix/releases/latest/download/cereblix-hiveos.tar.gz</code>, Pool URL <code>https://cereblix.com/pool/api</code>, кошелёк <code>crb1…</code>. Автостарт, переживает ребут, хешрейт виден в дашборде.',
-    safe_note:'⚠️ <b>Только официальный майнер</b> с этой страницы или из <a href="https://github.com/Cereblix/cereblix/releases/latest" target="_blank" rel="noopener">GitHub Releases</a>. Любой «xmrig-cereblix» - <b>не наш</b>, XMRig не умеет NeuroMorph.',
+    hive_note:'🐝 <b>Риг на Hive OS?</b> Добавь <b>Custom miner</b> во Flight Sheet - Installation URL <code>https://github.com/CereblixCRB/cereblix/releases/latest/download/cereblix-hiveos.tar.gz</code>, Pool URL <code>https://cereblix.com/pool/api</code>, кошелёк <code>crb1…</code>. Автостарт, переживает ребут, хешрейт виден в дашборде.',
+    safe_note:'⚠️ <b>Только официальный майнер</b> с этой страницы или из <a href="https://github.com/CereblixCRB/cereblix/releases/latest" target="_blank" rel="noopener">GitHub Releases</a>. Любой «xmrig-cereblix» - <b>не наш</b>, XMRig не умеет NeuroMorph.',
     spec_h2:'Параметры <em>сети</em>',
     spec_ticker:"Тикер", spec_algo:"Алгоритм", spec_algo_v:"NeuroMorph v1 - самомутирующая PoW-VM, CPU-only",
     spec_time:"Время блока", spec_time_v:"60 секунд, ретаргет каждые 20 блоков",
@@ -643,7 +643,7 @@ const I18N = {
     faq4_q:"Это форк Monero/RandomX?",
     faq4_a:"Нет. Кодовая база написана с нуля на Go (ядро + нода + майнер ~2500 строк, ноль внешних зависимостей). NeuroMorph концептуально развивает идею случайных программ RandomX, но добавляет главное: эпохальную мутацию самой семантики VM. RandomX зафиксирован навечно - NeuroMorph не фиксирован в принципе.",
     faq5_q:"Как поддержать сеть?",
-    faq5_a:'Майните (даже 1-2 потока - вклад в безопасность), держите ноду, зеркальте исходники. Код открыт: <a href="https://github.com/Cereblix/cereblix" target="_blank" rel="noopener">github.com/Cereblix/cereblix</a>.',
+    faq5_a:'Майните (даже 1-2 потока - вклад в безопасность), держите ноду, зеркальте исходники. Код открыт: <a href="https://github.com/CereblixCRB/cereblix" target="_blank" rel="noopener">github.com/CereblixCRB/cereblix</a>.',
     footer1:"Cereblix · запущена 11 июня 2026 · без премайна, без фонда · открытый код",
     footer2:"Бесплатный открытый опенсорсный проект - майнь, форкай, поднимай свою ноду.",
     name_cere_t:"cereb - от cerebrum (мозг) 🧠",

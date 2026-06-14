@@ -22,14 +22,14 @@ import (
 // nodeVersion is this binary's software release version. The auto-updater
 // installs a newer one named in the authority-signed manifest; the consensus
 // version it signals in blocks is core.NodeConsensusVersion (separate).
-const nodeVersion = "2.1.2"
+const nodeVersion = "2.1.3"
 
 // Where to look for the signed upgrade manifest, in order. Every source is
 // verified against core.AuthorityPubKey, so an untrusted mirror cannot harm us;
 // the extra sources exist only so a node still updates where GitHub is blocked
 // (RU/CIS): our Cloudflare origin and the RU relay are reachable there.
 var manifestURLs = []string{
-	"https://github.com/Cereblix/cereblix/releases/latest/download/upgrade.json",
+	"https://github.com/CereblixCRB/cereblix/releases/latest/download/upgrade.json",
 	"https://cereblix.com/upgrade.json",
 	"https://cereblix.com/api/upgrade",
 	"https://ru.cereblix.com/upgrade.json",

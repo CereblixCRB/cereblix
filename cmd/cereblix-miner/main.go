@@ -32,10 +32,10 @@ import (
 )
 
 const (
-	minerVersion = "1.3"
+	minerVersion = "1.4"
 	hostMain     = "https://cereblix.com"
 	hostRU       = "https://ru.cereblix.com"
-	releasePage  = "https://github.com/Cereblix/cereblix/releases/latest"
+	releasePage  = "https://github.com/CereblixCRB/cereblix/releases/latest"
 )
 
 // updateMirrors are tried in order for the version check and the binary download:
@@ -43,7 +43,7 @@ const (
 // AND independent of GitHub, so a GitHub repo rename or a block never breaks the
 // miner's self-update. Each mirror serves the same filenames at its base.
 var updateMirrors = []string{
-	"https://github.com/Cereblix/cereblix/releases/latest/download/",
+	"https://github.com/CereblixCRB/cereblix/releases/latest/download/",
 	"https://cereblix.com/",
 }
 
