@@ -33,6 +33,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"cereblix/core"
@@ -42,6 +43,7 @@ var (
 	poolAPI    string
 	pollEvery  time.Duration
 	httpClient = &http.Client{Timeout: 10 * time.Second}
+	connSeq    uint64 // global counter -> a unique 16-bit per-connection id (nonce bits 32-47)
 )
 
 // ------------------------------------------------------------------- pool i/o
@@ -103,16 +105,22 @@ func submitToPool(poolID string, nonce uint64) (bool, string) {
 
 // jobFromWork builds the Stratum job object and returns it with the pool work id.
 // It pins the address-bound extranonce into the top 16 bits of the blob's nonce.
-func jobFromWork(w *poolWork) (job map[string]any, poolID, jobID string, err error) {
+func jobFromWork(w *poolWork, connID uint64) (job map[string]any, poolID, jobID string, err error) {
 	hdr, e := hex.DecodeString(w.Header)
 	if e != nil || len(hdr) != core.HeaderLen {
 		return nil, "", "", fmt.Errorf("bad header from pool")
 	}
-	// Reserved extranonce occupies the top 16 bits of the 8-byte LE nonce, i.e.
-	// blob bytes NonceOffset+6 (low) and +7 (high). Zero the lower 48 bits.
-	for i := 0; i < 6; i++ {
+	// Nonce layout (8 LE bytes at NonceOffset):
+	//   bits  0-31 (bytes +0..+3) = the MINER's search space (XMRig varies these 4 bytes)
+	//   bits 32-47 (bytes +4..+5) = a per-CONNECTION id we assign, so multiple rigs on the
+	//                               SAME address never overlap. The pool ignores these bits.
+	//   bits 48-63 (bytes +6..+7) = the address-bound extranonce the pool requires.
+	// The miner must keep bytes +4..+7 untouched and vary only bytes +0..+3.
+	for i := 0; i < 4; i++ {
 		hdr[core.NonceOffset+i] = 0
 	}
+	hdr[core.NonceOffset+4] = byte(connID)
+	hdr[core.NonceOffset+5] = byte(connID >> 8)
 	hdr[core.NonceOffset+6] = byte(w.Extranonce)
 	hdr[core.NonceOffset+7] = byte(w.Extranonce >> 8)
 
@@ -140,6 +148,7 @@ type client struct {
 
 	addr    string // CRB payout address
 	session string
+	connID  uint64 // unique per-connection id, pinned into nonce bits 32-47 (set once at accept)
 
 	jobMu      sync.Mutex
 	curJobID   string
@@ -205,7 +214,7 @@ func (c *client) handleLogin(id any, params json.RawMessage) bool {
 		c.sendError(id, "pool backend unavailable")
 		return false
 	}
-	job, poolID, jobID, err := jobFromWork(w)
+	job, poolID, jobID, err := jobFromWork(w, c.connID)
 	if err != nil {
 		c.sendError(id, "bad template from pool")
 		return false
@@ -238,11 +247,11 @@ func (c *client) handleSubmit(id any, params json.RawMessage) {
 		c.sendError(id, "bad nonce")
 		return
 	}
-	// XMRig varies only the low 32 bits of the nonce and submits just those bytes;
-	// pin our address-bound extranonce back into the top 16 bits (bits 48-63) so the
-	// reconstructed 64-bit nonce matches the header the miner actually hashed and
-	// passes the pool's extranonce-binding check.
-	full := (nonce & 0x0000FFFFFFFFFFFF) | (ex << 48)
+	// XMRig varies only the low 32 bits and submits just those 4 bytes. Reconstruct the
+	// full 64-bit nonce exactly as the miner hashed it: low 32 = submitted, bits 32-47 =
+	// this connection's id (so two rigs on the same address don't collide), bits 48-63 =
+	// the address-bound extranonce the pool requires.
+	full := (nonce & 0xFFFFFFFF) | (c.connID << 32) | (ex << 48)
 	accepted, msg := submitToPool(poolID, full)
 	if accepted {
 		c.sendResult(id, map[string]any{"status": "OK"})
@@ -289,7 +298,7 @@ func (c *client) poller(done <-chan struct{}) {
 			if err != nil {
 				continue
 			}
-			job, poolID, jobID, err := jobFromWork(w)
+			job, poolID, jobID, err := jobFromWork(w, c.connID)
 			if err != nil {
 				continue
 			}
@@ -306,7 +315,8 @@ func (c *client) poller(done <-chan struct{}) {
 
 func handleConn(conn net.Conn) {
 	defer conn.Close()
-	c := &client{conn: conn, enc: json.NewEncoder(conn), jobs: map[string]string{}}
+	c := &client{conn: conn, enc: json.NewEncoder(conn), jobs: map[string]string{},
+		connID: atomic.AddUint64(&connSeq, 1) & 0xFFFF}
 	done := make(chan struct{})
 	defer close(done)
 	go c.poller(done)

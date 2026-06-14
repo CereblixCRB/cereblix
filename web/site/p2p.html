@@ -117,7 +117,7 @@
 
     <div id="tab-admin" class="hide">
       <div class="card"><h3 data-i18n="mode_title">Platform mode</h3>
-        <div class="row" style="justify-content:space-between"><div class="seg"><button id="m_auto" class="auto" onclick="setMode('auto')" data-i18n="mode_auto">Auto</button><button id="m_semi" class="semi" onclick="setMode('semi')" data-i18n="mode_semi">Semi-auto</button></div><span class="chip"><span data-i18n="mode_current">current:</span> <b id="modeNow" style="color:var(--txt)">—</b></span></div>
+        <div class="row" style="justify-content:space-between"><div class="seg"><button id="m_auto" class="auto" onclick="setMode('auto')" data-i18n="mode_auto">Auto</button><button id="m_semi" class="semi" onclick="setMode('semi')" data-i18n="mode_semi">Semi-auto</button></div><div class="row" style="gap:8px"><button class="ghost mini" onclick="loadHealth()" data-i18n="health">Gas / health</button><span class="chip"><span data-i18n="mode_current">current:</span> <b id="modeNow" style="color:var(--txt)">—</b></span></div></div>
         <p class="small muted" style="margin:12px 0 0" data-i18n="mode_desc"></p></div>
       <div class="card"><h3 data-i18n="all_trades">All trades</h3>
         <table><thead><tr><th data-i18n="th_id">ID</th><th data-i18n="th_pair">Pair</th><th>CRB</th><th>USDT</th><th data-i18n="th_legs">Legs</th><th data-i18n="th_status">Status</th><th></th></tr></thead><tbody id="adminTrades"></tbody></table></div>
@@ -150,13 +150,13 @@ const I18N={en:{
  my_trades:"My trades",empty_mine:"no trades yet",open:"open",
  mode_title:"Platform mode",mode_auto:"Auto",mode_semi:"Semi-auto",mode_current:"current:",
  mode_desc:"“Auto” releases the counter-assets the moment both legs are ready. “Semi-auto” holds every release for your approval below.",
- all_trades:"All trades",empty_trades:"no trades yet",approve:"Approve",signin:"Sign in",
+ all_trades:"All trades",empty_trades:"no trades yet",approve:"Approve",signin:"Sign in",refund:"Refund",health:"Gas / health",health_title:"Float & gas (index-0)",health_desc:"The hot wallet that funds every USDT release's gas. Keep POL / SOL topped up.",err_leg_released:"A leg was already released — finish via Approve, don't refund",err_not_refundable:"Trade can't be refunded in this state",
  import_title:"Import wallet",import_label:"Seed (64 hex chars)",gen_title:"Test wallet created",gen_desc:"This is your access key. Save it if you like (not required for testing).",
  take_title:"Take offer",take_buy:"You pay %1 USDT and receive %2 CRB",take_sell:"You send %1 CRB and receive %2 USDT",taker_usdt:"Your address to receive USDT",create_trade:"Open deal",
  taker_usdt_refund:"Your USDT address (for refund if the deal is cancelled)",f_usdt_buy:"Your USDT address (to send from / for refunds)",fund_usdt_title:"Lock USDT to publish",fund_usdt_desc:"Send %1 USDT to the address below. Your offer goes live once the USDT is locked (~a minute).",err_self:"You cannot take your own offer",
  notice:"Test page · backend /otc · default mode “semi-auto” · real mainnet rails CRB / USDT-Polygon / USDT-Solana.",
- t_copied:"Copied",t_signedin:"Signed in as %1",t_offer_pub:"Offer created",t_trade:"Deal opened",t_mode:"Mode: %1",t_release:"Release started",t_cancelled:"Offer cancelled",
- st_AWAITING_CRB:"Locking CRB",st_AWAITING_USDT:"Awaiting USDT",st_BOTH_FUNDED_AWAITING_ADMIN:"Awaiting admin",st_RELEASING:"Releasing",st_RELEASE_RETRY:"Finalizing…",st_FAILED_REVIEW:"On hold (review)",st_COMPLETED:"Completed",st_EXPIRED:"Expired",st_REFUNDED:"Refunded",
+ t_copied:"Copied",t_signedin:"Signed in as %1",t_offer_pub:"Offer created",t_trade:"Deal opened",t_mode:"Mode: %1",t_release:"Release started",t_cancelled:"Offer cancelled",t_refunding:"Refund started",
+ st_AWAITING_CRB:"Locking CRB",st_AWAITING_USDT:"Awaiting USDT",st_BOTH_FUNDED_AWAITING_ADMIN:"Awaiting admin",st_RELEASING:"Releasing",st_RELEASE_RETRY:"Finalizing…",st_FAILED_REVIEW:"On hold (review)",st_REFUNDING:"Refunding…",st_COMPLETED:"Completed",st_EXPIRED:"Expired",st_REFUNDED:"Refunded",
  os_funding:"Locking…",os_funding_usdt:"Locking…",os_open:"Open",os_taken:"Taken",os_cancelled:"Cancelled",
  err_login_first:"Sign in first",err_bad:"Bad request",err_challenge:"Login session expired — try again",err_cred:"Bad key data",err_sig:"Bad signature",
  err_side:"Choose a side",err_rail:"Choose a network",err_price:"Check amount / price",err_maker_usdt:"Enter your USDT address (where you receive USDT)",
@@ -180,19 +180,19 @@ const I18N={en:{
  my_trades:"Мои сделки",empty_mine:"сделок ещё нет",open:"открыть",
  mode_title:"Режим площадки",mode_auto:"Авто",mode_semi:"Полу-авто",mode_current:"текущий:",
  mode_desc:"«Авто» — движок отдаёт встречные монеты сразу, как обе ноги готовы. «Полу-авто» — каждая выдача ждёт вашего подтверждения ниже.",
- all_trades:"Все сделки",empty_trades:"сделок ещё нет",approve:"Подтвердить",signin:"Войти",
+ all_trades:"Все сделки",empty_trades:"сделок ещё нет",approve:"Подтвердить",signin:"Войти",refund:"Вернуть",health:"Газ / состояние",health_title:"Флоат и газ (index-0)",health_desc:"Горячий кошелёк, который оплачивает газ каждой выдачи USDT. Держите POL / SOL пополненными.",err_leg_released:"Одна нога уже выдана — завершите через «Подтвердить», не возвращайте",err_not_refundable:"Сделку нельзя вернуть в этом состоянии",
  import_title:"Импорт кошелька",import_label:"Сид (64 hex-символа)",gen_title:"Тест-кошелёк создан",gen_desc:"Это ваш ключ доступа. Сохраните при желании (для теста не обязательно).",
  take_title:"Взять объявление",take_buy:"Вы платите %1 USDT и получаете %2 CRB",take_sell:"Вы отправляете %1 CRB и получаете %2 USDT",taker_usdt:"Ваш адрес для получения USDT",create_trade:"Открыть сделку",
  taker_usdt_refund:"Ваш адрес USDT (для возврата, если сделка отменится)",f_usdt_buy:"Ваш адрес USDT (откуда переводите / для возврата)",fund_usdt_title:"Заблокируйте USDT для публикации",fund_usdt_desc:"Переведите %1 USDT на адрес ниже. Объявление станет активным, как только USDT заблокируется (~минута).",err_self:"Нельзя взять собственное объявление",
  notice:"Тестовая страница · бэкенд /otc · режим по умолчанию «полу-авто» · реальные mainnet-рельсы CRB / USDT-Polygon / USDT-Solana.",
- t_copied:"Скопировано",t_signedin:"Вы вошли как %1",t_offer_pub:"Объявление создано",t_trade:"Сделка открыта",t_mode:"Режим: %1",t_release:"Выдача запущена",t_cancelled:"Объявление отменено",
- st_AWAITING_CRB:"Блокировка CRB",st_AWAITING_USDT:"Ожидание USDT",st_BOTH_FUNDED_AWAITING_ADMIN:"Ждёт админа",st_RELEASING:"Выдача",st_RELEASE_RETRY:"Завершение…",st_FAILED_REVIEW:"На паузе (проверка)",st_COMPLETED:"Завершена",st_EXPIRED:"Истекла",st_REFUNDED:"Возврат",
+ t_copied:"Скопировано",t_signedin:"Вы вошли как %1",t_offer_pub:"Объявление создано",t_trade:"Сделка открыта",t_mode:"Режим: %1",t_release:"Выдача запущена",t_cancelled:"Объявление отменено",t_refunding:"Возврат запущен",
+ st_AWAITING_CRB:"Блокировка CRB",st_AWAITING_USDT:"Ожидание USDT",st_BOTH_FUNDED_AWAITING_ADMIN:"Ждёт админа",st_RELEASING:"Выдача",st_RELEASE_RETRY:"Завершение…",st_FAILED_REVIEW:"На паузе (проверка)",st_REFUNDING:"Возврат…",st_COMPLETED:"Завершена",st_EXPIRED:"Истекла",st_REFUNDED:"Возврат",
  os_funding:"Блокируется…",os_funding_usdt:"Блокируется…",os_open:"Открыт",os_taken:"Взят",os_cancelled:"Отменён",
  err_login_first:"Сначала войдите",err_bad:"Неверный запрос",err_challenge:"Сессия входа истекла — попробуйте снова",err_cred:"Неверные данные ключа",err_sig:"Неверная подпись",
  err_side:"Выберите сторону",err_rail:"Выберите сеть",err_price:"Проверьте сумму / цену",err_maker_usdt:"Укажите адрес USDT (куда получаете USDT)",
  err_offer_closed:"Объявление больше не активно",err_taker_usdt:"Укажите адрес USDT (куда получаете USDT)",err_notfound:"Не найдено",err_admin:"Только для админа",err_mode:"Неверный режим",err_not_awaiting:"Сделка не ждёт подтверждения",err_offer_nf:"Объявление не найдено"
 }};
-const ERRMAP={'login first':'err_login_first','bad json':'err_bad','challenge expired':'err_challenge','bad pub/sig':'err_cred','bad signature':'err_sig','side must be sell_crb or buy_crb':'err_side','rail must be polygon or solana':'err_rail','bad price/amount':'err_price','maker_usdt required (where you receive USDT)':'err_maker_usdt','offer not open':'err_offer_closed','taker_usdt required (where you receive USDT)':'err_taker_usdt','not found':'err_notfound','admin only':'err_admin','mode must be auto or semi':'err_mode','trade not awaiting approval':'err_not_awaiting','offer not found':'err_offer_nf','cannot take your own offer':'err_self'};
+const ERRMAP={'login first':'err_login_first','bad json':'err_bad','challenge expired':'err_challenge','bad pub/sig':'err_cred','bad signature':'err_sig','side must be sell_crb or buy_crb':'err_side','rail must be polygon or solana':'err_rail','bad price/amount':'err_price','maker_usdt required (where you receive USDT)':'err_maker_usdt','offer not open':'err_offer_closed','taker_usdt required (where you receive USDT)':'err_taker_usdt','not found':'err_notfound','admin only':'err_admin','mode must be auto or semi':'err_mode','trade not awaiting approval':'err_not_awaiting','offer not found':'err_offer_nf','cannot take your own offer':'err_self','a leg already released - finish via approve, do not refund':'err_leg_released','trade not refundable in this state':'err_not_refundable'};
 
 let LANG=(navigator.language||'').startsWith('ru')?'ru':'en';if(localStorage.getItem('otc_lang'))LANG=localStorage.getItem('otc_lang');
 let TOK=null,ME=null,IS_ADMIN=false,curTrade=null,curTab='offers',pollTimer=null;
@@ -282,10 +282,18 @@ async function loadMine(){let ts;try{ts=await api('/mytrades')}catch(e){return t
 
 async function loadAdmin(){let r;try{r=await api('/admin/trades')}catch(e){return tErr(e)}$('modeNow').textContent=t('mode_'+r.mode)||r.mode;$('m_auto').classList.toggle('on',r.mode==='auto');$('m_semi').classList.toggle('on',r.mode==='semi');
   const tb=$('adminTrades');tb.innerHTML='';if(!r.trades.length){tb.innerHTML=`<tr><td colspan=7 class=empty>${t('empty_trades')}</td></tr>`;return}
-  r.trades.sort((a,b)=>b.Created-a.Created).forEach(x=>{const legs=`<span class="${x.CRBLocked?'state s-COMPLETED':'dim'}" style="font-size:11px">CRB</span> <span class="${x.USDTFunded?'state s-COMPLETED':'dim'}" style="font-size:11px">USDT</span>`;const act=(x.State==='BOTH_FUNDED_AWAITING_ADMIN'||x.State==='RELEASE_RETRY')?`<button class="ok mini" onclick="approve('${esc(x.ID)}')">${t('approve')}</button>`:'';
+  r.trades.sort((a,b)=>b.Created-a.Created).forEach(x=>{const legs=`<span class="${x.CRBLocked?'state s-COMPLETED':'dim'}" style="font-size:11px">CRB</span> <span class="${x.USDTFunded?'state s-COMPLETED':'dim'}" style="font-size:11px">USDT</span>`;
+    const canApprove=(x.State==='BOTH_FUNDED_AWAITING_ADMIN'||x.State==='RELEASE_RETRY');
+    const noneSent=!x.RelCRBTx&&!x.RelUSDTTx;const canRefund=noneSent&&['AWAITING_CRB','AWAITING_USDT','BOTH_FUNDED_AWAITING_ADMIN','RELEASE_RETRY','FAILED_REVIEW','EXPIRED'].includes(x.State);
+    const act=(canApprove?`<button class="ok mini" onclick="approve('${esc(x.ID)}')">${t('approve')}</button> `:'')+(canRefund?`<button class="danger mini" onclick="adminRefund('${esc(x.ID)}')">${t('refund')}</button>`:'');
     const tr=document.createElement('tr');tr.innerHTML=`<td class="mono small">${esc(String(x.ID).slice(0,8))}</td><td>CRB · ${railLabel(x.Rail)}</td><td>${Number(x.AmountCRB)}</td><td>${Number(x.AmountUSDT).toFixed(4)}</td><td>${legs}</td><td><span class="state s-${esc(x.State)}">${stLabel(x.State)}</span></td><td style="text-align:right">${act}</td>`;tb.appendChild(tr)})}
 async function setMode(m){try{await api('/admin/mode',{method:'POST',body:JSON.stringify({Mode:m})});toast(tp('t_mode',t('mode_'+m)),'ok');loadAdmin()}catch(e){tErr(e)}}
 async function approve(id){try{await api('/admin/approve',{method:'POST',body:JSON.stringify({ID:id})});toast(t('t_release'),'ok');setTimeout(loadAdmin,1500)}catch(e){tErr(e)}}
+async function adminRefund(id){if(!confirm(t('refund')+'?'))return;try{await api('/admin/refund',{method:'POST',body:JSON.stringify({ID:id})});toast(t('t_refunding'),'ok');setTimeout(loadAdmin,1500)}catch(e){tErr(e)}}
+async function loadHealth(){let h;try{h=await api('/admin/health')}catch(e){return tErr(e)}
+  const f=(v,d)=>v===undefined?'—':(Number(v)/d).toLocaleString('en',{maximumFractionDigits:6});
+  const rows=[['CRB index-0',f(h.crb_index0,1e8)+' CRB'],['Polygon gas',f(h.polygon_gas_index0,1e18)+' POL'],['Polygon USDT',f(h.polygon_usdt_index0,1e6)+' USDT'],['Solana gas',f(h.solana_gas_index0,1e9)+' SOL'],['Solana USDT',f(h.solana_usdt_index0,1e6)+' USDT']];
+  openModal(`<h2>${t('health_title')}</h2><p class="small muted" style="margin:0 0 12px">${t('health_desc')}</p>`+rows.map(r=>`<div class="row" style="justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.08)"><span class="dim">${esc(r[0])}</span><b class="mono">${esc(String(r[1]))}</b></div>`).join('')+`<div class="row" style="margin-top:16px;justify-content:flex-end"><button onclick="closeModal()">${t('ok_got')}</button></div>`)}
 setLang(LANG);
 </script>
 </body>
