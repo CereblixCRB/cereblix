@@ -1,5 +1,5 @@
 [Unit]
-Description=Cereblix Stratum bridge SOLO (Stratum <-> node getwork, full network target)
+Description=Cereblix Stratum bridge SOLO (Stratum <-> node getwork; easy feedback shares + auto-vardiff)
 After=network-online.target cereblixd.service
 Wants=network-online.target
 
@@ -7,7 +7,7 @@ Wants=network-online.target
 Type=simple
 User=cereblix
 Group=cereblix
-ExecStart=/opt/cerebra/bin/cereblix-stratum -listen :3334 -pool http://127.0.0.1:18751/api
+ExecStart=/opt/cerebra/bin/cereblix-stratum -listen :3334 -pool http://127.0.0.1:18751/api -solo
 Restart=always
 RestartSec=5
 NoNewPrivileges=true

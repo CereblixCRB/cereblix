@@ -177,17 +177,18 @@ cereblix-miner -addr crb1YOUR_ADDRESS -node http://127.0.0.1:18751/api</div>
   <h3 data-i-html="s_node_xm_h">… and mine to your own node with XMRig</h3>
   <p class="lead" data-i-html="s_node_xm_p">XMRig speaks Stratum, the node speaks HTTP getwork - so a tiny bridge, <code>cereblix-stratum</code>, sits between them. Run it against your node and you mine <b>solo, fully trustless</b>: every block pays 50 CRB straight to you, validated by your own node.</p>
   <div class="dls">
-    <a class="dl" href="https://cereblix.com/cereblix-stratum-windows-amd64.exe"><b>🪟 Windows x64</b><span>cereblix-stratum</span></a>
-    <a class="dl" href="https://cereblix.com/cereblix-stratum-linux-amd64"><b>🐧 Linux x64</b><span>cereblix-stratum</span></a>
-    <a class="dl" href="https://cereblix.com/cereblix-stratum-darwin-arm64"><b>🍎 macOS arm64</b><span>cereblix-stratum</span></a>
-    <a class="dl" href="https://cereblix.com/cereblix-stratum-darwin-amd64"><b>🍎 macOS x64</b><span>cereblix-stratum</span></a>
+    <a class="dl" href="https://github.com/CereblixCRB/cereblix/releases/download/xmrig/cereblix-stratum-windows-amd64.exe"><b>🪟 Windows x64</b><span>cereblix-stratum</span></a>
+    <a class="dl" href="https://github.com/CereblixCRB/cereblix/releases/download/xmrig/cereblix-stratum-linux-amd64"><b>🐧 Linux x64</b><span>cereblix-stratum</span></a>
+    <a class="dl" href="https://github.com/CereblixCRB/cereblix/releases/download/xmrig/cereblix-stratum-darwin-arm64"><b>🍎 macOS arm64</b><span>cereblix-stratum</span></a>
+    <a class="dl" href="https://github.com/CereblixCRB/cereblix/releases/download/xmrig/cereblix-stratum-darwin-amd64"><b>🍎 macOS x64</b><span>cereblix-stratum</span></a>
   </div>
   <div class="cmd"># 1. your node (above) is running &amp; synced
-# 2. bridge Stratum -> your node (solo, full network target)
-cereblix-stratum -listen :3334 -pool http://127.0.0.1:18751/api
+# 2. bridge Stratum -> your node, with steady feedback shares + auto-vardiff
+cereblix-stratum -listen :3334 -pool http://127.0.0.1:18751/api -solo
 # 3. point XMRig at your local bridge
-xmrig-cereblix -o 127.0.0.1:3334 -a nm/1 -u crb1YOUR_ADDRESS -p x</div>
-  <div class="muted" data-i-html="s_node_xm_tip">The bridge <code>-pool</code> flag is just "the getwork API to mine against": your node (<code>…:18751/api</code>) for trustless solo, or a pool API for pool payouts through your own local Stratum.</div>
+xmrig-cereblix -o 127.0.0.1:3334 -a nm/1 -u crb1YOUR_ADDRESS -p x
+# pick your own difficulty: -p diff=50000   ·   watch jobs/shares/ms live: add -v to the bridge</div>
+  <div class="muted" data-i-html="s_node_xm_tip"><code>-solo</code> serves an easy feedback-share target with auto-vardiff (so XMRig shows steady "accepted" shares + live hashrate), tuned to your CPU and the network; real blocks still go to your node. Default difficulty = the pool's; set your own with <code>-p diff=N</code>. The <code>-pool</code> flag is just the getwork API to mine against - your node (<code>…:18751/api</code>) for trustless solo.</div>
 </section>
 
 <div class="note" data-i-html="explain">💡 <b>Solo vs pool?</b> Solo keeps the whole 50 CRB per block but is a lottery (better on big multi-core rigs). Pool pays a steady trickle proportional to your work, auto-paid to your address at 0.05 CRB (1% fee) - far less variance, better for laptops. On the pool your log shows <b>"share accepted"</b> (proofs at an easier target); the real reward lands as automatic payouts.</div>
@@ -220,7 +221,7 @@ const I = {
     s_node_p:"Полная нода = независимая валидация цепочки и ваш голос в сети, без зависимости от наших серверов. Необязательно, но это по-настоящему доверительный (trustless) майнинг.",
     s_node_xm_h:"… и майнинг на свою ноду через XMRig",
     s_node_xm_p:"XMRig говорит по Stratum, нода - по HTTP getwork, поэтому между ними ставится крошечный мост <code>cereblix-stratum</code>. Запустите его на свою ноду - и майните <b>соло, полностью trustless</b>: каждый блок даёт 50 CRB прямо вам, проверено вашей нодой.",
-    s_node_xm_tip:'Флаг моста <code>-pool</code> - это просто «getwork-API, на который майнить»: ваша нода (<code>…:18751/api</code>) для trustless-соло, или API пула для пул-выплат через ваш локальный Stratum.',
+    s_node_xm_tip:'<code>-solo</code> включает лёгкий feedback-target с авто-vardiff (XMRig стабильно показывает «accepted» и хешрейт), подстраиваясь под ваш CPU и сеть; настоящие блоки всё равно уходят на вашу ноду. Сложность по умолчанию — как у пула; своя — через <code>-p diff=N</code>. Флаг <code>-pool</code> — это просто getwork-API, на который майнить (ваша нода <code>…:18751/api</code> для trustless-соло).',
     explain:'💡 <b>Соло или пул?</b> Соло отдаёт все 50 CRB за блок, но это лотерея (лучше на мощных многоядерных ригах). Пул платит стабильно, пропорционально вашей работе, автовыплата на адрес при 0.05 CRB (комиссия 1%) - меньше разброс, лучше для ноутбуков. В пуле лог пишет <b>«share accepted»</b> (доказательства на упрощённой сложности); реальная награда приходит автовыплатами.',
     safe_n:'⚠️ Скачивайте только с этой страницы, с <a href="https://cereblix.com">cereblix.com</a> или из наших <a href="https://github.com/CereblixCRB/cereblix/releases/latest" target="_blank" rel="noopener">релизов на GitHub</a>. Любой «xmrig-cereblix» или «cereblix» из других мест НЕ наш - не запускайте. Полное руководство - в <a href="https://github.com/CereblixCRB/cereblix#mine" target="_blank" rel="noopener">README</a>.'
   }

@@ -28,6 +28,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math/big"
 	"net"
 	"net/http"
 	"strconv"
@@ -44,7 +45,15 @@ var (
 	pollEvery  time.Duration
 	httpClient = &http.Client{Timeout: 10 * time.Second}
 	connSeq    uint64 // global counter -> a unique 16-bit per-connection id (nonce bits 32-47)
+	verbose    bool   // -v: log every job sent and every share (with round-trip ms)
 )
+
+// vlog logs only when -v is set (per-job / per-share lines would flood a busy pool).
+func vlog(format string, a ...any) {
+	if verbose {
+		log.Printf(format, a...)
+	}
+}
 
 // ------------------------------------------------------------------- pool i/o
 
@@ -154,9 +163,18 @@ type client struct {
 	curJobID   string
 	extranonce uint64            // address-bound tag the pool requires in the nonce's top 16 bits
 	jobs       map[string]string // recent jobID -> full pool work id ("<nodeID>|<poolAddr>|<addr>")
+	lastTgtHex string            // solo: target hex of the last pushed job (to detect a vardiff change)
+
+	// solo share-difficulty / vardiff state (only used when -solo); guarded by sdMu.
+	sdMu        sync.Mutex
+	fixedDiff   *big.Int // non-nil: miner pinned its own diff (vardiff off)
+	curDiff     *big.Int // current share difficulty
+	emaInterval float64  // EMA of seconds between fresh shares
+	lastShareAt time.Time
+	shareN      int
 }
 
-func (c *client) setJob(jobID, poolID string, extranonce uint64) {
+func (c *client) setJob(jobID, poolID string, extranonce uint64, targetHex string) {
 	c.jobMu.Lock()
 	defer c.jobMu.Unlock()
 	if len(c.jobs) > 32 { // cap memory; recent jobs only
@@ -165,6 +183,29 @@ func (c *client) setJob(jobID, poolID string, extranonce uint64) {
 	c.jobs[jobID] = poolID
 	c.curJobID = jobID
 	c.extranonce = extranonce
+	c.lastTgtHex = targetHex
+}
+
+// curDiffStr returns the connection's current share difficulty as a short string
+// for logs (or "net" in pool mode where the pool owns the difficulty).
+func (c *client) curDiffStr() string {
+	if !soloMode {
+		return "pool"
+	}
+	c.sdMu.Lock()
+	defer c.sdMu.Unlock()
+	if c.curDiff == nil {
+		return "?"
+	}
+	return c.curDiff.String()
+}
+
+// short is the miner address truncated for log lines.
+func (c *client) short() string {
+	if len(c.addr) >= 12 {
+		return c.addr[:12]
+	}
+	return c.addr
 }
 
 func (c *client) send(v any) error {
@@ -205,6 +246,10 @@ func (c *client) handleLogin(id any, params json.RawMessage) bool {
 		return false
 	}
 	c.addr = addr
+	if soloMode {
+		// A miner may pin its own difficulty: "crb1...+50000" or password "diff=50000".
+		c.fixedDiff = parseRequestedDiff(p.Login, p.Pass)
+	}
 	var sid [8]byte
 	_, _ = rand.Read(sid[:])
 	c.session = hex.EncodeToString(sid[:])
@@ -219,10 +264,22 @@ func (c *client) handleLogin(id any, params json.RawMessage) bool {
 		c.sendError(id, "bad template from pool")
 		return false
 	}
-	c.setJob(jobID, poolID, w.Extranonce)
+	tgtHex := w.Target
+	if soloMode {
+		tgtHex = c.shareTargetHex(parseTarget(w.Target))
+		job["target"] = tgtHex
+	}
+	c.setJob(jobID, poolID, w.Extranonce, tgtHex)
 	c.sendResult(id, map[string]any{"id": c.session, "job": job, "status": "OK",
 		"extensions": []string{"algo", "keepalive"}})
-	log.Printf("stratum: login %s… agent=%q", addr[:12], p.Agent)
+	mode := "pool"
+	if soloMode {
+		mode = "solo diff=" + c.curDiffStr()
+		if c.fixedDiff != nil {
+			mode += " (fixed)"
+		}
+	}
+	log.Printf("stratum: login %s… agent=%q [%s] -> job %s", addr[:12], p.Agent, mode, jobID)
 	return true
 }
 
@@ -252,14 +309,77 @@ func (c *client) handleSubmit(id any, params json.RawMessage) {
 	// this connection's id (so two rigs on the same address don't collide), bits 48-63 =
 	// the address-bound extranonce the pool requires.
 	full := (nonce & 0xFFFFFFFF) | (c.connID << 32) | (ex << 48)
+	t0 := time.Now()
+	if soloMode {
+		c.handleSubmitSolo(id, poolID, full, t0)
+		return
+	}
 	accepted, msg := submitToPool(poolID, full)
+	rtt := time.Since(t0).Milliseconds()
 	if accepted {
 		c.sendResult(id, map[string]any{"status": "OK"})
 		if msg == "BLOCK" {
-			log.Printf("stratum: BLOCK found by %s…", c.addr[:12])
+			log.Printf("stratum: ★ BLOCK found by %s…", c.short())
+		} else {
+			vlog("✓ share %s… diff=pool %dms", c.short(), rtt)
 		}
 	} else {
+		vlog("✗ share %s… %s %dms", c.short(), msg, rtt)
 		c.sendError(id, msg)
+	}
+}
+
+// handleSubmitSolo is the -solo submit path: the node decides what is a block, we
+// surface sub-target nonces as accepted feedback shares and feed vardiff.
+func (c *client) handleSubmitSolo(id any, poolID string, full uint64, t0 time.Time) {
+	kind, msg := submitSolo(poolID, full)
+	rtt := time.Since(t0).Milliseconds()
+	switch kind {
+	case "block":
+		c.onSoloShare(time.Now())
+		c.sendResult(id, map[string]any{"status": "OK"})
+		log.Printf("stratum-solo: ★ BLOCK found by %s… %s (%dms)", c.short(), msg, rtt)
+	case "feedback":
+		c.onSoloShare(time.Now())
+		c.sendResult(id, map[string]any{"status": "OK"})
+		vlog("✓ share %s… diff=%s %dms", c.short(), c.curDiffStr(), rtt)
+	case "stale":
+		c.sendResult(id, map[string]any{"status": "OK"}) // soft-ack so the miner isn't spooked
+		vlog("· stale %s… %dms", c.short(), rtt)
+	default:
+		vlog("✗ share %s… %s %dms", c.short(), msg, rtt)
+		c.sendError(id, msg)
+	}
+}
+
+// submitSolo forwards a solo nonce to the NODE and classifies the response. The
+// node is the sole authority on what is a real block, so a found block can never
+// be lost here: result "accepted" -> "block"; a sub-target nonce ("insufficient
+// proof of work") -> a valid "feedback" share; a changed template -> "stale";
+// anything else -> "reject".
+func submitSolo(poolID string, nonce uint64) (kind, msg string) {
+	body, _ := json.Marshal(map[string]any{"id": poolID, "nonce": strconv.FormatUint(nonce, 10)})
+	resp, err := httpClient.Post(poolAPI+"/submitwork", "application/json", strings.NewReader(string(body)))
+	if err != nil {
+		return "reject", "node unreachable"
+	}
+	defer resp.Body.Close()
+	raw, _ := io.ReadAll(resp.Body)
+	var r struct{ Result, Hash, Error string }
+	_ = json.Unmarshal(raw, &r)
+	if r.Result == "accepted" {
+		return "block", r.Hash
+	}
+	e := strings.ToLower(r.Error)
+	switch {
+	case strings.Contains(e, "proof of work"):
+		return "feedback", ""
+	case strings.Contains(e, "stale"), strings.Contains(e, "unknown work"):
+		return "stale", ""
+	case e == "":
+		return "feedback", "" // not accepted, no error: treat as a feedback share
+	default:
+		return "reject", r.Error
 	}
 }
 
@@ -302,12 +422,18 @@ func (c *client) poller(done <-chan struct{}) {
 			if err != nil {
 				continue
 			}
+			tgtHex := w.Target
+			if soloMode {
+				tgtHex = c.shareTargetHex(parseTarget(w.Target))
+				job["target"] = tgtHex
+			}
 			c.jobMu.Lock()
-			changed := jobID != c.curJobID
+			changed := jobID != c.curJobID || (soloMode && tgtHex != c.lastTgtHex)
 			c.jobMu.Unlock()
-			c.setJob(jobID, poolID, w.Extranonce)
+			c.setJob(jobID, poolID, w.Extranonce, tgtHex)
 			if changed {
 				c.pushJob(job)
+				vlog("→ job %s… id=%s diff=%s", c.short(), jobID, c.curDiffStr())
 			}
 		}
 	}
@@ -353,13 +479,20 @@ func main() {
 	listen := flag.String("listen", ":3333", "stratum TCP listen address")
 	flag.StringVar(&poolAPI, "pool", "http://127.0.0.1:18754/api", "pool HTTP API base")
 	flag.DurationVar(&pollEvery, "poll", 2*time.Second, "how often to poll the pool for new work")
+	flag.BoolVar(&soloMode, "solo", false, "solo mode: backend is a NODE; serve an easy vardiff share target for feedback (real blocks still go to the node)")
+	flag.BoolVar(&verbose, "v", false, "verbose: log every job sent and every share with round-trip latency (ms)")
 	flag.Parse()
 
 	ln, err := net.Listen("tcp", *listen)
 	if err != nil {
 		log.Fatalf("stratum: listen %s: %v", *listen, err)
 	}
-	log.Printf("cereblix-stratum bridge on %s -> pool %s", *listen, poolAPI)
+	mode := "pool"
+	if soloMode {
+		mode = "solo (vardiff: default = pool diff, auto-tuned per miner; override with -p diff=N)"
+	}
+	log.Printf("cereblix-stratum bridge on %s -> %s [%s]%s", *listen, poolAPI, mode,
+		map[bool]string{true: " verbose", false: ""}[verbose])
 	for {
 		conn, err := ln.Accept()
 		if err != nil {

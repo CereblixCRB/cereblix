@@ -197,29 +197,37 @@ public pool or server involved? XMRig speaks **Stratum** while the node speaks
 Run it locally against your node and every block you find pays 50 CRB straight
 to your address, validated by your own node.
 
-Downloads:
-[Linux](https://cereblix.com/cereblix-stratum-linux-amd64) ·
-[Windows](https://cereblix.com/cereblix-stratum-windows-amd64.exe) ·
-[macOS arm64](https://cereblix.com/cereblix-stratum-darwin-arm64) ·
-[macOS x64](https://cereblix.com/cereblix-stratum-darwin-amd64)
-— also on the [`xmrig` release](https://github.com/CereblixCRB/cereblix/releases/tag/xmrig),
-or build it yourself: `go build ./cmd/cereblix-stratum`.
+Downloads (on the [`xmrig` release](https://github.com/CereblixCRB/cereblix/releases/tag/xmrig)):
+[Linux](https://github.com/CereblixCRB/cereblix/releases/download/xmrig/cereblix-stratum-linux-amd64) ·
+[Windows](https://github.com/CereblixCRB/cereblix/releases/download/xmrig/cereblix-stratum-windows-amd64.exe) ·
+[macOS arm64](https://github.com/CereblixCRB/cereblix/releases/download/xmrig/cereblix-stratum-darwin-arm64) ·
+[macOS x64](https://github.com/CereblixCRB/cereblix/releases/download/xmrig/cereblix-stratum-darwin-amd64)
+— or build it yourself: `go build ./cmd/cereblix-stratum`.
 
 ```sh
 # 1. run your node and let it sync
 cereblixd -datadir ./data
 
-# 2. bridge Stratum -> your node's getwork (solo, full-network target)
-cereblix-stratum -listen :3334 -pool http://127.0.0.1:18751/api
+# 2. bridge Stratum -> your node, with steady feedback shares + auto-vardiff
+cereblix-stratum -listen :3334 -pool http://127.0.0.1:18751/api -solo
 
 # 3. point XMRig at your local bridge
 xmrig-cereblix -o 127.0.0.1:3334 -a nm/1 -u crb1YOURADDRESS -p x
 ```
 
-The bridge `-pool` flag is just "the getwork HTTP API to mine against": the node
-RPC (`…:18751/api`) for trustless **solo**, or a pool API for **pool** payouts
-through your own local Stratum, e.g.
-`cereblix-stratum -listen :3333 -pool https://cereblix.com/pool/api`.
+`-solo` makes the bridge hand XMRig an **easy "feedback" share target with
+auto-vardiff** (tuned to your CPU's hashrate and the network), so the miner shows
+steady `accepted` shares and a live hashrate instead of looking dead — exactly
+like a pool. **Real blocks still go to your node**, which stays the sole authority
+on what's a block, so a found block can never be lost. The default difficulty
+matches the pool's; pin your own with **`-p diff=50000`** (or login
+`crb1...+50000`). Add **`-v`** to the bridge to log every job sent and every share
+with its round-trip latency.
+
+The `-pool` flag is just "the getwork HTTP API to mine against": the node RPC
+(`…:18751/api`) for trustless **solo** (use `-solo`), or a pool API for **pool**
+payouts through your own local Stratum, e.g.
+`cereblix-stratum -listen :3333 -pool https://cereblix.com/pool/api` (no `-solo`).
 
 ## Standalone CLI wallet
 
