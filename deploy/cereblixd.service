@@ -1,0 +1,52 @@
+[Unit]
+Description=Cereblix (CRB) seed node + miner
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/opt/cerebra/bin/cereblixd \
+  -datadir /var/lib/cerebra \
+  -p2p :18750 \
+  -rpc 127.0.0.1:18751 \
+  -public http://__PUBLIC_IP__:18750 \
+  -peers "" \
+  -maxreorg 100 \
+  -mine -threads 2 \
+  -coinbase __COINBASE__
+Restart=always
+RestartSec=5
+Nice=10
+
+# --- Run unprivileged: a node compromise must not become a server compromise ---
+User=cereblix
+Group=cereblix
+WorkingDirectory=/var/lib/cerebra
+
+# --- systemd sandbox: shrink what the process can touch ---
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/cerebra
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+RestrictAddressFamilies=AF_INET AF_INET6
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+# Keep the chain data private and capped so a bug can't fill the disk endlessly.
+UMask=0077
+LimitNOFILE=4096
+
+[Install]
+WantedBy=multi-user.target

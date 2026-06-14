@@ -1,0 +1,44 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<style>
+@font-face{font-family:'Space Grotesk';font-weight:700;src:url('fonts/spacegrotesk-700.woff2') format('woff2')}
+@font-face{font-family:'Inter';font-weight:500;src:url('fonts/inter-500.woff2') format('woff2')}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#06080f}
+.b{position:relative;width:1200px;height:630px;overflow:hidden;
+  background:radial-gradient(900px 600px at 22% -25%,#13335a 0%,transparent 60%),
+             radial-gradient(820px 580px at 88% 130%,#241a45 0%,transparent 55%),#06080f;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:30px;
+  font-family:'Inter',system-ui,sans-serif;text-align:center}
+.aur{position:absolute;border-radius:50%;filter:blur(90px);opacity:.45;z-index:0}
+.a1{width:420px;height:420px;background:radial-gradient(circle,#29a9eb,transparent 64%);top:-150px;left:60px}
+.a2{width:400px;height:400px;background:radial-gradient(circle,#a78bfa,transparent 64%);bottom:-170px;right:90px}
+.row{display:flex;align-items:center;gap:46px;z-index:1}
+.tile{width:188px;height:188px;border-radius:42px;display:flex;align-items:center;justify-content:center;
+  box-shadow:0 18px 60px rgba(0,0,0,.5)}
+.tg{background:linear-gradient(180deg,#2AABEE 0%,#229ED9 100%)}
+.cb{background:linear-gradient(135deg,#22d3ee 0%,#5ea0f2 50%,#a78bfa 100%)}
+.tg svg{width:108px;height:108px;fill:#fff}
+.cb svg{width:120px;height:120px}
+.x{font-family:'Space Grotesk';font-weight:700;font-size:60px;color:#90a0bd;z-index:1}
+.ttl{font-family:'Space Grotesk';font-weight:700;font-size:60px;letter-spacing:-.02em;line-height:1;z-index:1;
+  background:linear-gradient(110deg,#2AABEE,#22d3ee 55%,#a78bfa);-webkit-background-clip:text;background-clip:text;color:transparent}
+.sub{color:#e8ecf6;font-size:25px;font-weight:500;z-index:1}
+.inv{z-index:1;font-family:'Space Grotesk';font-weight:700;font-size:27px;color:#fff;
+  background:#229ED9;border-radius:999px;padding:12px 32px}
+.url{position:absolute;bottom:26px;right:40px;z-index:1;font-family:'Space Grotesk';font-weight:700;font-size:20px;color:#90a0bd}
+.url b{color:#e8ecf6}
+</style></head>
+<body>
+<div class="b" id="banner">
+  <div class="aur a1"></div><div class="aur a2"></div>
+  <div class="row">
+    <div class="tile tg"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.78 18.65l.28-4.23 7.68-6.92c.34-.31-.07-.46-.52-.19L7.74 13.3 3.64 12c-.88-.25-.89-.86.2-1.3l15.97-6.16c.73-.33 1.43.18 1.15 1.3l-2.72 12.81c-.19.91-.74 1.13-1.5.71L12.6 16.3l-1.99 1.93c-.23.23-.42.42-.83.42z"/></svg></div>
+    <div class="x">×</div>
+    <div class="tile cb"><svg viewBox="0 0 40 40" fill="none" aria-hidden="true"><path d="M14 8C27 13 27 16 20 20 13 24 13 27 26 32" stroke="#06121f" stroke-width="3" stroke-linecap="round"/><path d="M26 8C13 13 13 16 20 20 27 24 27 27 14 32" stroke="#06121f" stroke-width="3" stroke-linecap="round"/></svg></div>
+  </div>
+  <div class="ttl">Cereblix Chat is open</div>
+  <div class="sub">Join the community - mining help · news · chat with the team</div>
+  <div class="inv">💬 Join us on Telegram</div>
+  <div class="url"><b>cereblix.com</b> · CRB</div>
+</div>
+</body></html>

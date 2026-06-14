@@ -1,0 +1,717 @@
+// cereblix-pool: a minimal CPU mining pool for Cereblix.
+//
+// It speaks the SAME getwork/submitwork protocol as the node, so the stock
+// cereblix-miner works against it unchanged - point -node at the pool. The pool
+// hands out work paying to the pool wallet but at an EASIER "share" target, so
+// small miners get steady, low-variance credit even when network difficulty is
+// high. Each submitted share is re-verified (NeuroMorph hash). When a share also
+// meets the real network target the pool forwards the block to the node; the
+// reward (minus a pool fee) is split among miners proportional to their shares
+// in that round, then paid out from the pool wallet once it crosses a threshold.
+package main
+
+import (
+	"bytes"
+	"crypto/ed25519"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"flag"
+	"fmt"
+	"io"
+	"log"
+	"math/big"
+	"net/http"
+	"os"
+	"sort"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+
+	"cereblix/core"
+	nm "cereblix/neuromorph"
+)
+
+var (
+	nodeAPI   string
+	poolAddr  string
+	priv      ed25519.PrivateKey
+	feePermil uint64 // pool fee in per-mille (e.g. 10 = 1%)
+	shareShift uint
+	minPayout uint64
+	statePath string
+	creditSecret string // shared secret guarding /api/credit (faucet captcha shares)
+)
+
+// ---------------------------------------------------------------- work cache
+
+type work struct {
+	nodeID      string
+	header      []byte
+	seed        []byte
+	height      uint64
+	netTarget   *big.Int
+	shareTarget *big.Int
+	seen        map[uint64]bool
+}
+
+var (
+	workMu     sync.Mutex
+	curWork    *work
+	lastFetch  time.Time
+	vmMu       sync.Mutex
+	vm         *nm.VM
+	vmEpoch    uint64 = ^uint64(0)
+)
+
+// Per-miner extranonce: a unique 16-bit tag pinned into the top bits of every
+// nonce a given address mines. Because those bits are part of the hashed header,
+// a valid share is cryptographically bound to one miner — the pool rejects a
+// share whose nonce tag doesn't match the extranonce it issued to that address,
+// so nobody can submit another miner's solution under their own address (and the
+// global nonce dedup no longer collides across miners, since their search spaces
+// are disjoint).
+var (
+	enMu       sync.Mutex
+	enAssigned = map[string]uint64{}
+	enCounter  uint64
+)
+
+func extranonceFor(addr string) uint64 {
+	enMu.Lock()
+	defer enMu.Unlock()
+	if e, ok := enAssigned[addr]; ok {
+		return e
+	}
+	enCounter++
+	e := enCounter & 0xFFFF
+	if enCounter > 0xFFFF {
+		log.Printf("pool: WARNING >65535 distinct miners, extranonce space wrapping")
+	}
+	enAssigned[addr] = e
+	return e
+}
+
+// Rolling log of accepted shares, used to estimate live hashrate (pool-wide and
+// per miner) for the public dashboard.
+type shareEvent struct {
+	t     time.Time
+	miner string
+}
+
+var (
+	shareMu sync.Mutex
+	shareEv []shareEvent
+)
+
+func recordShare(miner string) {
+	now := time.Now()
+	shareMu.Lock()
+	shareEv = append(shareEv, shareEvent{now, miner})
+	cut := now.Add(-10 * time.Minute)
+	i := 0
+	for i < len(shareEv) && shareEv[i].t.Before(cut) {
+		i++
+	}
+	if i > 0 {
+		shareEv = shareEv[i:]
+	}
+	shareMu.Unlock()
+}
+
+// hashesPerShare is the expected number of NeuroMorph hashes per accepted share
+// (2^256 / shareTarget). hashrate = sharesInWindow * hashesPerShare / windowSecs.
+func hashesPerShare() float64 {
+	workMu.Lock()
+	var stgt *big.Int
+	if curWork != nil {
+		stgt = curWork.shareTarget
+	}
+	workMu.Unlock()
+	if stgt == nil || stgt.Sign() <= 0 {
+		return 0
+	}
+	max := new(big.Int).Lsh(big.NewInt(1), 256)
+	hps, _ := new(big.Float).SetInt(new(big.Int).Div(max, stgt)).Float64()
+	return hps
+}
+
+// ------------------------------------------------------------- accounting
+
+type state struct {
+	mu          sync.Mutex
+	Shares      map[string]float64   `json:"-"`        // current round (ephemeral)
+	Earned      map[string]uint64    `json:"earned"`   // cumulative credited - SOURCE OF TRUTH
+	InFlight    map[string]*inflight `json:"inflight"` // payouts sent, awaiting confirmation
+	Owed        map[string]uint64    `json:"owed"`     // DERIVED cache: Earned - on-chain Delivered
+	Paid        map[string]uint64    `json:"paid"`     // DERIVED cache: on-chain Delivered
+	Found       int                  `json:"found"`    // blocks found by the pool
+	RoundShares float64              `json:"-"`
+	ChainHeight uint64               `json:"-"`        // last reconciled chain height
+}
+
+var st = &state{Shares: map[string]float64{}, Earned: map[string]uint64{}, InFlight: map[string]*inflight{}, Owed: map[string]uint64{}, Paid: map[string]uint64{}}
+
+func (s *state) load() {
+	if raw, err := os.ReadFile(statePath); err == nil {
+		_ = json.Unmarshal(raw, s)
+	}
+	if s.Owed == nil {
+		s.Owed = map[string]uint64{}
+	}
+	if s.Paid == nil {
+		s.Paid = map[string]uint64{}
+	}
+	if s.Earned == nil {
+		s.Earned = map[string]uint64{}
+	}
+	if s.InFlight == nil {
+		s.InFlight = map[string]*inflight{}
+	}
+	// One-time migration to chain-reconciled accounting: cumulative Earned is the
+	// old (owed + paid). After this, reconcile() derives Owed/Paid from the chain.
+	if len(s.Earned) == 0 && (len(s.Owed) > 0 || len(s.Paid) > 0) {
+		for m, v := range s.Owed {
+			s.Earned[m] += v
+		}
+		for m, v := range s.Paid {
+			s.Earned[m] += v
+		}
+		log.Printf("pool: migrated %d miners to chain-reconciled accounting (Earned = owed + paid)", len(s.Earned))
+	}
+	s.Shares = map[string]float64{}
+}
+
+func (s *state) save() {
+	raw, _ := json.Marshal(s)
+	_ = os.WriteFile(statePath, raw, 0o600)
+}
+
+// ------------------------------------------------------------------ node i/o
+
+func nodeGet(path string, out any) error {
+	resp, err := http.Get(nodeAPI + path)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("node http %d", resp.StatusCode)
+	}
+	return json.NewDecoder(resp.Body).Decode(out)
+}
+
+// refreshWork fetches a fresh template (paying to the pool) from the node, at
+// most every ~2s, and computes the share target from the network target.
+func refreshWork() (*work, error) {
+	workMu.Lock()
+	defer workMu.Unlock()
+	if curWork != nil && time.Since(lastFetch) < 2*time.Second {
+		return curWork, nil
+	}
+	var gw struct {
+		ID, Header, Target, Seed string
+		Height                   uint64
+		Epoch                    uint64
+	}
+	if err := nodeGet("/getwork?addr="+poolAddr, &gw); err != nil {
+		return nil, err
+	}
+	header, err1 := hex.DecodeString(gw.Header)
+	seed, err2 := hex.DecodeString(gw.Seed)
+	netT, ok := new(big.Int).SetString(gw.Target, 16)
+	if err1 != nil || err2 != nil || !ok || len(header) != core.HeaderLen {
+		return nil, errors.New("bad template from node")
+	}
+	shareT := new(big.Int).Lsh(netT, shareShift)
+	if shareT.Cmp(core.MaxTarget) > 0 {
+		shareT = new(big.Int).Set(core.MaxTarget)
+	}
+	// Rebuild on a new tip OR any header change (e.g. the node rebuilt its
+	// template with a fresh Time after a restart). Serving a stale header would
+	// make miners hash bytes the node no longer validates against, so every block
+	// they find gets rejected as "insufficient proof of work" - wasting real work.
+	if curWork == nil || curWork.nodeID != gw.ID || !bytes.Equal(curWork.header, header) {
+		curWork = &work{nodeID: gw.ID, header: header, seed: seed, height: gw.Height,
+			netTarget: netT, shareTarget: shareT, seen: map[uint64]bool{}}
+	}
+	lastFetch = time.Now()
+	return curWork, nil
+}
+
+func hashFor(w *work, nonce uint64) [32]byte {
+	hdr := make([]byte, len(w.header))
+	copy(hdr, w.header)
+	for i := 0; i < 8; i++ {
+		hdr[core.NonceOffset+i] = byte(nonce >> (8 * i))
+	}
+	epoch := w.height / core.EpochLength
+	vmMu.Lock()
+	if vm == nil || epoch != vmEpoch {
+		vm = nm.NewVM(nm.DeriveParams(w.seed))
+		vmEpoch = epoch
+	}
+	h := vm.Hash(hdr, w.height)
+	vmMu.Unlock()
+	return h
+}
+
+// ------------------------------------------------------------------- handlers
+
+func writeJSON(w http.ResponseWriter, code int, v any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.WriteHeader(code)
+	_ = json.NewEncoder(w).Encode(v)
+}
+
+func getworkHandler(w http.ResponseWriter, r *http.Request) {
+	addr := r.URL.Query().Get("addr")
+	if !core.ValidAddr(addr) {
+		writeJSON(w, 400, map[string]string{"error": "bad or missing addr"})
+		return
+	}
+	wk, err := refreshWork()
+	if err != nil {
+		writeJSON(w, 503, map[string]string{"error": "pool backend unavailable"})
+		return
+	}
+	writeJSON(w, 200, map[string]any{
+		"id":         wk.nodeID + "|" + addr,
+		"header":     hex.EncodeToString(wk.header),
+		"target":     core.TargetToHex(wk.shareTarget),
+		"seed":       hex.EncodeToString(wk.seed),
+		"height":     wk.height,
+		"epoch":      wk.height / core.EpochLength,
+		"extranonce": extranonceFor(addr),
+	})
+}
+
+func submitworkHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		writeJSON(w, 405, map[string]string{"error": "POST only"})
+		return
+	}
+	var req struct {
+		ID    string          `json:"id"`
+		Nonce json.RawMessage `json:"nonce"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, 4096)).Decode(&req); err != nil {
+		writeJSON(w, 400, map[string]string{"error": "bad json"})
+		return
+	}
+	// Accept the nonce as a JSON number OR a quoted string: a 64-bit nonce
+	// (extranonce in the top bits) exceeds JS's 2^53 safe-integer range, so the
+	// browser miner must send it as a string; the native miner sends a number.
+	nonce, perr := strconv.ParseUint(strings.Trim(string(req.Nonce), "\""), 10, 64)
+	if perr != nil {
+		writeJSON(w, 400, map[string]string{"error": "bad nonce"})
+		return
+	}
+	i := strings.LastIndex(req.ID, "|")
+	if i < 0 {
+		writeJSON(w, 400, map[string]string{"error": "bad work id"})
+		return
+	}
+	nodeID, miner := req.ID[:i], req.ID[i+1:]
+	if !core.ValidAddr(miner) {
+		writeJSON(w, 400, map[string]string{"error": "bad miner addr"})
+		return
+	}
+	// Share-binding: the nonce's top-16-bit tag must equal the extranonce this
+	// address was issued. This makes a solution valid for exactly one miner, so
+	// nobody can claim another miner's share by submitting it under their address.
+	if (nonce>>48)&0xFFFF != extranonceFor(miner) {
+		writeJSON(w, 400, map[string]string{"error": "nonce not bound to your extranonce - update your miner"})
+		return
+	}
+	workMu.Lock()
+	wk := curWork
+	stale := wk == nil || wk.nodeID != nodeID
+	workMu.Unlock()
+	if stale {
+		writeJSON(w, 200, map[string]string{"result": "stale"})
+		return
+	}
+	// dedup
+	workMu.Lock()
+	if wk.seen[nonce] {
+		workMu.Unlock()
+		writeJSON(w, 200, map[string]string{"result": "duplicate"})
+		return
+	}
+	wk.seen[nonce] = true
+	workMu.Unlock()
+
+	h := hashFor(wk, nonce)
+	if !core.HashMeetsTarget(h, wk.shareTarget) {
+		writeJSON(w, 400, map[string]string{"error": "low difficulty share"})
+		return
+	}
+	// valid share
+	st.mu.Lock()
+	st.Shares[miner]++
+	st.RoundShares++
+	st.mu.Unlock()
+	recordShare(miner)
+
+	block := core.HashMeetsTarget(h, wk.netTarget)
+	if block {
+		// forward the real block to the node
+		body, _ := json.Marshal(map[string]any{"id": nodeID, "nonce": nonce})
+		resp, err := http.Post(nodeAPI+"/submitwork", "application/json", strings.NewReader(string(body)))
+		if err == nil {
+			raw, _ := io.ReadAll(resp.Body)
+			resp.Body.Close()
+			var rr struct{ Result, Error string }
+			_ = json.Unmarshal(raw, &rr)
+			if rr.Result == "accepted" {
+				onBlockFound(wk.height)
+				log.Printf("pool: BLOCK %d found via miner %s", wk.height, miner[:12])
+			} else {
+				log.Printf("pool: block forward not accepted: %s", rr.Error)
+			}
+		}
+	}
+	writeJSON(w, 200, map[string]any{"result": "share", "block": block})
+}
+
+// onBlockFound splits this block's reward (minus fee) across the round's shares.
+func onBlockFound(height uint64) {
+	reward := core.BlockSubsidy(height)
+	pot := reward - reward*feePermil/1000
+	st.mu.Lock()
+	total := st.RoundShares
+	if total > 0 {
+		for m, s := range st.Shares {
+			if m == poolAddr {
+				continue // operator's own mining already receives the block coinbase
+			}
+			st.Earned[m] += uint64(float64(pot) * (s / total))
+		}
+	}
+	st.Shares = map[string]float64{}
+	st.RoundShares = 0
+	st.Found++
+	st.mu.Unlock()
+	st.save()
+}
+
+// ------------------------------------------------------------------ payouts
+
+func payoutLoop() {
+	reconcile() // align the books with the chain before paying anything
+	for {
+		time.Sleep(60 * time.Second)
+		reconcile() // refresh: confirmed payouts land in Delivered, dropped ones become payable again
+		// Only matured coinbase is spendable; pay out of that and pay PARTIAL if
+		// owed exceeds it (the rest follows as more blocks mature).
+		var bal struct {
+			Spendable uint64 `json:"spendable"`
+		}
+		if err := nodeGet("/balance?addr="+poolAddr, &bal); err != nil {
+			continue
+		}
+		avail := bal.Spendable
+		// Payable per miner = owed (chain-derived) MINUS anything already in flight,
+		// so a payout is never sent twice while its tx is still confirming.
+		st.mu.Lock()
+		inflightPer := map[string]uint64{}
+		for _, fl := range st.InFlight {
+			inflightPer[fl.Miner] += fl.Gross
+		}
+		var list []due
+		for m, owed := range st.Owed {
+			if m == poolAddr || inflightPer[m] >= owed {
+				continue
+			}
+			if a := owed - inflightPer[m]; a >= minPayout {
+				list = append(list, due{m, a})
+			}
+		}
+		h := st.ChainHeight
+		st.mu.Unlock()
+		// Split the spendable budget across miners PROPORTIONALLY to what each is
+		// owed (a miner owed 1000 drains ~10x faster than one owed 100), instead of
+		// fully paying whoever came first. Under scarcity the big debts drain in
+		// step with the small ones rather than starving behind them.
+		for _, d := range planPayouts(list, avail, minPayout) {
+			txid, err := send(d.m, d.amt)
+			if err != nil {
+				log.Printf("pool: payout to %s deferred: %v", d.m[:12], err)
+				continue
+			}
+			st.mu.Lock()
+			st.InFlight[txid] = &inflight{Miner: d.m, Gross: d.amt, SentHeight: h}
+			st.mu.Unlock()
+			st.save()
+			log.Printf("pool: payout sent %s -> %s (%s) [awaiting confirmation]", crb(d.amt), d.m[:12], txid[:12])
+		}
+	}
+}
+
+// due is one miner's payable amount this cycle.
+type due struct {
+	m   string
+	amt uint64
+}
+
+// planPayouts decides how much to pay each miner from `avail` this cycle. If the
+// budget covers everyone, each gets their full owed. Under scarcity it splits the
+// budget PROPORTIONALLY to each miner's debt (owed 1000 -> 10x the slice of owed
+// 100), largest first, skipping slices below minPayout so we never burn a fee on
+// dust. Pure function -> unit-tested.
+func planPayouts(list []due, avail, minPayout uint64) []due {
+	if len(list) == 0 || avail < minPayout {
+		return nil
+	}
+	var total uint64
+	for _, d := range list {
+		total += d.amt
+	}
+	sort.Slice(list, func(i, j int) bool { return list[i].amt > list[j].amt })
+	scarce := avail < total
+	budget := avail
+	var plan []due
+	for _, d := range list {
+		if budget < minPayout {
+			break
+		}
+		pay := d.amt
+		if scarce {
+			// proportional slice of the (original) budget by share of total owed:
+			// pay = avail * amt / total, exact integer math (no float rounding, no
+			// uint64 overflow).
+			pay = new(big.Int).Div(
+				new(big.Int).Mul(new(big.Int).SetUint64(avail), new(big.Int).SetUint64(d.amt)),
+				new(big.Int).SetUint64(total),
+			).Uint64()
+			if pay > d.amt {
+				pay = d.amt
+			}
+		}
+		if pay > budget {
+			pay = budget
+		}
+		if pay < minPayout {
+			continue // would be dust; this miner accrues for a later cycle
+		}
+		plan = append(plan, due{d.m, pay})
+		budget -= pay
+	}
+	return plan
+}
+
+var sendMu sync.Mutex
+var nextNonce uint64 // local nonce counter (covers pending mempool txs)
+
+func send(to string, amount uint64) (string, error) {
+	sendMu.Lock()
+	defer sendMu.Unlock()
+	var status struct {
+		Height uint64 `json:"height"`
+		Fee    uint64 `json:"fee_suggested"`
+	}
+	if err := nodeGet("/status", &status); err != nil {
+		return "", err
+	}
+	var acc struct {
+		Balance uint64 `json:"balance"`
+		Nonce   uint64 `json:"nonce"`
+	}
+	if err := nodeGet("/balance?addr="+poolAddr, &acc); err != nil {
+		return "", err
+	}
+	fee := status.Fee
+	if fee == 0 {
+		fee = 1000
+	}
+	if amount <= fee {
+		return "", errors.New("amount below fee")
+	}
+	netAmt := amount - fee // miner covers the tx fee out of their payout
+	if acc.Balance < netAmt+fee {
+		return "", errors.New("pool wallet has no spendable balance yet")
+	}
+	nonce := acc.Nonce
+	if nextNonce > nonce {
+		nonce = nextNonce
+	}
+	tx := &core.Tx{To: to, Amount: netAmt, Fee: fee, Nonce: nonce}
+	core.SignTxAt(tx, priv, status.Height+1)
+	body, _ := json.Marshal(tx)
+	resp, err := http.Post(nodeAPI+"/tx", "application/json", strings.NewReader(string(body)))
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	raw, _ := io.ReadAll(resp.Body)
+	var rr struct{ TxID, Error string }
+	_ = json.Unmarshal(raw, &rr)
+	if rr.Error != "" {
+		if strings.Contains(rr.Error, "nonce") {
+			nextNonce = 0
+		}
+		return "", errors.New(rr.Error)
+	}
+	nextNonce = nonce + 1
+	return rr.TxID, nil
+}
+
+func crb(v uint64) string { return strconv.FormatFloat(float64(v)/float64(core.CoinUnit), 'f', -1, 64) + " CRB" }
+
+// --------------------------------------------------------------------- stats
+
+func statsHandler(w http.ResponseWriter, r *http.Request) {
+	const window = 5 * time.Minute
+	hps := hashesPerShare()
+	// shares per miner in the last `window`, for live hashrate
+	cut := time.Now().Add(-window)
+	recent := map[string]int{}
+	recentTotal := 0
+	shareMu.Lock()
+	for _, e := range shareEv {
+		if e.t.After(cut) {
+			recent[e.miner]++
+			recentTotal++
+		}
+	}
+	shareMu.Unlock()
+	hashrateOf := func(n int) float64 { return float64(n) * hps / window.Seconds() }
+
+	st.mu.Lock()
+	var totalOwed, totalPaid uint64
+	seen := map[string]bool{}
+	miners := []map[string]any{}
+	add := func(m string) {
+		if seen[m] || m == poolAddr {
+			return
+		}
+		seen[m] = true
+		miners = append(miners, map[string]any{
+			"address":  m,
+			"shares":   st.Shares[m],
+			"owed":     st.Owed[m],
+			"paid":     st.Paid[m],
+			"earned":   st.Earned[m],
+			"hashrate": hashrateOf(recent[m]),
+		})
+	}
+	for m := range st.Shares {
+		add(m)
+	}
+	for m := range st.Owed {
+		totalOwed += st.Owed[m]
+		add(m)
+	}
+	for _, p := range st.Paid {
+		totalPaid += p
+	}
+	// Include every miner the pool has ever credited (even fully paid out, owed 0)
+	// so the dashboard's "show all" can display the complete, auditable set.
+	for m := range st.Paid {
+		add(m)
+	}
+	for m := range st.Earned {
+		add(m)
+	}
+	out := map[string]any{
+		"pool_address":   poolAddr,
+		"fee_permil":     feePermil,
+		"blocks_found":   st.Found,
+		"round_shares":   st.RoundShares,
+		"min_payout":     minPayout,
+		"active_miners":  len(recent),
+		"pool_hashrate":  hashrateOf(recentTotal),
+		"hashes_per_share": hps,
+		"total_owed":     totalOwed,
+		"total_paid":     totalPaid,
+		"share_window_s": int(window.Seconds()),
+		"miners":         miners,
+	}
+	st.mu.Unlock()
+	writeJSON(w, 200, out)
+}
+
+// creditHandler lets the LOCAL faucet credit captcha shares to an address, so the
+// captcha wallet earns a steady slice of pool blocks instead of only the rare
+// full-block jackpot. The /pool/ path is reverse-proxied publicly, so a loopback
+// check isn't enough (everything arrives from Apache as 127.0.0.1) - a shared
+// secret is what stops an outsider crediting themselves shares. Disabled unless a
+// secret is configured.
+func creditHandler(w http.ResponseWriter, r *http.Request) {
+	if creditSecret == "" || r.Header.Get("X-Credit-Secret") != creditSecret {
+		writeJSON(w, 403, map[string]string{"error": "forbidden"})
+		return
+	}
+	addr := r.URL.Query().Get("addr")
+	if !core.ValidAddr(addr) {
+		writeJSON(w, 400, map[string]string{"error": "bad addr"})
+		return
+	}
+	n, _ := strconv.ParseFloat(r.URL.Query().Get("shares"), 64)
+	if n <= 0 || n > 100 {
+		n = 1
+	}
+	st.mu.Lock()
+	st.Shares[addr] += n
+	st.RoundShares += n
+	st.mu.Unlock()
+	recordShare(addr)
+	writeJSON(w, 200, map[string]any{"result": "credited", "addr": addr, "shares": n})
+}
+
+func main() {
+	listen := flag.String("listen", "127.0.0.1:18754", "listen address")
+	flag.StringVar(&nodeAPI, "node", "http://127.0.0.1:18751/api", "node API base")
+	keyfile := flag.String("keyfile", "/opt/cerebra/faucet-wallet.txt", "pool wallet file with PRIVATE KEY line")
+	fee := flag.Float64("fee", 1.0, "pool fee percent")
+	shift := flag.Uint("shareshift", 8, "share target = netTarget << shift (bigger = easier shares)")
+	minp := flag.Float64("minpayout", 0.05, "minimum CRB before a payout is sent")
+	flag.StringVar(&statePath, "state", "/var/lib/cerebra/pool.json", "state file")
+	flag.StringVar(&chainFile, "chain", "/var/lib/cerebra/blocks.jsonl", "node chain file for payout reconciliation")
+	creditSecretFile := flag.String("credit-secret-file", "", "file with the shared secret guarding /api/credit (faucet captcha)")
+	flag.Parse()
+
+	if *creditSecretFile != "" {
+		if b, err := os.ReadFile(*creditSecretFile); err == nil {
+			creditSecret = strings.TrimSpace(string(b))
+		}
+	}
+
+	feePermil = uint64(*fee * 10)
+	shareShift = *shift
+	minPayout = uint64(*minp * float64(core.CoinUnit))
+
+	raw, err := os.ReadFile(*keyfile)
+	if err != nil {
+		log.Fatalf("read keyfile: %v", err)
+	}
+	var skHex string
+	for _, line := range strings.Split(string(raw), "\n") {
+		if strings.Contains(line, "PRIVATE KEY") {
+			f := strings.Fields(line)
+			skHex = f[len(f)-1]
+		}
+	}
+	sk, err := hex.DecodeString(strings.TrimSpace(skHex))
+	if err != nil || len(sk) != ed25519.PrivateKeySize {
+		log.Fatalf("bad private key in keyfile")
+	}
+	priv = ed25519.PrivateKey(sk)
+	poolAddr = core.AddrFromPub(priv.Public().(ed25519.PublicKey))
+	st.load()
+	reconcile() // align books with the chain at startup (recovers anything dropped on a restart)
+	log.Printf("pool: addr %s fee %.1f%% shareshift %d minpayout %s listen %s",
+		poolAddr, *fee, shareShift, crb(minPayout), *listen)
+
+	go payoutLoop()
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/getwork", getworkHandler)
+	mux.HandleFunc("/api/submitwork", submitworkHandler)
+	mux.HandleFunc("/api/poolstats", statsHandler)
+	mux.HandleFunc("/api/credit", creditHandler)
+	log.Fatal(http.ListenAndServe(*listen, mux))
+}

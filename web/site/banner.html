@@ -1,0 +1,35 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<style>
+@font-face{font-family:'Space Grotesk';font-weight:500;src:url('fonts/spacegrotesk-500.woff2') format('woff2')}
+@font-face{font-family:'Space Grotesk';font-weight:700;src:url('fonts/spacegrotesk-700.woff2') format('woff2')}
+@font-face{font-family:'Inter';font-weight:400;src:url('fonts/inter-400.woff2') format('woff2')}
+@font-face{font-family:'Inter';font-weight:500;src:url('fonts/inter-500.woff2') format('woff2')}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#06080f}
+.banner{position:relative;width:1080px;height:300px;overflow:hidden;background:radial-gradient(900px 500px at 12% -40%,#13234a 0%,transparent 60%),radial-gradient(700px 480px at 100% 130%,#1c1440 0%,transparent 55%),#06080f;display:flex;align-items:center;gap:38px;padding:0 56px;font-family:'Inter',system-ui,sans-serif}
+.aur{position:absolute;border-radius:50%;filter:blur(70px);opacity:.5;z-index:0}
+.a1{width:340px;height:340px;background:radial-gradient(circle,#22d3ee,transparent 64%);top:-150px;left:-60px}
+.a2{width:300px;height:300px;background:radial-gradient(circle,#a78bfa,transparent 64%);bottom:-150px;right:200px}
+.logo{flex:0 0 auto;width:150px;height:150px;z-index:1;filter:drop-shadow(0 8px 26px rgba(34,211,238,.45))}
+.txt{z-index:1}
+.title{font-family:'Space Grotesk';font-weight:700;font-size:62px;letter-spacing:-.02em;line-height:1;background:linear-gradient(110deg,#22d3ee,#a78bfa);-webkit-background-clip:text;background-clip:text;color:transparent}
+.tag{color:#e8ecf6;font-size:19px;font-weight:500;margin-top:12px;letter-spacing:.005em}
+.tag b{color:#22d3ee}
+.chips{display:flex;gap:9px;margin-top:16px;flex-wrap:wrap}
+.chip{font-family:'Space Grotesk';font-weight:700;font-size:12.5px;color:#34d399;border:1px solid rgba(52,211,153,.45);background:rgba(52,211,153,.1);border-radius:999px;padding:5px 13px}
+.chip.b{color:#a78bfa;border-color:rgba(167,139,250,.45);background:rgba(167,139,250,.1)}
+.url{position:absolute;right:56px;bottom:26px;z-index:1;font-family:'Space Grotesk';font-weight:700;font-size:20px;color:#90a0bd}
+.url b{color:#e8ecf6}
+</style></head>
+<body>
+<div class="banner" id="banner">
+  <div class="aur a1"></div><div class="aur a2"></div>
+  <svg class="logo" viewBox="0 0 40 40" fill="none" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse"><stop stop-color="#22d3ee"/><stop offset="1" stop-color="#a78bfa"/></linearGradient></defs><rect x="2" y="2" width="36" height="36" rx="11" fill="url(#lg)"/><path d="M14 8C27 13 27 16 20 20 13 24 13 27 26 32" stroke="#06121f" stroke-width="2.3" stroke-linecap="round"/><path d="M26 8C13 13 13 16 20 20 27 24 27 27 14 32" stroke="#06121f" stroke-width="2.3" stroke-linecap="round"/></svg>
+  <div class="txt">
+    <div class="title">CEREBLIX</div>
+    <div class="tag">CPU-only cryptocurrency · self-mutating <b>NeuroMorph</b> proof-of-work</div>
+    <div class="chips"><span class="chip">NO PREMINE</span><span class="chip">NO PRESALE</span><span class="chip">FAIR LAUNCH</span><span class="chip b">MINE IN BROWSER</span><span class="chip b">1 CPU = 1 VOTE</span></div>
+  </div>
+  <div class="url"><b>cereblix.com</b> · CRB</div>
+</div>
+</body></html>

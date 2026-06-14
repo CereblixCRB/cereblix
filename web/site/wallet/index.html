@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cereblix Wallet - веб-кошелёк CRB</title>
+<meta name="theme-color" content="#06080f">
+<link rel="icon" type="image/svg+xml" href="../favicon.svg">
+<script src="nacl.min.js" integrity="sha384-LMUiUHpaYNGZFzWFRjsADnCSqae1Mk5llcUOHOLDhCxkyF2cdsWAueTZAzV+swW/"></script>
+<style>
+@font-face{font-family:'Space Grotesk';font-weight:500;font-display:swap;src:url('../fonts/spacegrotesk-500.woff2') format('woff2')}
+@font-face{font-family:'Space Grotesk';font-weight:700;font-display:swap;src:url('../fonts/spacegrotesk-700.woff2') format('woff2')}
+@font-face{font-family:'Inter';font-weight:400;font-display:swap;src:url('../fonts/inter-400.woff2') format('woff2')}
+@font-face{font-family:'Inter';font-weight:500;font-display:swap;src:url('../fonts/inter-500.woff2') format('woff2')}
+@font-face{font-family:'Inter';font-weight:700;font-display:swap;src:url('../fonts/inter-700.woff2') format('woff2')}
+:root{--bg:#06080f;--panel:#0e1424;--glass:rgba(146,180,255,.05);--border:rgba(146,180,255,.13);--border2:rgba(120,200,255,.35);--acc:#22d3ee;--acc2:#a78bfa;--txt:#e8ecf6;--mut:#90a0bd;--ok:#34d399;--err:#f87171;--fd:'Space Grotesk',system-ui,sans-serif;--grad:linear-gradient(115deg,var(--acc),var(--acc2))}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--txt);font:16px/1.6 'Inter',system-ui,Segoe UI,Roboto,sans-serif;min-height:100vh;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+html{overflow-x:hidden}
+::selection{background:rgba(34,211,238,.28)}
+.bg{position:fixed;inset:0;z-index:-2;overflow:hidden;background:radial-gradient(1100px 680px at 70% -10%,#13234a 0%,transparent 60%),radial-gradient(760px 520px at 0% 0%,#1c1440 0%,transparent 55%),var(--bg)}
+.aurora{position:absolute;border-radius:50%;filter:blur(90px);opacity:.4;will-change:transform}
+.aurora.a1{width:460px;height:460px;background:radial-gradient(circle,#22d3ee,transparent 64%);top:-170px;right:-90px;animation:dr1 24s ease-in-out infinite}
+.aurora.a2{width:430px;height:430px;background:radial-gradient(circle,#a78bfa,transparent 64%);top:-130px;left:-110px;animation:dr2 28s ease-in-out infinite}
+@keyframes dr1{50%{transform:translate(50px,40px) scale(1.1)}}
+@keyframes dr2{50%{transform:translate(-45px,50px) scale(1.06)}}
+@media(prefers-reduced-motion:reduce){.aurora{animation:none}}
+.wrap{max-width:880px;margin:0 auto;padding:14px 16px 64px}
+.logo{flex:0 0 auto;display:block}
+nav{display:flex;align-items:center;gap:14px;padding:6px 0 8px;flex-wrap:wrap}
+nav .brand{display:flex;align-items:center;gap:11px;text-decoration:none;color:var(--txt)}
+nav .brand .logo{width:34px;height:34px;filter:drop-shadow(0 4px 13px rgba(34,211,238,.4))}
+nav .brand b{font-family:var(--fd);font-size:20px;font-weight:700;letter-spacing:-.01em}
+nav .brand b i{font-style:normal;color:var(--acc2)}
+nav .links{margin-left:auto;display:flex;gap:16px;flex-wrap:wrap;align-items:center}
+nav .links a{color:var(--mut);text-decoration:none;font-size:14.5px;font-weight:500;white-space:nowrap}
+nav .links a:hover,nav .links a.active{color:var(--acc)}
+@media(max-width:560px){nav .links{margin-left:0;width:100%;gap:15px;overflow-x:auto}}
+.title{font-family:var(--fd);font-size:24px;font-weight:700;letter-spacing:-.02em;margin:16px 0 4px}.title span{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+h1{font-family:var(--fd);font-size:22px}h1 span{color:var(--acc)}
+a{color:var(--acc);text-decoration:none}
+.card{background:var(--glass);border:1px solid var(--border);border-radius:18px;padding:22px;margin-bottom:16px;overflow-x:auto;backdrop-filter:blur(8px)}
+.card h2{font-family:var(--fd);font-size:17px;margin-bottom:12px;color:#e8ecf6}
+button{background:var(--grad);border:0;color:#06121f;font-family:var(--fd);font-weight:700;padding:11px 18px;border-radius:11px;cursor:pointer;font-size:15px;box-shadow:0 8px 22px -8px rgba(34,211,238,.5);transition:transform .15s,filter .15s}
+button:hover{transform:translateY(-1px);filter:brightness(1.05)}
+button.ghost{background:var(--glass);color:var(--txt);border:1px solid var(--border);box-shadow:none}
+button:disabled{opacity:.5;cursor:default;transform:none}
+input{width:100%;background:#0b1120;border:1px solid var(--border);border-radius:11px;color:var(--txt);padding:11px 12px;font-size:15px;margin:4px 0 12px}
+input:focus{outline:none;border-color:var(--acc)}
+.addr{font-family:ui-monospace,Consolas,monospace;font-size:14px;word-break:break-all;background:#0b1120;border:1px dashed var(--border2);border-radius:11px;padding:11px 12px;cursor:pointer}
+.bal{font-family:var(--fd);font-size:40px;font-weight:700;margin:8px 0;word-break:break-all}
+.bal small{font-size:18px;color:var(--acc)}
+@media(max-width:560px){.bal{font-size:30px}}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.row>*{flex:1;min-width:140px}
+.muted{color:var(--mut);font-size:13.5px}
+.warn{background:#3a1d1d;border:1px solid #7f1d1d;border-radius:11px;padding:12px;font-size:14px;margin:10px 0}
+.key{font-family:ui-monospace,Consolas,monospace;font-size:12.5px;word-break:break-all;background:#0b1120;border-radius:9px;padding:10px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+td,th{padding:9px 6px;border-bottom:1px solid var(--border);text-align:left}
+th{color:var(--mut);font-weight:600}
+.in{color:var(--ok)}.out{color:var(--err)}
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#0e1424;border:1px solid var(--acc);padding:12px 20px;border-radius:12px;display:none;max-width:90vw}
+.hidden{display:none}
+.mono{font-family:ui-monospace,Consolas,monospace}
+.langsw{display:inline-flex;gap:2px;border:1px solid var(--border);border-radius:9px;overflow:hidden;height:fit-content;background:var(--glass)}
+.langsw button{background:transparent;color:var(--mut);border:0;padding:5px 10px;cursor:pointer;font-size:13px;font-weight:600;font-family:inherit;box-shadow:none}
+.langsw button.on{background:var(--grad);color:#06121f}
+</style>
+</head>
+<body>
+<div class="bg" aria-hidden="true"><div class="aurora a1"></div><div class="aurora a2"></div></div>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse"><stop stop-color="#22d3ee"/><stop offset="1" stop-color="#a78bfa"/></linearGradient></defs></svg>
+<div class="wrap">
+<nav>
+  <a class="brand" href="../"><svg class="logo" viewBox="0 0 40 40" fill="none" aria-hidden="true"><rect x="2" y="2" width="36" height="36" rx="11" fill="url(#lg)"/><path d="M14 8C27 13 27 16 20 20 13 24 13 27 26 32" stroke="#06121f" stroke-width="2.5" stroke-linecap="round"/><path d="M26 8C13 13 13 16 20 20 27 24 27 27 14 32" stroke="#06121f" stroke-width="2.5" stroke-linecap="round"/></svg><b>Cereb<i>lix</i></b></a>
+  <div class="links">
+    <a href="../" data-i="nav_home">Home</a>
+    <a href="../#mine" data-i="nav_mine">Mine</a>
+    <a href="../pool.html" data-i="nav_pool">Pool</a>
+    <a href="../explorer.html" data-i="nav_explorer">Explorer</a>
+    <a href="./" class="active" data-i="nav_wallet">Wallet</a>
+    <a href="../faucet.html" data-i="nav_faucet">Faucet</a>
+    <a href="../#roadmap" data-i="nav_roadmap">Roadmap</a>
+    <a href="https://github.com/Cereblix/cereblix" target="_blank" rel="noopener">GitHub</a>
+    <span class="langsw"><button data-lang="en" onclick="setLang('en')">EN</button><button data-lang="ru" onclick="setLang('ru')">RU</button></span>
+  </div>
+</nav>
+<div class="title">Cereblix <span data-i="wallet">Wallet</span></div>
+
+<div id="setup" class="card">
+  <h2 data-i="wallet">Wallet</h2>
+  <p class="muted" style="margin-bottom:12px" data-i="setup_p">Keys are created and stored <b>only in your browser</b>. The server never sees your private key - transactions are signed locally (ed25519).</p>
+  <div class="row">
+    <button onclick="createWallet()" data-i="create">Create new wallet</button>
+    <button class="ghost" onclick="document.getElementById('importBox').classList.toggle('hidden')" data-i="import">Import key</button>
+  </div>
+  <div id="importBox" class="hidden" style="margin-top:14px">
+    <input id="importKey" data-ph="import_ph" placeholder="Private key (128 hex chars)">
+    <button onclick="importWallet()" data-i="import_btn">Import</button>
+  </div>
+  <div id="newKeyBox" class="hidden">
+    <div class="warn" data-i="newkey_warn">⚠️ Save your private key somewhere safe. It is the <b>only</b> way to recover your wallet. Lose the key - lose the coins.</div>
+    <div class="key" id="newKey"></div>
+    <div style="margin-top:10px"><button onclick="ackKey()" data-i="saved_btn">I saved the key - continue</button></div>
+  </div>
+</div>
+
+<div id="main" class="hidden">
+  <div class="card">
+    <h2 data-i="balance">Balance</h2>
+    <div class="bal"><span id="balance">…</span> <small>CRB</small></div>
+    <div class="muted" id="unconf" style="margin-top:4px"></div>
+    <div class="muted" data-i="your_addr">Your address (click to copy):</div>
+    <div class="addr" id="myaddr" onclick="copyAddr()"></div>
+    <div class="muted" style="margin-top:8px">nonce: <span id="nonce">0</span> · <a href="#" onclick="exportKey();return false" data-i="show_key">show private key</a> · <a href="#" onclick="logout();return false" data-i="logout">log out</a></div>
+  </div>
+
+  <div class="card">
+    <h2 data-i="send_crb">Send CRB</h2>
+    <input id="sendTo" data-ph="send_to_ph" placeholder="Recipient address (crb1...)">
+    <div class="row">
+      <div><input id="sendAmount" data-ph="amount_ph" placeholder="Amount CRB" type="number" step="0.00000001" min="0"></div>
+      <div><input id="sendFee" oninput="feeEdited=true" type="number" step="0.00000001" min="0" title="fee" placeholder="auto"></div>
+    </div>
+    <div class="muted" style="margin-top:4px" id="feeHint"></div>
+    <button id="sendBtn" onclick="sendTx()" data-i="sign_send">Sign and send</button>
+    <div class="muted" style="margin-top:8px" data-i="fee_note">The fee goes to the block's miner. No minimum is set - but blocks fill by descending fee.</div>
+  </div>
+
+  <div class="card">
+    <h2 data-i="history">History</h2>
+    <table><thead><tr><th data-i="h_block">Block</th><th data-i="h_type">Type</th><th data-i="h_addr">Address</th><th data-i="h_amount">Amount</th></tr></thead>
+    <tbody id="history"><tr><td colspan="4" class="muted" data-i="loading">loading…</td></tr></tbody></table>
+  </div>
+</div>
+
+<div class="card">
+  <h2 data-i="network">Network</h2>
+  <div class="muted" id="netinfo" data-i="connecting">connecting…</div>
+</div>
+</div>
+<div id="toast"></div>
+
+<script>
+const API = location.pathname.replace(/wallet\/?.*/, '') + 'api';
+const UNIT = 1e8;
+let keys = null; // {secretKey: Uint8Array(64), publicKey: Uint8Array(32), address}
+let feeEdited = false; // becomes true once the user types a custom fee
+let feeFloor = 0, feeSuggested = 0; // latest network min / recommended fee (synapses)
+// Transaction history paging: the live top page (refreshed) + older pages the
+// user loads on demand, so every tx is reachable without huge node payloads.
+const HIST_PAGE = 30;
+let histRecent = [], histExtra = [], histPendingRows = '', histTotal = 0, histLoading = false;
+
+const $ = id => document.getElementById(id);
+const hex = b => Array.from(b).map(x=>x.toString(16).padStart(2,'0')).join('');
+const unhex = s => new Uint8Array(s.match(/.{2}/g).map(x=>parseInt(x,16)));
+
+const L = {
+  en:{nav_home:"Home",nav_mine:"Mine",nav_pool:"Pool",nav_explorer:"Explorer",nav_wallet:"Wallet",nav_faucet:"Faucet",nav_roadmap:"Roadmap",about:"about",wallet:"Wallet",setup_p:"Keys are created and stored <b>only in your browser</b>. The server never sees your private key - transactions are signed locally (ed25519).",
+    create:"Create new wallet",import:"Import key",import_ph:"Private key (128 hex chars)",import_btn:"Import",
+    newkey_warn:"⚠️ Save your private key somewhere safe. It is the <b>only</b> way to recover your wallet. Lose the key - lose the coins.",
+    saved_btn:"I saved the key - continue",balance:"Balance",your_addr:"Your address (click to copy):",show_key:"show private key",logout:"log out",
+    send_crb:"Send CRB",send_to_ph:"Recipient address (crb1...)",amount_ph:"Amount CRB",sign_send:"Sign and send",
+    fee_note:"The fee is set automatically from current network load - pay more to confirm sooner when busy. You can override it.",
+    fee_rec:(sug,floor,busy)=>`Recommended: <b>${sug}</b> CRB${busy?" (network busy - higher fee = sooner)":" (network clear)"} · min ${floor}`,
+    fee_auto:"use recommended",
+    fee_low:(floor)=>`fee below the network minimum (${floor} CRB)`,
+    history:"History",h_block:"Block",h_type:"Type",h_addr:"Address",h_amount:"Amount",loading:"loading…",network:"Network",connecting:"connecting…",
+    e_keylen:"key must be 128 hex characters",err:"Error",copied:"Address copied",
+    show_confirm:"Show the private key? Make sure nobody is looking at the screen.",your_key:"Your private key:",
+    logout_confirm:"Remove the key from this browser? Without a saved copy you'll lose access to the coins.",
+    out:"− sent",in_:"+ received",empty_hist:"empty so far - mine or receive your first CRB",pend:"pending",unconf:"Unconfirmed",loadmore:"Load more",showing:"showing",of:"of",
+    net:(s)=>`height <b>${s.height}</b> · epoch ${s.epoch} · network hashrate ~<b>${((+s.hashrate||0)/1e6).toFixed(2)}</b> MH/s · supply ${fmt(s.supply)} CRB · reward ${fmt(s.reward)} CRB · mempool ${s.mempool}`,
+    node_down:"node unavailable: ",bad_to:"invalid recipient address",bad_amount:"invalid amount",
+    speedup:"speed up",cancel_tx:"cancel",
+    speedup_confirm:(o,n)=>`Re-broadcast this payment with a higher fee so it confirms sooner?\n\nFee: ${o} → ${n} CRB (same recipient, same amount).`,
+    cancel_confirm:(n)=>`Cancel this pending transaction?\n\nIt will be replaced by a tiny self-send (fee ${n} CRB) at the same nonce, so the original payment never executes. Only works while it is still unconfirmed.`,
+    sped_up:(id)=>`Speed-up sent (TX ${id}…) - higher fee, same nonce`,
+    canceled:(id)=>`Cancel sent (TX ${id}…) - the original is voided once this confirms`,
+    sent:(id)=>`Sent! TX ${id}… - will be in the next block`},
+  ru:{nav_home:"Главная",nav_mine:"Майнинг",nav_pool:"Пул",nav_explorer:"Обозреватель",nav_wallet:"Кошелёк",nav_faucet:"Кран",nav_roadmap:"Дорожная карта",about:"о проекте",wallet:"Кошелёк",setup_p:"Ключи создаются и хранятся <b>только в вашем браузере</b>. Сервер никогда не видит приватный ключ - подпись транзакций происходит локально (ed25519).",
+    create:"Создать новый кошелёк",import:"Импортировать ключ",import_ph:"Приватный ключ (128 hex-символов)",import_btn:"Импортировать",
+    newkey_warn:"⚠️ Сохраните приватный ключ в надёжном месте. Это <b>единственный</b> способ восстановить кошелёк. Потеряете ключ - потеряете монеты.",
+    saved_btn:"Я сохранил ключ - продолжить",balance:"Баланс",your_addr:"Ваш адрес (нажмите, чтобы скопировать):",show_key:"показать приватный ключ",logout:"выйти",
+    send_crb:"Отправить CRB",send_to_ph:"Адрес получателя (crb1...)",amount_ph:"Сумма CRB",sign_send:"Подписать и отправить",
+    fee_note:"Комиссия выставляется автоматически по текущей загрузке сети - при загрузке платите больше, чтобы подтвердиться быстрее. Можно изменить вручную.",
+    fee_rec:(sug,floor,busy)=>`Рекомендуется: <b>${sug}</b> CRB${busy?" (сеть загружена - выше комса = быстрее)":" (сеть свободна)"} · минимум ${floor}`,
+    fee_auto:"взять рекомендованную",
+    fee_low:(floor)=>`комиссия ниже сетевого минимума (${floor} CRB)`,
+    history:"История",h_block:"Блок",h_type:"Тип",h_addr:"Адрес",h_amount:"Сумма",loading:"загрузка…",network:"Сеть",connecting:"подключение…",
+    e_keylen:"ключ должен быть 128 hex-символов",err:"Ошибка",copied:"Адрес скопирован",
+    show_confirm:"Показать приватный ключ? Убедитесь, что никто не смотрит на экран.",your_key:"Ваш приватный ключ:",
+    logout_confirm:"Удалить ключ из этого браузера? Без сохранённой копии ключа вы потеряете доступ к монетам.",
+    out:"− отправка",in_:"+ получение",empty_hist:"пока пусто - намайните или получите первые CRB",pend:"в мемпуле",unconf:"Неподтверждённый",loadmore:"Показать ещё",showing:"показано",of:"из",
+    net:(s)=>`высота <b>${s.height}</b> · эпоха ${s.epoch} · хэшрейт сети ~<b>${((+s.hashrate||0)/1e6).toFixed(2)}</b> MH/s · эмиссия ${fmt(s.supply)} CRB · награда за блок ${fmt(s.reward)} CRB · мемпул ${s.mempool}`,
+    node_down:"нода недоступна: ",bad_to:"некорректный адрес получателя",bad_amount:"некорректная сумма",
+    speedup:"ускорить",cancel_tx:"отменить",
+    speedup_confirm:(o,n)=>`Переотправить этот платёж с большей комиссией, чтобы он подтвердился быстрее?\n\nКомиссия: ${o} → ${n} CRB (тот же получатель и сумма).`,
+    cancel_confirm:(n)=>`Отменить эту неподтверждённую транзакцию?\n\nОна будет заменена крошечной самоотправкой (комиссия ${n} CRB) с тем же nonce, и исходный платёж не выполнится. Работает, только пока транзакция в мемпуле.`,
+    sped_up:(id)=>`Ускорение отправлено (TX ${id}…) - выше комиссия, тот же nonce`,
+    canceled:(id)=>`Отмена отправлена (TX ${id}…) - исходная аннулируется после подтверждения`,
+    sent:(id)=>`Отправлено! TX ${id}… - попадёт в ближайший блок`}
+};
+let LANG = (function(){ const s=localStorage.getItem('lang'); return (s==='ru'||s==='en')?s:((navigator.language||'en').toLowerCase().startsWith('ru')?'ru':'en'); })();
+const t = k => (L[LANG][k] ?? L.en[k] ?? k);
+const loc = () => LANG==='ru'?'ru-RU':'en-US';
+const fmt = v => (v/UNIT).toLocaleString(loc(),{maximumFractionDigits:8});
+function setLang(l){ LANG=l; localStorage.setItem('lang',l); applyChrome(); if(keys) refresh(); netInfo(); }
+function applyChrome(){
+  document.documentElement.lang = LANG;
+  document.querySelectorAll('[data-i]').forEach(el=>el.innerHTML=t(el.getAttribute('data-i')));
+  document.querySelectorAll('[data-ph]').forEach(el=>el.placeholder=t(el.getAttribute('data-ph')));
+  document.querySelectorAll('.langsw button').forEach(b=>b.classList.toggle('on', b.dataset.lang===LANG));
+}
+
+function toast(msg, ms=3500){ const t=$('toast'); t.textContent=msg; t.style.display='block'; clearTimeout(t._h); t._h=setTimeout(()=>t.style.display='none',ms); }
+
+// Pure-JS SHA-256: WebCrypto (crypto.subtle) is unavailable on plain HTTP,
+// so we never depend on it.
+function sha256(data){
+  const K = [0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
+    0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
+    0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,
+    0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,
+    0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,
+    0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,
+    0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,
+    0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];
+  let H = [0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19];
+  const len = data.length, bitLen = len * 8;
+  const padded = new Uint8Array(((len + 8) >> 6 << 6) + 64);
+  padded.set(data); padded[len] = 0x80;
+  const dv = new DataView(padded.buffer);
+  dv.setUint32(padded.length - 8, Math.floor(bitLen / 0x100000000));
+  dv.setUint32(padded.length - 4, bitLen >>> 0);
+  const w = new Int32Array(64);
+  const rr = (x,n) => (x >>> n) | (x << (32 - n));
+  for (let i = 0; i < padded.length; i += 64){
+    for (let t = 0; t < 16; t++) w[t] = dv.getInt32(i + t*4);
+    for (let t = 16; t < 64; t++){
+      const s0 = rr(w[t-15],7) ^ rr(w[t-15],18) ^ (w[t-15] >>> 3);
+      const s1 = rr(w[t-2],17) ^ rr(w[t-2],19) ^ (w[t-2] >>> 10);
+      w[t] = (w[t-16] + s0 + w[t-7] + s1) | 0;
+    }
+    let [a,b,c,d,e,f,g,h] = H;
+    for (let t = 0; t < 64; t++){
+      const S1 = rr(e,6) ^ rr(e,11) ^ rr(e,25);
+      const ch = (e & f) ^ (~e & g);
+      const t1 = (h + S1 + ch + K[t] + w[t]) | 0;
+      const S0 = rr(a,2) ^ rr(a,13) ^ rr(a,22);
+      const mj = (a & b) ^ (a & c) ^ (b & c);
+      const t2 = (S0 + mj) | 0;
+      h=g; g=f; f=e; e=(d + t1)|0; d=c; c=b; b=a; a=(t1 + t2)|0;
+    }
+    H = H.map((x,j) => (x + [a,b,c,d,e,f,g,h][j]) | 0);
+  }
+  const out = new Uint8Array(32);
+  const ov = new DataView(out.buffer);
+  H.forEach((x,j) => ov.setInt32(j*4, x));
+  return out;
+}
+
+async function addrFromPub(pub){
+  return 'crb1' + hex(sha256(pub).slice(0,20));
+}
+
+async function setKeys(secretHex){
+  const sk = unhex(secretHex);
+  if (sk.length !== 64) throw new Error(t('e_keylen'));
+  const kp = nacl.sign.keyPair.fromSecretKey(sk);
+  keys = { secretKey: sk, publicKey: kp.publicKey, address: await addrFromPub(kp.publicKey) };
+}
+
+// Refuse to mint a key unless a cryptographically secure RNG is present.
+// crypto.getRandomValues IS available on plain HTTP (unlike crypto.subtle);
+// real TweetNaCl uses it and throws without it - this guards against a tampered
+// or stripped build silently seeding keys from a weak source.
+function assertCSPRNG(){
+  if (!(window.crypto && typeof window.crypto.getRandomValues === 'function'))
+    throw new Error(LANG==='ru'
+      ? 'Нет криптостойкого генератора случайных чисел - отказ в создании ключа. Откройте по HTTPS в современном браузере.'
+      : 'No secure random generator - refusing to create a key. Open over HTTPS in a modern browser.');
+}
+
+async function createWallet(){
+  try {
+    assertCSPRNG();
+    const kp = nacl.sign.keyPair();
+    $('newKey').textContent = hex(kp.secretKey);
+    $('newKeyBox').classList.remove('hidden');
+    $('importBox').classList.add('hidden');
+    await setKeys(hex(kp.secretKey));
+  } catch(e){ toast(t('err') + ': ' + e.message); }
+}
+
+async function ackKey(){
+  localStorage.setItem('cereblix_sk', hex(keys.secretKey));
+  enterWallet();
+}
+
+async function importWallet(){
+  try {
+    await setKeys($('importKey').value.trim());
+    localStorage.setItem('cereblix_sk', hex(keys.secretKey));
+    enterWallet();
+  } catch(e){ toast(t('err') + ': ' + e.message); }
+}
+
+function exportKey(){
+  if (confirm(t('show_confirm')))
+    prompt(t('your_key'), hex(keys.secretKey));
+}
+
+function logout(){
+  if (confirm(t('logout_confirm'))){
+    localStorage.removeItem('cereblix_sk'); location.reload();
+  }
+}
+
+function enterWallet(){
+  $('setup').classList.add('hidden');
+  $('main').classList.remove('hidden');
+  $('myaddr').textContent = keys.address;
+  refresh();
+}
+
+function copyAddr(){ navigator.clipboard.writeText(keys.address); toast(t('copied')); }
+
+async function api(path, opts){
+  const r = await fetch(API + path, opts);
+  const j = await r.json();
+  if (j.error) throw new Error(j.error);
+  return j;
+}
+
+async function refresh(){
+  if (!keys) return;
+  try {
+    const myPub = hex(keys.publicKey);
+    const b = await api('/balance?addr=' + keys.address);
+    $('nonce').textContent = b.nonce;
+    histRecent = await api('/history?addr=' + keys.address + '&limit=' + HIST_PAGE + '&offset=0').catch(()=>[]) || [];
+    histTotal = b.txn != null ? b.txn : histRecent.length;
+    // pending (unconfirmed) txns from the mempool that involve this address
+    let mp = []; try { mp = await api('/mempool') || []; } catch(e){}
+    const pendBadge = `<span style="background:#7a5b12;color:#ffd97a;border-radius:6px;padding:1px 6px;font-size:11px">${t('pend')}</span>`;
+    let delta = 0;
+    window._pendOut = {}; // nonce -> {to,amount,fee} for replace-by-fee actions
+    const pr = (mp||[]).filter(x => x.to === keys.address || x.from_pub === myPub).map(x => {
+      const out = x.from_pub === myPub;
+      const peer = out ? x.to : ('crb1' + hex(sha256(unhex(x.from_pub)).slice(0,20)));
+      delta += out ? -(x.amount + x.fee) : x.amount;
+      let actions = '';
+      if (out) {
+        window._pendOut[x.nonce] = { to: x.to, amount: x.amount, fee: x.fee };
+        actions = `<div style="margin-top:3px;font-size:12px">`
+          + `<a href="#" onclick="speedUp(${x.nonce});return false">⚡ ${t('speedup')}</a> · `
+          + `<a href="#" onclick="cancelTx(${x.nonce});return false">✖ ${t('cancel_tx')}</a></div>`;
+      }
+      return `<tr><td>${pendBadge}</td><td class="${out?'out':'in'}">${out?t('out'):t('in_')}</td>
+        <td class="mono" style="font-size:12px">${peer.slice(0,16)}…${actions}</td>
+        <td class="${out?'out':'in'}">${out?'−':'+'}${fmt(x.amount)}</td></tr>`;
+    }).join('');
+    histPendingRows = pr;
+    $('balance').textContent = fmt(b.balance);
+    $('unconf').innerHTML = delta !== 0
+      ? `${t('unconf')}: <b>${fmt(b.balance + delta)}</b> CRB ${delta>0?'(+':'('}${fmt(delta)} ${t('pend')})`
+      : '';
+    renderHistory();
+  } catch(e){ console.error(e); }
+}
+
+// renderHistory composes pending + the live top page + on-demand older pages,
+// de-duplicated by txid, with a "load more" control until every tx is shown.
+function renderHistory(){
+  const seen = new Set();
+  const confirmed = histRecent.concat(histExtra).filter(h => {
+    if (seen.has(h.txid)) return false; seen.add(h.txid); return true;
+  });
+  const rows = confirmed.map(h => {
+    const out = h.from === keys.address;
+    const peer = out ? h.to : h.from;
+    return `<tr><td>${h.height}</td><td class="${out?'out':'in'}">${out?t('out'):t('in_')}</td>
+      <td class="mono" style="font-size:12px">${(peer||'').slice(0,16)}…</td>
+      <td class="${out?'out':'in'}">${out?'−':'+'}${fmt(h.amount)}</td></tr>`;
+  }).join('');
+  const more = confirmed.length < histTotal;
+  const footer = (histTotal > 0)
+    ? `<tr><td colspan="4" style="text-align:center;padding-top:10px">
+        ${more ? `<button class="ghost" style="padding:6px 14px;font-size:13px" onclick="loadMoreHist()" ${histLoading?'disabled':''}>${t('loadmore')}</button>` : ''}
+        <span class="muted" style="font-size:12px;display:block;margin-top:5px">${t('showing')} ${confirmed.length} ${t('of')} ${histTotal}</span></td></tr>`
+    : '';
+  $('history').innerHTML = (histPendingRows + rows + footer) || `<tr><td colspan="4" class="muted">${t('empty_hist')}</td></tr>`;
+}
+
+async function loadMoreHist(){
+  if (histLoading || !keys) return;
+  histLoading = true; renderHistory();
+  try {
+    const offset = histRecent.length + histExtra.length;
+    const more = await api('/history?addr=' + keys.address + '&limit=' + HIST_PAGE + '&offset=' + offset);
+    const seen = new Set(histRecent.concat(histExtra).map(h => h.txid));
+    histExtra = histExtra.concat((more || []).filter(h => !seen.has(h.txid)));
+  } catch(e){ console.error(e); }
+  histLoading = false; renderHistory();
+}
+
+const toCrb = s => (s / UNIT).toFixed(8).replace(/0+$/, '').replace(/\.$/, '');
+function resetFee(){ feeEdited = false; netInfo(); }
+
+async function netInfo(){
+  try {
+    const s = await api('/status');
+    $('netinfo').innerHTML = t('net')(s);
+    if (s.fee_suggested != null) {
+      feeSuggested = s.fee_suggested;
+      feeFloor = (s.fee_floor != null) ? s.fee_floor : s.fee_suggested;
+      if (!feeEdited) $('sendFee').value = toCrb(s.fee_suggested);
+      const busy = s.fee_suggested > feeFloor;
+      const fh = $('feeHint');
+      if (fh) fh.innerHTML = t('fee_rec')(toCrb(s.fee_suggested), toCrb(feeFloor), busy)
+        + (feeEdited ? ` · <a href="#" onclick="resetFee();return false">${t('fee_auto')}</a>` : '');
+    }
+  } catch(e){ $('netinfo').textContent = t('node_down') + e.message; }
+}
+
+// signAndPost builds, locally signs and broadcasts one transaction. nonce is
+// explicit so a replacement can reuse a pending tx's nonce (replace-by-fee).
+async function signAndPost(to, amount, fee, nonce){
+  const st = await api('/status');
+  const tx = { from_pub: hex(keys.publicKey), to, amount, fee, nonce };
+  // Consensus signing payload - must match the Go node's Tx.signingPayloadFor
+  // verbatim ("cerebra-tx-v1"; a protocol constant, not the brand). From
+  // chain_id_height the payload also binds chain_id (the genesis hash) so a
+  // signature cannot be replayed onto a fork/testnet. Sign for the next block.
+  const nextHeight = (st.height || 0) + 1;
+  const payload = (st.chain_id && nextHeight >= st.chain_id_height)
+    ? `cerebra-tx-v1|${st.chain_id}|${tx.from_pub}|${tx.to}|${tx.amount}|${tx.fee}|${tx.nonce}`
+    : `cerebra-tx-v1|${tx.from_pub}|${tx.to}|${tx.amount}|${tx.fee}|${tx.nonce}`;
+  tx.sig = hex(nacl.sign.detached(new TextEncoder().encode(payload), keys.secretKey));
+  return api('/tx', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(tx)});
+}
+
+async function sendTx(){
+  try {
+    const to = $('sendTo').value.trim();
+    const amount = Math.round(parseFloat($('sendAmount').value) * UNIT);
+    const fee = Math.round(parseFloat($('sendFee').value || '0') * UNIT);
+    if (!/^crb1[0-9a-f]{40}$/.test(to)) throw new Error(t('bad_to'));
+    if (!(amount > 0)) throw new Error(t('bad_amount'));
+    if (feeFloor && fee < feeFloor) throw new Error(t('fee_low')(toCrb(feeFloor)));
+    const b = await api('/balance?addr=' + keys.address);
+    $('sendBtn').disabled = true;
+    const res = await signAndPost(to, amount, fee, b.nonce);
+    toast(t('sent')(res.txid.slice(0,16)));
+    $('sendTo').value = ''; $('sendAmount').value = '';
+    setTimeout(refresh, 2000);
+  } catch(e){ toast(t('err') + ': ' + e.message, 6000); }
+  finally { $('sendBtn').disabled = false; }
+}
+
+// bumpFee returns a fee that clears the node's replace-by-fee bar (old +10%, at
+// least +1 synapse), or the current network recommendation if it is higher.
+function bumpFee(oldFee){
+  let mn = oldFee + Math.floor(oldFee/10);
+  if (mn <= oldFee) mn = oldFee + 1;
+  return Math.max(mn, feeSuggested||0);
+}
+
+// speedUp / cancelTx replace a still-pending outgoing tx via replace-by-fee:
+// speed-up re-sends the same payment at a higher fee; cancel replaces it with a
+// 0-value self-send at the same nonce so the original never executes.
+async function speedUp(nonce){
+  const p = (window._pendOut||{})[nonce]; if (!p) return;
+  const fee = bumpFee(p.fee);
+  if (!confirm(t('speedup_confirm')(toCrb(p.fee), toCrb(fee)))) return;
+  try {
+    const res = await signAndPost(p.to, p.amount, fee, +nonce);
+    toast(t('sped_up')(res.txid.slice(0,16)));
+    setTimeout(refresh, 1500);
+  } catch(e){ toast(t('err') + ': ' + e.message, 6000); }
+}
+async function cancelTx(nonce){
+  const p = (window._pendOut||{})[nonce]; if (!p) return;
+  const fee = bumpFee(p.fee);
+  if (!confirm(t('cancel_confirm')(toCrb(fee)))) return;
+  try {
+    // Consensus rejects a 0-amount tx, so cancel with the smallest valid amount
+    // (1 synapse) paid back to yourself - only the fee is actually spent.
+    const res = await signAndPost(keys.address, 1, fee, +nonce);
+    toast(t('canceled')(res.txid.slice(0,16)));
+    setTimeout(refresh, 1500);
+  } catch(e){ toast(t('err') + ': ' + e.message, 6000); }
+}
+
+(async function init(){
+  applyChrome();
+  const saved = localStorage.getItem('cereblix_sk');
+  if (saved) { try { await setKeys(saved); enterWallet(); } catch(e){ localStorage.removeItem('cereblix_sk'); } }
+  netInfo();
+  setInterval(netInfo, 15000);
+  setInterval(refresh, 15000);
+})();
+</script>
+</body>
+</html>

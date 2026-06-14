@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cereblix (CRB) - CPU-only coin on the NeuroMorph algorithm</title>
+<meta name="description" content="Cereblix - a 2026 cryptocurrency you can mine only on a CPU. Self-mutating NeuroMorph PoW, fair launch with no premine.">
+<meta name="theme-color" content="#06080f">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Cereblix (CRB) - the coin your CPU mines">
+<meta property="og:description" content="A self-mutating NeuroMorph proof-of-work that lives on your processor. No GPU, no ASIC, ever. Fair launch, no premine.">
+<meta property="og:image" content="https://cereblix.com/logo.png">
+<style>
+@font-face{font-family:'Space Grotesk';font-style:normal;font-weight:500;font-display:swap;src:url('fonts/spacegrotesk-500.woff2') format('woff2')}
+@font-face{font-family:'Space Grotesk';font-style:normal;font-weight:700;font-display:swap;src:url('fonts/spacegrotesk-700.woff2') format('woff2')}
+@font-face{font-family:'Inter';font-style:normal;font-weight:400;font-display:swap;src:url('fonts/inter-400.woff2') format('woff2')}
+@font-face{font-family:'Inter';font-style:normal;font-weight:500;font-display:swap;src:url('fonts/inter-500.woff2') format('woff2')}
+@font-face{font-family:'Inter';font-style:normal;font-weight:700;font-display:swap;src:url('fonts/inter-700.woff2') format('woff2')}
+:root{
+  --bg:#06080f;--panel:#0e1424;
+  --glass:rgba(146,180,255,.05);--glass2:rgba(146,180,255,.08);
+  --border:rgba(146,180,255,.13);--border2:rgba(120,200,255,.35);
+  --acc:#22d3ee;--acc2:#a78bfa;--acc3:#38bdf8;
+  --txt:#e8ecf6;--mut:#90a0bd;--ok:#34d399;
+  --fd:'Space Grotesk',system-ui,sans-serif;
+  --grad:linear-gradient(115deg,var(--acc),var(--acc2));
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{overflow-x:hidden;scroll-behavior:smooth}
+body{background:var(--bg);color:var(--txt);font:16px/1.65 'Inter',system-ui,Segoe UI,Roboto,sans-serif;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+[id]{scroll-margin-top:78px}
+a{color:var(--acc)}
+::selection{background:rgba(34,211,238,.28)}
+/* ---- animated background ---- */
+.bg{position:fixed;inset:0;z-index:-2;overflow:hidden;background:
+  radial-gradient(1200px 720px at 50% -12%,#13234a 0%,transparent 60%),
+  radial-gradient(820px 560px at 100% -4%,#1c1440 0%,transparent 55%),
+  radial-gradient(700px 520px at 0% 18%,#08213a 0%,transparent 55%),var(--bg)}
+.aurora{position:absolute;border-radius:50%;filter:blur(90px);opacity:.5;will-change:transform}
+.aurora.a1{width:520px;height:520px;background:radial-gradient(circle,#22d3ee,transparent 64%);top:-170px;left:-90px;animation:dr1 24s ease-in-out infinite}
+.aurora.a2{width:480px;height:480px;background:radial-gradient(circle,#a78bfa,transparent 64%);top:-130px;right:-110px;animation:dr2 28s ease-in-out infinite}
+.aurora.a3{width:440px;height:440px;background:radial-gradient(circle,#38bdf8,transparent 64%);top:420px;left:38%;opacity:.22;animation:dr3 32s ease-in-out infinite}
+@keyframes dr1{50%{transform:translate(60px,40px) scale(1.1)}}
+@keyframes dr2{50%{transform:translate(-50px,55px) scale(1.06)}}
+@keyframes dr3{50%{transform:translate(45px,-30px) scale(1.12)}}
+.bg .grid{position:absolute;inset:0;background-image:linear-gradient(rgba(146,180,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(146,180,255,.05) 1px,transparent 1px);background-size:56px 56px;-webkit-mask-image:radial-gradient(1000px 640px at 50% -2%,#000,transparent 76%);mask-image:radial-gradient(1000px 640px at 50% -2%,#000,transparent 76%)}
+.grain{position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.035;mix-blend-mode:overlay;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+@media(prefers-reduced-motion:reduce){.aurora{animation:none}}
+.wrap{max-width:1040px;margin:0 auto;padding:0 18px}
+/* ---- logo ---- */
+.logo{flex:0 0 auto;display:block}
+.brand .logo{width:34px;height:34px;filter:drop-shadow(0 4px 13px rgba(34,211,238,.4))}
+/* ---- nav ---- */
+.navwrap{position:sticky;top:0;z-index:50;backdrop-filter:blur(14px) saturate(1.5);-webkit-backdrop-filter:blur(14px) saturate(1.5);background:rgba(6,8,15,.6);border-bottom:1px solid var(--border)}
+nav{display:flex;align-items:center;gap:14px;padding:11px 0;flex-wrap:wrap}
+nav .brand{display:flex;align-items:center;gap:11px;text-decoration:none;color:var(--txt)}
+nav .brand b{font-family:var(--fd);font-size:20px;font-weight:700;letter-spacing:-.01em}
+nav .brand b i{font-style:normal;color:var(--acc2)}
+nav .links{margin-left:auto;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+nav .links a{color:var(--mut);text-decoration:none;font-size:14.5px;font-weight:500;white-space:nowrap;transition:color .15s}
+nav .links a:hover,nav .links a.active{color:var(--txt)}
+nav .links a.active{color:var(--acc)}
+@media(max-width:560px){nav .links{margin-left:0;width:100%;gap:15px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px}}
+.langsw{display:inline-flex;gap:2px;border:1px solid var(--border);border-radius:9px;overflow:hidden;background:var(--glass)}
+.langsw button{background:transparent;color:var(--mut);border:0;padding:5px 10px;cursor:pointer;font-size:13px;font-weight:600;font-family:inherit}
+.langsw button.on{background:var(--grad);color:#06121f}
+/* ---- buttons ---- */
+.btn{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:8px;font-family:var(--fd);font-weight:700;font-size:15px;line-height:1.2;padding:12px 22px;border-radius:13px;text-decoration:none;cursor:pointer;color:#06121f;background:var(--grad);box-shadow:0 8px 22px -6px rgba(34,211,238,.5);transition:transform .15s,box-shadow .15s,filter .15s;border:0}
+.btn:hover{transform:translateY(-2px);box-shadow:0 14px 30px -6px rgba(34,211,238,.62);filter:brightness(1.05)}
+.btn.ghost{background:var(--glass);color:var(--txt);border:1px solid var(--border);box-shadow:none;backdrop-filter:blur(6px)}
+.btn.ghost:hover{border-color:var(--border2);box-shadow:0 8px 22px -8px rgba(34,211,238,.45)}
+.tg-btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;background:linear-gradient(135deg,#2AABEE,#229ED9);color:#fff;font-family:var(--fd);font-weight:700;font-size:17px;padding:14px 30px;border-radius:14px;text-decoration:none;box-shadow:0 10px 26px -6px rgba(34,158,217,.5);transition:transform .15s,box-shadow .15s,filter .15s}
+.tg-btn:hover{transform:translateY(-2px);filter:brightness(1.07);box-shadow:0 16px 32px -6px rgba(34,158,217,.6)}
+.tg-btn svg{width:23px;height:23px;fill:#fff;flex:0 0 auto}
+.hero-cta{max-width:460px;margin:0 auto 12px;display:flex;flex-direction:column;gap:12px}
+.cta-row{display:flex;gap:12px}
+.cta-row .btn{flex:1 1 0;padding:14px;font-size:15px;text-align:center}
+.tg-btn.full{width:100%}
+.social-row{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;width:100%}
+.soc{flex:0 1 calc(33.333% - 6px);min-width:0;display:flex;flex-direction:column;align-items:center;gap:5px;padding:10px 3px;border:1px solid var(--border);border-radius:12px;background:var(--glass);color:var(--mut);text-decoration:none;font-size:10.5px;font-weight:600;transition:border-color .15s,color .15s,transform .15s}
+.soc:hover{border-color:var(--acc);color:var(--acc);transform:translateY(-2px)}
+.soc svg{width:21px;height:21px;fill:currentColor;flex:0 0 auto}
+.soc span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+/* ---- hero ---- */
+.hero{position:relative;padding:74px 0 34px;text-align:center}
+.hero-logo{display:flex;justify-content:center;margin-bottom:22px}
+.hero-logo .logo{width:64px;height:64px;filter:drop-shadow(0 8px 26px rgba(123,167,255,.5))}
+.badge{display:inline-flex;align-items:center;gap:8px;padding:6px 15px;border-radius:999px;background:var(--glass);border:1px solid var(--border);font-size:13px;font-weight:500;color:var(--mut);margin-bottom:22px;backdrop-filter:blur(6px)}
+.badge .dot{width:7px;height:7px;border-radius:50%;background:var(--ok);box-shadow:0 0 9px var(--ok);animation:pulse 2.2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.hero h1{font-family:var(--fd);font-size:clamp(33px,6vw,58px);font-weight:700;line-height:1.07;letter-spacing:-.025em;max-width:920px;margin:0 auto 20px}
+.hero h1 em{font-style:normal;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero p{color:var(--mut);max-width:680px;margin:0 auto 30px;font-size:clamp(15px,2.2vw,19px)}
+/* RU text is longer - shrink it so the hero (and the Telegram button) fits one screen */
+html[lang="ru"] .hero h1{font-size:clamp(26px,4.5vw,43px)}
+html[lang="ru"] .hero p{font-size:clamp(14px,1.9vw,16.5px);max-width:640px;margin-bottom:24px}
+/* ---- stats ---- */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(140px,100%),1fr));gap:13px;margin:42px 0 6px}
+.stat{position:relative;background:var(--glass);border:1px solid var(--border);border-radius:16px;padding:18px 10px;text-align:center;backdrop-filter:blur(8px);transition:transform .2s,border-color .2s}
+.stat::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;background:var(--grad);opacity:.75;border-radius:16px 16px 0 0}
+.stat:hover{transform:translateY(-3px);border-color:var(--border2)}
+.stat:hover,.stat:focus-within{z-index:10}
+.stat b{display:block;font-family:var(--fd);font-size:21px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stat b.sm{font-size:18px}
+.stat span{color:var(--mut);font-size:12.5px}
+.stat b.ep-wrap{overflow:visible;white-space:nowrap}
+#s-epoch{font-family:var(--fd);font-size:24px;font-weight:700;color:var(--acc)}
+.stat .qmark{font-size:11px}
+.qmark{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:var(--glass2);border:1px solid var(--border);color:var(--acc);font-size:11px;font-weight:700;cursor:help;margin-left:5px;position:relative;vertical-align:middle}
+.qmark .tip{display:none;position:absolute;bottom:150%;right:-6px;left:auto;width:min(248px,80vw);background:#0c1322;border:1px solid var(--acc);border-radius:10px;padding:11px 13px;font-size:12.5px;font-weight:400;color:var(--txt);line-height:1.5;z-index:20;text-align:left;box-shadow:0 8px 28px rgba(0,0,0,.55);white-space:normal}
+.qmark .tip b{color:var(--acc)}
+.qmark .tip .ep-next{display:block;margin-top:7px;color:var(--acc2);font-weight:600}
+.qmark:hover .tip,.qmark:focus .tip{display:block}
+/* ---- sections ---- */
+section{padding:54px 0;position:relative}
+h2{font-family:var(--fd);font-size:clamp(26px,4vw,34px);font-weight:700;letter-spacing:-.02em;margin-bottom:24px}
+h2 em{font-style:normal;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(280px,100%),1fr));gap:16px}
+.card{position:relative;background:var(--glass);border:1px solid var(--border);border-radius:18px;padding:24px;backdrop-filter:blur(8px);overflow-x:auto;transition:transform .2s,border-color .2s}
+.grid .card:hover{transform:translateY(-3px);border-color:var(--border2)}
+.card h3{font-family:var(--fd);font-size:18px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:10px}
+.card h3 .ico{font-size:21px;flex:0 0 auto}
+.card p{color:var(--mut);font-size:15px}
+/* ---- mine hub ---- */
+.mine-choose{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr));gap:16px;margin-bottom:22px}
+.mine-card{position:relative;display:block;background:var(--glass);border:1px solid var(--border);border-radius:18px;padding:24px;text-decoration:none;color:var(--txt);backdrop-filter:blur(8px);overflow:hidden;transition:border-color .15s,transform .15s}
+.mine-card::before{content:"";position:absolute;inset:0;background:radial-gradient(420px 160px at 50% 0%,rgba(34,211,238,.1),transparent 70%);opacity:0;transition:opacity .2s}
+.mine-card:hover{border-color:var(--border2);transform:translateY(-3px)}
+.mine-card:hover::before{opacity:1}
+.mine-card .mc-ic{font-size:34px;margin-bottom:6px}
+.mine-card b{font-family:var(--fd);font-size:18px;display:block}
+.mine-card p{color:var(--mut);font-size:14.5px;margin:8px 0 12px}
+.mine-card .mc-go{color:var(--acc);font-weight:700;font-size:14.5px}
+/* ---- steps ---- */
+.steps{counter-reset:s}
+.step{display:flex;gap:16px;margin-bottom:18px;background:var(--glass);border:1px solid var(--border);border-radius:16px;padding:18px;backdrop-filter:blur(8px)}
+.step>div{min-width:0;flex:1}
+.step pre{max-width:100%}
+.step::before{counter-increment:s;content:counter(s);min-width:34px;height:34px;border-radius:50%;background:var(--grad);color:#06121f;font-family:var(--fd);font-weight:700;display:flex;align-items:center;justify-content:center;flex:0 0 auto;box-shadow:0 6px 16px -4px rgba(34,211,238,.5)}
+code,pre{font-family:ui-monospace,Consolas,monospace;background:#0b1120;border-radius:8px}
+code{padding:2px 7px;font-size:14px;word-break:break-all;border:1px solid var(--border)}
+pre{padding:14px;overflow-x:auto;font-size:13.5px;border:1px solid var(--border);margin:10px 0}
+b{font-weight:700}
+.step b,.card h3,.mine-card b{color:var(--txt)}
+table{width:100%;border-collapse:collapse;font-size:15px}
+td,th{padding:11px 8px;border-bottom:1px solid var(--border);text-align:left}
+th{color:var(--mut);font-weight:600}
+.faq details{background:var(--glass);border:1px solid var(--border);border-radius:14px;padding:15px 18px;margin-bottom:10px;backdrop-filter:blur(8px)}
+.faq summary{cursor:pointer;font-weight:600;font-family:var(--fd)}
+.faq p{color:var(--mut);margin-top:10px;font-size:15px}
+footer{padding:40px 18px;color:var(--mut);font-size:14px;border-top:1px solid var(--border);margin-top:34px;text-align:center}
+footer .social{display:flex;gap:10px 22px;justify-content:center;flex-wrap:wrap;margin:0 auto 18px;max-width:560px;font-weight:600}
+footer .social a{color:var(--acc);text-decoration:none}
+footer .social a:hover{text-decoration:underline}
+footer .foot-line{margin:0 auto 6px;max-width:640px;line-height:1.6}
+footer .foot-sub{margin:0 auto;max-width:640px;line-height:1.6;opacity:.75}
+.warn{background:linear-gradient(135deg,rgba(167,139,250,.12),rgba(34,211,238,.06));border:1px solid var(--border2);border-radius:14px;padding:14px 18px;font-size:14.5px;color:#cbd5e1;margin-top:18px;backdrop-filter:blur(6px)}
+/* DNA double helix - the "-lix" (helix) in Cereblix, the self-mutating chain */
+.dna{display:flex;justify-content:center;align-items:center;gap:7px;height:64px;margin:26px 0 8px;overflow:hidden}
+.dna .bp{position:relative;width:3px;height:46px;flex:0 0 auto}
+.dna .bp i{position:absolute;left:50%;width:9px;height:9px;margin-left:-4.5px;border-radius:50%;animation:dna 3s ease-in-out infinite}
+.dna .bp i.a{background:var(--acc);animation-name:dnaA;box-shadow:0 0 8px rgba(34,211,238,.6)}
+.dna .bp i.b{background:var(--acc2);animation-name:dnaB;box-shadow:0 0 8px rgba(167,139,250,.6)}
+.dna .bp s{position:absolute;left:50%;top:50%;width:1px;height:0;margin-left:-0.5px;background:linear-gradient(var(--acc),var(--acc2));opacity:.25;transform:translateY(-50%);animation:dnaR 3s ease-in-out infinite}
+@keyframes dnaA{0%,100%{top:0;transform:scale(1);opacity:1}50%{top:37px;transform:scale(.55);opacity:.45}}
+@keyframes dnaB{0%,100%{top:37px;transform:scale(.55);opacity:.45}50%{top:0;transform:scale(1);opacity:1}}
+@keyframes dnaR{0%,100%{height:37px;top:4px}50%{height:6px;top:20px}}
+.naming{position:relative;background:linear-gradient(135deg,rgba(167,139,250,.1),rgba(12,19,34,.6));border:1px solid var(--border);border-radius:20px;padding:28px;backdrop-filter:blur(8px);overflow:hidden}
+.naming .word{font-family:var(--fd);font-size:clamp(30px,7vw,40px);font-weight:700;letter-spacing:-.01em;text-align:center;margin-bottom:6px}
+.naming .word .cere{color:var(--acc)}.naming .word .lix{color:var(--acc2)}
+.naming .gloss{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:18px}
+.naming .gloss div{background:rgba(12,19,34,.55);border:1px solid var(--border);border-radius:14px;padding:16px}
+.naming .gloss b{font-family:var(--fd);color:var(--txt)}.naming .gloss p{color:var(--mut);font-size:14px;margin-top:5px}
+.naming .tag2{text-align:center;color:var(--mut);font-size:14.5px;margin-top:18px}
+.naming .tag2 b{color:var(--acc)}
+@media(max-width:560px){.naming .gloss{grid-template-columns:1fr}}
+@media(max-width:560px){.aurora{filter:blur(70px)}.aurora.a3{display:none}}
+/* roadmap */
+.rm-intro{color:var(--mut);margin-bottom:6px;max-width:710px;font-size:16px}
+.horizon{margin:30px 0 0}
+.hz{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin:0 0 14px}
+.hz b{font-family:var(--fd);font-size:13.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hz s{text-decoration:none;color:var(--mut);font-size:12.5px}
+.hz::before{content:"";flex:0 0 22px;height:2px;border-radius:2px;background:var(--grad)}
+.phase{background:var(--glass);border:1px solid var(--border);border-radius:16px;padding:17px 20px;margin-bottom:12px;backdrop-filter:blur(8px);transition:border-color .2s}
+.phase:hover{border-color:var(--border2)}
+.ph-head{display:flex;align-items:center;gap:11px;margin-bottom:14px;flex-wrap:wrap}
+.ph-num{flex:0 0 auto;width:30px;height:30px;border-radius:9px;background:var(--grad);color:#06121f;font-family:var(--fd);font-weight:700;font-size:15px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px -4px rgba(34,211,238,.5)}
+.ph-title{font-family:var(--fd);font-size:18px;font-weight:700;flex:1;min-width:130px}
+.ph-prog{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--mut);font-weight:600;font-family:var(--fd)}
+.ph-bar{width:58px;height:5px;background:#0b1120;border-radius:5px;overflow:hidden}
+.ph-bar i{display:block;height:100%;background:var(--grad)}
+.chip{font-size:11.5px;font-weight:700;padding:3px 11px;border-radius:999px;white-space:nowrap;font-family:var(--fd)}
+.chip.done{background:rgba(52,211,153,.15);color:#34d399;border:1px solid rgba(52,211,153,.4)}
+.chip.doing{background:rgba(34,211,238,.15);color:#22d3ee;border:1px solid rgba(34,211,238,.4)}
+.chip.next{background:rgba(167,139,250,.15);color:#a78bfa;border:1px solid rgba(167,139,250,.4)}
+.chip.plan{background:rgba(146,180,255,.1);color:#90a0bd;border:1px solid var(--border)}
+.tasks{list-style:none;display:grid;gap:9px}
+.tasks li{display:flex;align-items:flex-start;gap:11px;font-size:14.5px;line-height:1.45}
+.tasks .ic{flex:0 0 auto;width:19px;height:19px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;margin-top:1px}
+.tasks li.done .ic{background:rgba(52,211,153,.18);color:#34d399;border:1px solid rgba(52,211,153,.5)}
+.tasks li.done .tx{color:var(--txt)}
+.tasks li.todo .ic{border:1.5px solid var(--border2);background:transparent}
+.tasks li.todo .tx{color:var(--mut)}
+.tasks li .tx b{color:var(--acc)}
+.star{display:inline-block;font-size:11px;font-weight:700;color:#06121f;background:var(--grad);padding:1px 8px;border-radius:999px;margin-left:6px;vertical-align:middle;font-family:var(--fd)}
+.vision{background:linear-gradient(135deg,rgba(167,139,250,.13),rgba(34,211,238,.07));border:1px solid var(--border2);border-radius:18px;padding:24px;backdrop-filter:blur(8px)}
+.vision b{font-family:var(--fd);font-size:18px;display:block;margin-bottom:8px}
+.vision p{color:var(--mut);font-size:15px}
+.rm-note{margin-top:20px;color:var(--mut);font-size:13px;line-height:1.6;border-left:2px solid var(--border2);padding-left:14px;max-width:730px;font-style:italic}
+</style>
+</head>
+<body>
+<div class="bg" aria-hidden="true"><div class="aurora a1"></div><div class="aurora a2"></div><div class="aurora a3"></div><div class="grid"></div></div>
+<div class="grain" aria-hidden="true"></div>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <linearGradient id="lg" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse"><stop stop-color="#22d3ee"/><stop offset="1" stop-color="#a78bfa"/></linearGradient>
+</defs></svg>
+
+<div class="navwrap"><div class="wrap">
+<nav>
+  <a class="brand" href="./">
+    <svg class="logo" viewBox="0 0 40 40" fill="none" aria-hidden="true"><rect x="2" y="2" width="36" height="36" rx="11" fill="url(#lg)"/><path d="M14 8C27 13 27 16 20 20 13 24 13 27 26 32" stroke="#06121f" stroke-width="2.5" stroke-linecap="round"/><path d="M26 8C13 13 13 16 20 20 27 24 27 27 14 32" stroke="#06121f" stroke-width="2.5" stroke-linecap="round"/></svg>
+    <b>Cereb<i>lix</i></b>
+  </a>
+  <div class="links">
+    <a href="./" class="active" data-i="nav_home">Home</a>
+    <a href="#mine" data-i="nav_mine">Mine</a>
+    <a href="pool.html" data-i="nav_pool">Pool</a>
+    <a href="explorer.html" data-i="nav_explorer">Explorer</a>
+    <a href="wallet/" data-i="nav_wallet">Wallet</a>
+    <a href="faucet.html" data-i="nav_faucet">Faucet</a>
+    <a href="#roadmap" data-i="nav_roadmap">Roadmap</a>
+    <a href="https://github.com/Cereblix/cereblix" target="_blank" rel="noopener">GitHub</a>
+    <span class="langsw"><button data-lang="en" onclick="setLang('en')">EN</button><button data-lang="ru" onclick="setLang('ru')">RU</button></span>
+  </div>
+</nav>
+</div></div>
+
+<div class="hero"><div class="wrap">
+  <div class="hero-logo">
+    <svg class="logo" viewBox="0 0 40 40" fill="none" aria-hidden="true"><rect x="2" y="2" width="36" height="36" rx="11" fill="url(#lg)"/><path d="M14 8C27 13 27 16 20 20 13 24 13 27 26 32" stroke="#06121f" stroke-width="2.5" stroke-linecap="round"/><path d="M26 8C13 13 13 16 20 20 27 24 27 27 14 32" stroke="#06121f" stroke-width="2.5" stroke-linecap="round"/></svg>
+  </div>
+  <div class="badge"><span class="dot"></span><span data-i="hero_badge">Network live · fair launch, no premine</span></div>
+  <h1 data-i-html="hero_h1">A coin your <em>CPU</em> mines.<br>Not a GPU. Not an ASIC. <em>Ever.</em></h1>
+  <p data-i-html="hero_p">Cereblix (CRB) is a cryptocurrency on the new <b>NeuroMorph</b> PoW algorithm: a virtual machine that <b>reprograms itself every 4096 blocks</b>. A chip able to mine it has to be a processor - by definition.</p>
+  <div class="hero-cta">
+    <div class="cta-row">
+      <a class="btn" href="#mine" data-i="hero_cta1">Start mining in 2 minutes</a>
+      <a class="btn ghost" href="wallet/" data-i="hero_cta2">Web wallet</a>
+    </div>
+    <a class="tg-btn full" href="https://t.me/cereblix" target="_blank" rel="noopener">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.78 18.65l.28-4.23 7.68-6.92c.34-.31-.07-.46-.52-.19L7.74 13.3 3.64 12c-.88-.25-.89-.86.2-1.3l15.97-6.16c.73-.33 1.43.18 1.15 1.3l-2.72 12.81c-.19.91-.74 1.13-1.5.71L12.6 16.3l-1.99 1.93c-.23.23-.42.42-.83.42z"/></svg>
+      <span data-i="tg_join">Join our Telegram</span>
+    </a>
+    <div class="social-row">
+      <a href="https://x.com/Cereblix" target="_blank" rel="noopener" title="X / Twitter" class="soc">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24h-6.66l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+        <span>X</span>
+      </a>
+      <a href="https://github.com/Cereblix/cereblix" target="_blank" rel="noopener" title="GitHub" class="soc">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .5C5.37.5 0 5.78 0 12.29c0 5.2 3.44 9.6 8.21 11.16.6.11.82-.25.82-.56v-2.17c-3.34.7-4.04-1.42-4.04-1.42-.55-1.37-1.34-1.74-1.34-1.74-1.08-.72.08-.71.08-.71 1.2.08 1.83 1.21 1.83 1.21 1.07 1.78 2.81 1.27 3.5.97.1-.76.42-1.27.76-1.56-2.67-.3-5.47-1.31-5.47-5.83 0-1.29.47-2.34 1.24-3.17-.12-.3-.54-1.52.12-3.16 0 0 1.01-.32 3.3 1.21a11.6 11.6 0 0 1 6 0c2.28-1.53 3.29-1.21 3.29-1.21.66 1.64.24 2.86.12 3.16.77.83 1.23 1.88 1.23 3.17 0 4.53-2.8 5.53-5.48 5.82.43.36.81 1.08.81 2.18v3.23c0 .31.21.68.82.56A12.01 12.01 0 0 0 24 12.29C24 5.78 18.63.5 12 .5z"/></svg>
+        <span>GitHub</span>
+      </a>
+      <a href="https://bitcointalk.org/index.php?topic=5585629.0" target="_blank" rel="noopener" title="Bitcointalk (English ANN)" class="soc">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 2H4a2 2 0 0 0-2 2v18l4-4h14a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zM7 9h10v2H7zm0 4h7v2H7z"/></svg>
+        <span>Bitcointalk EN</span>
+      </a>
+      <a href="https://bitcointalk.org/index.php?topic=5585637.0" target="_blank" rel="noopener" title="Bitcointalk (русский ANN)" class="soc">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 2H4a2 2 0 0 0-2 2v18l4-4h14a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zM7 9h10v2H7zm0 4h7v2H7z"/></svg>
+        <span>Bitcointalk RU</span>
+      </a>
+      <a href="https://www.altcoinstalks.com/index.php?topic=344237.0" target="_blank" rel="noopener" title="Altcoinstalks" class="soc">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 2H4a2 2 0 0 0-2 2v18l4-4h14a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zM7 9h10v2H7zm0 4h7v2H7z"/></svg>
+        <span>Altcoinstalks</span>
+      </a>
+      <a href="https://discord.gg/HnffKP86JM" target="_blank" rel="noopener" title="Discord" class="soc">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.291.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.247.198.373.291a.077.077 0 0 1-.006.128 12.3 12.3 0 0 1-1.873.891.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.331c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>
+        <span>Discord</span>
+      </a>
+    </div>
+  </div>
+  <div class="stats" id="stats">
+    <div class="stat"><b id="s-height">…</b><span data-i="st_height">block height</span></div>
+    <div class="stat"><b id="s-hashrate">…</b><span data-i="st_hashrate">network hashrate</span></div>
+    <div class="stat"><b id="s-supply">…</b><span data-i="st_supply">CRB in circulation</span></div>
+    <div class="stat"><b id="s-reward">…</b><span data-i="st_reward">block reward</span></div>
+    <div class="stat"><b class="ep-wrap"><span id="s-epoch">…</span><span class="qmark" tabindex="0">?<span class="tip"><b data-i="ep_t">What's an epoch?</b><br><span data-i="ep_b">Every 4096 blocks (~2.8 days) NeuroMorph mutates itself - instruction weights, program length, AES keys and the dataset all change. That moving target is what keeps ASICs out.</span><span class="ep-next" id="epoch-next"></span></span></span></b><span data-i="st_epoch">NeuroMorph epoch</span></div>
+    <div class="stat"><b id="s-age" class="sm">…</b><span data-i="st_age">last block</span></div>
+  </div>
+</div></div>
+
+<div class="wrap">
+<section id="name">
+  <div class="naming">
+    <div class="word"><span class="cere">Cereb</span><span class="lix">lix</span></div>
+    <div class="dna" id="dna2" aria-hidden="true" style="height:48px;margin:6px 0"></div>
+    <div class="gloss">
+      <div><b data-i="name_cere_t">cereb - from cerebrum (brain) 🧠</b><p data-i="name_cere_b">Your processor does the thinking: NeuroMorph runs brain-like random programs on the CPU. Neurons, synapses, cerebral compute - the whole idea of the coin.</p></div>
+      <div><b data-i="name_lix_t">lix - from helix (the DNA spiral) 🧬</b><p data-i="name_lix_b">DNA means genetics and evolution. Our algorithm rewrites its own "DNA" - the VM's rules - every 4096 blocks, like genetic mutation. The "-lix" encodes that self-mutation.</p></div>
+    </div>
+    <div class="tag2" data-i-html="name_tag">An <b>evolving brain</b> - a self-mutating, brain-like proof-of-work that lives on your CPU. And the ticker reads straight out of the name: <b>C</b>e<b>R</b>e<b>B</b>lix → CRB.</div>
+  </div>
+</section>
+
+<section id="why">
+  <h2 data-i-html="why_h2">Why <em>Cereblix</em> is different</h2>
+  <div class="grid">
+    <div class="card"><h3><span class="ico">🧬</span><span data-i="why1_t">Self-mutating algorithm</span></h3>
+      <p data-i="why1_b">Every 4096 blocks NeuroMorph rebuilds its own semantics from chain entropy: opcode weights, program length, constants, AES keys all change. Designing frozen hardware for an algorithm that doesn't exist yet is impossible. This is lifelong ASIC resistance - not a promise, but a property of the design.</p></div>
+    <div class="card"><h3><span class="ico">⚖️</span><span data-i="why2_t">1 CPU = 1 vote</span></h3>
+      <p data-i="why2_b">Random programs with random branches are death for GPUs: their thousands of cores diverge on the first branch and stall. Any laptop on Intel or AMD can mine. No farms - the network belongs to people, not warehouses of hardware.</p></div>
+    <div class="card"><h3><span class="ico">🤝</span><span data-i="why3_t">Fair 2026 launch</span></h3>
+      <p data-i="why3_b">Zero premine. Zero team allocation. Zero VC. The genesis block is empty; coins exist only from mining. The first block was mined the day this site went live - you are exactly zero behind.</p></div>
+    <div class="card"><h3><span class="ico">🌱</span><span data-i="why4_t">Background energy</span></h3>
+      <p data-i="why4_b">NeuroMorph stresses the CPU cache and pipeline, not power draw: mining on 2-4 threads barely heats the machine and lives on idle cycles. A coin of background computation, not megawatt halls.</p></div>
+    <div class="card"><h3><span class="ico">📡</span><span data-i="why5_t">Lightweight node</span></h3>
+      <p data-i="why5_b">A full node is a single dependency-free binary (pure Go, stdlib). It runs on a $3 VPS, a Raspberry Pi or a home PC. The chain is human-readable JSONL: you can audit it by eye.</p></div>
+    <div class="card"><h3><span class="ico">🔑</span><span data-i="why6_t">Your keys only</span></h3>
+      <p data-i="why6_b">The web wallet signs transactions in your browser (ed25519); the private key never leaves your device. The same key works in the CLI wallet. No sign-up, no email, no KYC.</p></div>
+  </div>
+</section>
+
+<section id="algo">
+  <h2 data-i-html="algo_h2">How <em>NeuroMorph</em> works</h2>
+  <div class="card">
+  <p style="color:var(--mut)" data-i="algo_intro">For each block candidate (nonce) the algorithm:</p>
+  <ol style="margin:14px 0 14px 22px;color:var(--mut)">
+    <li data-i-html="algo_1">Unfolds a <b>random program</b> (384-768 instructions) from the header hash for a virtual machine: integer math, IEEE-754 float, hardware AES rounds, data-dependent branches.</li>
+    <li data-i-html="algo_2">Fills a <b>2 MiB scratchpad</b> - sized for the CPU's L2/L3 cache. Random access to it makes cheap external memory useless.</li>
+    <li data-i-html="algo_2b">Walks a chain of data-dependent random reads across a <b>64 MiB memory-hard dataset</b> (rebuilt every epoch) - binding each hash to real DRAM latency, so any ASIC must carry 64 MiB of true random-access memory.</li>
+    <li data-i-html="algo_3">Runs 32-64 execution loops, mixing registers back into memory - work cannot be skipped.</li>
+    <li data-i-html="algo_4">Folds everything into SHA-256 and compares against the difficulty target.</li>
+  </ol>
+  <p style="color:var(--mut)" data-i-html="algo_outro">And at every epoch boundary (4096 blocks ≈ 3 days) <b>new VM rules</b> are born from the chain hash. An ASIC shipped today executes a "different" algorithm one epoch later. The only device that doesn't care is a general-purpose processor.</p>
+  </div>
+  <div class="warn" data-i-html="algo_warn">🧪 A free, open-source project. Mine it, fork it, run your own node - the code is all yours.</div>
+</section>
+
+<section id="mine">
+  <h2 data-i-html="mine_h2">Start <em>mining</em></h2>
+  <div class="mine-choose">
+    <a class="mine-card" href="mine.html">
+      <div class="mc-ic">📱</div>
+      <b data-i="mc_browser_t">Mine in your browser</b>
+      <p data-i="mc_browser_b">Easiest. Phone (iOS / Android), tablet or PC. No install, no signing. Slower, but runs anywhere.</p>
+      <span class="mc-go" data-i="mc_browser_go">Open the browser miner →</span>
+    </a>
+    <a class="mine-card" href="#mine-app">
+      <div class="mc-ic">💻</div>
+      <b data-i="mc_app_t">Mine with the app</b>
+      <p data-i="mc_app_b">Faster. Download the native CPU miner for Windows or Linux and run it with your address.</p>
+      <span class="mc-go" data-i="mc_app_go">See the steps below ↓</span>
+    </a>
+  </div>
+  <div id="mine-app" class="steps">
+    <div class="step"><div><b data-i="mine_s1_t">Create a wallet</b><br><span style="color:var(--mut)" data-i-html="mine_s1_b">Open the <a href="wallet/">web wallet</a>, click "Create", save your private key and copy your <code>crb1…</code> address.</span></div></div>
+    <div class="step"><div><b data-i="mine_s2_t">Download the miner</b><br><span style="color:var(--mut)" data-i-html="mine_s2_b">Latest builds on <a href="https://github.com/Cereblix/cereblix/releases/latest" target="_blank" rel="noopener">GitHub Releases</a>:
+      <a href="https://github.com/Cereblix/cereblix/releases/latest/download/cereblix-miner-windows-amd64.exe">Windows x64</a> ·
+      <a href="https://github.com/Cereblix/cereblix/releases/latest/download/cereblix-miner-linux-amd64">Linux x64</a>
+      &nbsp;(Intel and AMD; source is open - <a href="https://github.com/Cereblix/cereblix" target="_blank" rel="noopener">github.com/Cereblix/cereblix</a>)</span></div></div>
+    <div class="step"><div><b data-i="mine_s3_t">Run it</b>
+      <pre>cereblix-miner-windows-amd64.exe -addr crb1YOUR_ADDRESS</pre>
+      <span style="color:var(--mut)" data-i-html="mine_s3_b">All cores are used by default; limit them with <code>-threads 4</code>. The miner connects to the public node by itself. Find a block - 50 CRB land on your address. The balance shows in the wallet within ~a minute.</span></div></div>
+    <div class="step"><div><b data-i="mine_s4_t">(Optional) Run your own node</b>
+      <pre>cereblixd -datadir ./data
+cereblix-miner -node http://127.0.0.1:18751/api -addr crb1YOUR_ADDRESS</pre>
+      <span style="color:var(--mut)" data-i-html="mine_s4_b">Your own node = your own vote in the network and independent chain validation. Download: <a href="https://github.com/Cereblix/cereblix/releases/latest/download/cereblixd-linux-amd64">Linux</a> · <a href="https://github.com/Cereblix/cereblix/releases/latest/download/cereblixd-windows-amd64.exe">Windows</a> · or build from <a href="https://github.com/Cereblix/cereblix" target="_blank" rel="noopener">source</a>.</span></div></div>
+  </div>
+  <h2 style="margin-top:40px" data-i-html="sp_h">Solo or <em>pool</em>?</h2>
+  <div class="grid" style="margin-bottom:16px">
+    <div class="card">
+      <h3><span class="ico">🎯</span><span data-i="solo_t">Solo</span></h3>
+      <p data-i="solo_b">You mine straight against the network. Find a block and you keep the full 50 CRB - but it's a lottery: on a small CPU you might wait hours or days between wins. Best if you have a big multi-core rig.</p>
+      <pre>cereblix-miner -addr crb1YOUR_ADDRESS</pre>
+    </div>
+    <div class="card">
+      <h3><span class="ico">👥</span><span data-i="pool_t">Pool</span></h3>
+      <p data-i="pool_b">You mine together with everyone else. You earn a steady trickle proportional to your work, and the pool auto-pays your address once you reach 0.05 CRB (1% fee). Best for laptops and ordinary CPUs - far less variance.</p>
+      <pre>cereblix-miner -addr crb1YOUR_ADDRESS -node https://cereblix.com/pool/api</pre>
+    </div>
+  </div>
+  <div class="warn" data-i-html="sp_note">💡 On the pool your miner logs <b>"share accepted"</b> - those are <b>shares</b> (proofs of work at an easier target), not full blocks. Your real reward lands as automatic pool payouts to your address. Same miner either way - only the <code>-node</code> changes.</div>
+  <div class="warn" data-i-html="ru_note">🇷🇺 <b>RU / CIS</b> and cereblix.com is slow or blocked? Mine through our Moscow relay node - same chain, same pool, no Cloudflare: <code>-node https://ru.cereblix.com/pool/api</code> (solo: <code>-node https://ru.cereblix.com/api</code>).</div>
+  <div class="warn" data-i-html="hive_note">🐝 <b>Mining rig on Hive OS?</b> Add a <b>Custom miner</b> in your Flight Sheet - Installation URL <code>https://github.com/Cereblix/cereblix/releases/latest/download/cereblix-hiveos.tar.gz</code>, Pool URL <code>https://cereblix.com/pool/api</code>, your <code>crb1…</code> wallet. It auto-starts, survives reboots and shows hashrate in the dashboard.</div>
+  <div class="warn" data-i-html="safe_note">⚠️ <b>Use only the official miner</b> from this page or <a href="https://github.com/Cereblix/cereblix/releases/latest" target="_blank" rel="noopener">GitHub Releases</a>. Anything called "xmrig-cereblix" is <b>not ours</b> - XMRig cannot mine NeuroMorph.</div>
+</section>
+
+<section id="spec">
+  <h2 data-i-html="spec_h2">Network <em>parameters</em></h2>
+  <div class="card"><table>
+    <tr><th data-i="spec_ticker">Ticker</th><td>CRB (1 CRB = 10⁸ synapses)</td></tr>
+    <tr><th data-i="spec_algo">Algorithm</th><td data-i="spec_algo_v">NeuroMorph v1 - self-mutating PoW VM, CPU-only</td></tr>
+    <tr><th data-i="spec_time">Block time</th><td data-i="spec_time_v">60 seconds, retarget every 20 blocks</td></tr>
+    <tr><th data-i="spec_reward">Reward</th><td data-i="spec_reward_v">50 CRB, halving every 1,051,200 blocks (~2 years)</td></tr>
+    <tr><th data-i="spec_max">Max supply</th><td>~105,120,000 CRB</td></tr>
+    <tr><th data-i="spec_epoch">VM mutation epoch</th><td data-i="spec_epoch_v">4096 blocks (~2.8 days)</td></tr>
+    <tr><th data-i="spec_premine">Premine</th><td data-i="spec_premine_v"><b>0</b> - empty genesis</td></tr>
+    <tr><th data-i="spec_sig">Signatures / addresses</th><td>ed25519 · crb1 + SHA-256(pubkey)</td></tr>
+    <tr><th data-i="spec_seed">Seed node</th><td><code>seed.cereblix.com:18750</code></td></tr>
+    <tr><th data-i="spec_api">Explorer API</th><td><code>https://cereblix.com/api/status</code></td></tr>
+  </table></div>
+  <h2 style="margin-top:36px" data-i-html="spec_latest">Latest <em>blocks</em></h2>
+  <div class="card"><table id="blocks"><thead><tr><th>#</th><th data-i="bl_time">Time</th><th data-i="bl_hash">Hash</th><th>Tx</th><th data-i="bl_miner">Miner</th></tr></thead><tbody></tbody></table></div>
+</section>
+
+<section id="roadmap">
+  <h2 data-i-html="rm_h2">Road<em>map</em></h2>
+  <p class="rm-intro" data-i="rm_intro">Open and honest - what's built (✓) and what's still ahead (○). No dates, no price promises: liquidity and listings follow real demand and community, not hype.</p>
+
+  <div class="horizon">
+    <div class="hz"><b data-i="hz1">Horizon 1 — Launch</b><s data-i="hz1s">live now</s></div>
+    <div class="phase">
+      <div class="ph-head"><span class="ph-num">1</span><span class="ph-title" data-i="rm1_t">Foundation</span><span class="chip done" data-i="rm_c_done">Done</span><span class="ph-prog"><span class="ph-bar"><i style="width:100%"></i></span>5/5</span></div>
+      <ul class="tasks">
+        <li class="done"><span class="ic">✓</span><span class="tx" data-i="t1_1">NeuroMorph - self-mutating, CPU-only proof-of-work</span></li>
+        <li class="done"><span class="ic">✓</span><span class="tx" data-i="t1_2">Full node + web &amp; CLI wallet + block explorer</span></li>
+        <li class="done"><span class="ic">✓</span><span class="tx" data-i="t1_3">Mine right in the browser (WASM) - any device</span></li>
+        <li class="done"><span class="ic">✓</span><span class="tx" data-i="t1_4">Open source · bilingual site · Telegram · fair launch, no premine</span></li>
+        <li class="done"><span class="ic">✓</span><span class="tx" data-i="t1_5">Security: DoS/SSRF guards, chain-id replay protection</span></li>
+      </ul>
+    </div>
+    <div class="phase">
+      <div class="ph-head"><span class="ph-num">2</span><span class="ph-title" data-i="rm2_t">Mining for everyone</span><span class="chip done" data-i="rm_c_done">Done</span><span class="ph-prog"><span class="ph-bar"><i style="width:100%"></i></span>5/5</span></div>
+      <ul class="tasks">
+        <li class="done"><span class="ic">✓</span><span class="tx" data-i="t2_1">Mining pool - steady rewards for small CPUs</span></li>
+        <li class="done"><span class="ic">✓</span><span class="tx" data-i="t2_2">Free faucet with proof-of-useful-work captcha</span></li>
+        <li class="done"><span class="ic">✓</span><span class="tx" data-i="t2_3">One-command miner install</span></li>
+        <li class="done"><span class="ic">✓</span><span class="tx" data-i="t2_4">Domain + HTTPS (cereblix.com)</span></li>
+        <li class="done"><span class="ic">✓</span><span class="tx" data-i="t2_5">Public pool dashboard with per-miner share binding</span></li>
+      </ul>
+    </div>
+    <div class="phase">
+      <div class="ph-head"><span class="ph-num">3</span><span class="ph-title" data-i="rm3_t">Trust &amp; community</span><span class="chip doing" data-i="rm_c_doing">In progress</span><span class="ph-prog"><span class="ph-bar"><i style="width:67%"></i></span>2/3</span></div>
+      <ul class="tasks">
+        <li class="done"><span class="ic">✓</span><span class="tx" data-i="t3_1">Public launch announcement (Bitcointalk, forums)</span></li>
+        <li class="done"><span class="ic">✓</span><span class="tx" data-i="t3_4">Start the community everywhere - Telegram, X, Reddit &amp; more</span></li>
+        <li class="todo"><span class="ic"></span><span class="tx" data-i="t2_6">Grow to many independent miners &amp; nodes</span></li>
+      </ul>
+    </div>
+    <div class="phase">
+      <div class="ph-head"><span class="ph-num">4</span><span class="ph-title" data-i="rm4_t">Our own secure P2P platform</span><span class="chip plan" data-i="rm_c_plan">Planned</span><span class="ph-prog"><span class="ph-bar"><i style="width:0"></i></span>0/1</span></div>
+      <ul class="tasks">
+        <li class="todo"><span class="ic"></span><span class="tx" data-i-html="t4_1"><b>Buy, sell &amp; swap CRB directly between people</b>, right on the site - with built-in on-chain escrow on every deal, so funds are released only when both sides confirm and neither party is ever exposed. Trade CRB for other currencies peer-to-peer: a simple on-ramp so far more people can get and use CRB.</span></li>
+      </ul>
+    </div>
+    <div class="phase">
+      <div class="ph-head"><span class="ph-num">5</span><span class="ph-title" data-i="rm6_t">Real-world use &amp; innovation</span><span class="chip plan" data-i="rm_c_plan3">Planned</span></div>
+      <ul class="tasks">
+        <li class="todo"><span class="ic"></span><span class="tx" data-i-html="t6_1"><b>Cereblix Captcha</b> - the visitor solves a captcha while their machine mines CRB: realness is proven twice (the captcha + the proof-of-work), and project owners earn from it - anti-bot and monetization in one <span class="star">flagship</span></span></li>
+        <li class="todo"><span class="ic"></span><span class="tx" data-i="t6_2">Native mobile app (wallet + background mining)</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="horizon">
+    <div class="hz"><b data-i="hz2">Horizon 2 — Exchanges &amp; reach</b><s data-i="hz2s">next</s></div>
+    <div class="phase">
+      <div class="ph-head"><span class="ph-num">6</span><span class="ph-title" data-i="cex_t">Centralized exchanges (CEX)</span><span class="chip plan" data-i="rm_c_plan3">Planned</span></div>
+      <ul class="tasks">
+        <li class="todo"><span class="ic"></span><span class="tx" data-i="cex_1">List CRB on centralized exchanges - real order-book trading and easy access for newcomers</span></li>
+        <li class="todo"><span class="ic"></span><span class="tx" data-i="cex_2">Market making &amp; liquidity - healthy spreads and depth from day one</span></li>
+        <li class="todo"><span class="ic"></span><span class="tx" data-i="cex_3">Wider reach - exchange aggregators, trackers and partnerships to bring in new holders</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="horizon">
+    <div class="hz"><b data-i="hz3">Horizon 3 — Programmability &amp; scaling</b><s data-i="hz3s">vision</s></div>
+    <div class="phase">
+      <div class="ph-head"><span class="ph-num">7</span><span class="ph-title" data-i="rm7_t">A smarter chain</span><span class="chip plan" data-i="rm_c_plan4">Planned</span></div>
+      <ul class="tasks">
+        <li class="todo"><span class="ic"></span><span class="tx" data-i="t7_1">Smart contracts: a light WASM/EVM-style VM for tokens, NFTs, DeFi</span></li>
+        <li class="todo"><span class="ic"></span><span class="tx" data-i="t7_2">Hardware-wallet support (Ledger / Trezor) + multisig</span></li>
+        <li class="todo"><span class="ic"></span><span class="tx" data-i="t7_3">L2 / payment channels for instant micro-tx</span></li>
+        <li class="todo"><span class="ic"></span><span class="tx" data-i="t7_4">Light clients (SPV) - verify from a phone</span></li>
+        <li class="todo"><span class="ic"></span><span class="tx" data-i="t6_3">Atomic swaps CRB↔BTC/LTC - trustless, no custodial bridge</span></li>
+        <li class="todo"><span class="ic"></span><span class="tx" data-i="t6_4">Payment tools: "Pay in CRB" button, POS, micropayments</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="horizon">
+    <div class="hz"><b data-i="hz4">Horizon 4 — Governance &amp; maturity</b><s data-i="hz4s">vision</s></div>
+    <div class="phase">
+      <div class="ph-head"><span class="ph-num">8</span><span class="ph-title" data-i="rm8_t">Hand over the keys</span><span class="chip plan" data-i="rm_c_plan5">Planned</span></div>
+      <ul class="tasks">
+        <li class="todo"><span class="ic"></span><span class="tx" data-i="t8_1">On-chain DAO governance + transparent grants treasury</span></li>
+        <li class="todo"><span class="ic"></span><span class="tx" data-i="t8_2">Fully decentralized bridge (multisig to trustless)</span></li>
+        <li class="todo"><span class="ic"></span><span class="tx" data-i="t8_3">Ongoing NeuroMorph upgrades + miner tail-emission</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="horizon">
+    <div class="hz"><b data-i="hz5">Horizon 5 — The big picture</b></div>
+    <div class="vision">
+      <b data-i="rm9_t">A people's compute economy</b>
+      <p data-i="rm9_b">Millions of ordinary CPUs whose work is genuinely useful - anti-bot, verifiable compute - and rewarded. Everyone's processor becomes a vote in the network and a source of income. Not a speculative token: infrastructure.</p>
+    </div>
+  </div>
+
+  <p class="rm-note" data-i="rm_note">★ This roadmap is approximate and may be reworked as the team's vision and current realities evolve - but every change will be aimed at one thing only: the growth and value of CRB.</p>
+</section>
+
+<section id="faq" class="faq">
+  <h2><em>FAQ</em></h2>
+  <details><summary data-i="faq1_q">Why is "ASIC-resistant forever" true, not marketing?</summary>
+    <p data-i="faq1_a">Classic "ASIC-resistant" algorithms (Ethash, Equihash) were static - and chips were eventually built for them. NeuroMorph is never static: the execution rules are reborn each epoch from a chain hash that cannot be predicted. Any fixed hardware is obsolete within ~3 days. A device that can execute arbitrary future programs with branches, float and AES - that is a CPU. So an "ASIC for Cereblix" is an oxymoron: its silicon has to become a processor.</p></details>
+  <details><summary data-i="faq2_q">What about GPUs and botnets?</summary>
+    <p data-i="faq2_a">GPUs: random branches every few instructions cause warp divergence - the card runs at the speed of one or two of its scalar cores, i.e. slower than a laptop. Botnets are a problem for all CPU coins; our answer is economic: a low cap at launch makes them unprofitable, and egalitarian mining distributes the coin wider than any "fair" GPU launch.</p></details>
+  <details><summary data-i="faq3_q">Where does CRB trade? What's the price?</summary>
+    <p data-i="faq3_a">We're launching on DEX exchanges soon. Follow the news in our <a href="https://t.me/cereblix" target="_blank" rel="noopener">Telegram</a>.</p></details>
+  <details><summary data-i="faq4_q">Is this a fork of Monero/RandomX?</summary>
+    <p data-i="faq4_a">No. The codebase is written from scratch in Go (core + node + miner ~2500 lines, zero external dependencies). NeuroMorph conceptually extends RandomX's random-program idea, but adds the key part: epoch mutation of the VM semantics itself. RandomX is frozen forever - NeuroMorph is not frozen by principle.</p></details>
+  <details><summary data-i="faq5_q">How can I support the network?</summary>
+    <p data-i-html="faq5_a">Mine (even 1-2 threads helps security), run a node, mirror the source. The code is open: <a href="https://github.com/Cereblix/cereblix" target="_blank" rel="noopener">github.com/Cereblix/cereblix</a>.</p></details>
+</section>
+
+<footer>
+  <div class="social">
+    <a href="https://t.me/cereblix" target="_blank" rel="noopener">Telegram</a>
+    <a href="https://discord.gg/HnffKP86JM" target="_blank" rel="noopener">Discord</a>
+    <a href="https://x.com/Cereblix" target="_blank" rel="noopener">X / Twitter</a>
+    <a href="https://bitcointalk.org/index.php?topic=5585629.0" target="_blank" rel="noopener">Bitcointalk EN</a>
+    <a href="https://bitcointalk.org/index.php?topic=5585637.0" target="_blank" rel="noopener">Bitcointalk RU</a>
+    <a href="https://www.altcoinstalks.com/index.php?topic=344237.0" target="_blank" rel="noopener">Altcoinstalks</a>
+    <a href="https://github.com/Cereblix/cereblix" target="_blank" rel="noopener">GitHub</a>
+    <a href="wallet/" data-i="nav_wallet">Wallet</a>
+  </div>
+  <div class="foot-line" data-i-html="footer1">Cereblix · launched 11 June 2026 · no premine, no fund · open source</div>
+  <div class="foot-sub" data-i="footer2">A free, open-source project - mine it, fork it, run your own node.</div>
+</footer>
+</div>
+
+<script>
+const I18N = {
+  en: {},  // English is the source text in the HTML; en = identity
+  ru: {
+    nav_home:"Главная", nav_mine:"Майнинг", nav_pool:"Пул", nav_explorer:"Обозреватель", nav_wallet:"Кошелёк", nav_faucet:"Кран", nav_roadmap:"Дорожная карта",
+    rm_h2:'Дорожная <em>карта</em>',
+    rm_intro:"Открыто и честно - что уже сделано (✓) и что впереди (○). Без дат и обещаний цены: ликвидность и листинги придут по мере реального спроса и комьюнити, а не хайпа.",
+    hz1:"Горизонт 1 — Запуск", hz1s:"уже в эфире",
+    hz2:"Горизонт 2 — Биржи и охват", hz2s:"дальше",
+    hz3:"Горизонт 3 — Программируемость и масштаб", hz3s:"видение",
+    hz4:"Горизонт 4 — Управление и зрелость", hz4s:"видение",
+    hz5:"Горизонт 5 — Большое видение",
+    rm_c_done:"Готово", rm_c_doing:"В работе", rm_c_next:"Дальше",
+    rm_c_plan:"Планы", rm_c_plan2:"Планы", rm_c_plan3:"Планы", rm_c_plan4:"Планы", rm_c_plan5:"Планы",
+    rm1_t:"Фундамент",
+    t1_1:"NeuroMorph - самомутирующий PoW только под CPU",
+    t1_2:"Полная нода + веб- и CLI-кошелёк + обозреватель блоков",
+    t1_3:"Майнинг прямо в браузере (WASM) - любое устройство",
+    t1_4:"Открытый код · двуязычный сайт · Telegram · честный запуск без премайна",
+    t1_5:"Безопасность: защита от DoS/SSRF, chain-id replay-защита",
+    rm2_t:"Майнинг для каждого",
+    t2_1:"Майнинг-пул - стабильная награда мелким CPU",
+    t2_2:"Бесплатный кран с капчёй на полезном PoW",
+    t2_3:"Установка майнера одной командой",
+    t2_4:"Домен + HTTPS (cereblix.com)",
+    t2_5:"Публичный дашборд пула + привязка шар к майнеру",
+    t2_6:"Рост до множества независимых майнеров и нод",
+    rm3_t:"Доверие и сообщество",
+    t3_1:"Публичный анонс запуска (Bitcointalk, форумы)",
+    t3_2:"Гайды и документация",
+    t3_4:"Старт комьюнити во всех медиа - Telegram, X (Twitter), Reddit и др.",
+    rm4_t:"Своя безопасная P2P-площадка",
+    t4_1:"<b>Покупка, продажа и обмен CRB напрямую между людьми</b>, прямо на сайте - со встроенным on-chain эскроу на каждой сделке: средства разблокируются только при подтверждении обеими сторонами, поэтому ни одна из сторон не рискует. Обмен CRB на другие валюты напрямую между людьми - простой вход, чтобы куда больше людей могли получить и использовать CRB.",
+    rm6_t:"Реальная польза и инновации",
+    t6_1:'<b>Cereblix Captcha</b> - посетитель решает капчу, и одновременно его машина майнит CRB: реальность подтверждается дважды (капчей и proof-of-work), а владельцы проектов на этом зарабатывают - и защита от ботов, и монетизация <span class="star">флагман</span>',
+    t6_2:"Нативное мобильное приложение (кошелёк + фоновый майнинг)",
+    t6_3:"Атомарные свопы CRB↔BTC/LTC - трастлесс, без кастодиального моста",
+    t6_4:"Платёжные инструменты: кнопка «Оплатить в CRB», POS, микроплатежи",
+    cex_t:"Централизованные биржи (CEX)",
+    cex_1:"Листинг CRB на централизованных биржах - полноценная торговля по стакану и простой доступ для новичков",
+    cex_2:"Маркет-мейкинг и ликвидность - здоровый спред и глубина рынка с первого дня",
+    cex_3:"Более широкий охват - агрегаторы бирж, трекеры и партнёрства для притока новых держателей",
+    rm7_t:"Умная цепь",
+    t7_1:"Смарт-контракты: лёгкий WASM/EVM-VM для токенов, NFT, DeFi",
+    t7_2:"Поддержка аппаратных кошельков (Ledger / Trezor) + мультисиг",
+    t7_3:"L2 / платёжные каналы для мгновенных микротранз",
+    t7_4:"Лёгкие клиенты (SPV) - проверка с телефона",
+    rm8_t:"Отдать ключи",
+    t8_1:"On-chain DAO-управление + прозрачная казна на гранты",
+    t8_2:"Полностью децентрализованный мост (мультисиг → trustless)",
+    t8_3:"Регулярные апгрейды NeuroMorph + tail-эмиссия майнерам",
+    rm9_t:"Народная вычислительная экономика",
+    rm9_b:"Миллионы обычных процессоров, чья работа реально полезна - анти-бот, верифицируемые вычисления - и вознаграждается. Процессор каждого человека становится голосом в сети и источником дохода. Не спекулятивный токен: инфраструктура.",
+    rm_note:"★ Дорожная карта примерная и может быть переработана исходя из видения команды и текущих реалий - но любые изменения будут направлены только на одно: рост и пользу CRB.",
+    tg_join:"Заходи в наш Telegram", tg_sub:"Новости, помощь по майнингу и комьюнити - @cereblix",
+    hero_badge:"Сеть в эфире · честный запуск, без премайна",
+    hero_h1:'Монета, которую майнит <em>процессор</em>.<br>Не видеокарта. Не ASIC. <em>Никогда.</em>',
+    hero_p:'Cereblix (CRB) - криптовалюта на новом PoW-алгоритме <b>NeuroMorph</b>: виртуальная машина, которая <b>перепрограммирует сама себя каждые 4096 блоков</b>. Чип, способный её майнить, обязан быть процессором - по определению.',
+    hero_cta1:"Начать майнить за 2 минуты", hero_cta2:"Веб-кошелёк",
+    st_height:"высота блока", st_hashrate:"хэшрейт сети", st_supply:"CRB в обращении", st_reward:"награда за блок", st_epoch:"эпоха NeuroMorph", st_age:"последний блок",
+    ep_t:"Что такое эпоха?",
+    ep_b:"Каждые 4096 блоков (~2.8 дня) NeuroMorph мутирует сам себя - меняются веса инструкций, длина программ, AES-ключи и датасет. Эта движущаяся цель и не пускает ASIC.",
+    why_h2:'Почему <em>Cereblix</em> - это другое',
+    why1_t:"Самомутирующий алгоритм", why1_b:"Каждые 4096 блоков NeuroMorph пересобирает собственную семантику из энтропии цепи: меняются веса инструкций, длина программ, константы, AES-ключи. Спроектировать «замороженное» железо под алгоритм, который ещё не существует, невозможно. Это и есть пожизненная защита от ASIC - не обещание, а свойство конструкции.",
+    why2_t:"1 CPU = 1 голос", why2_b:"Случайные программы со случайными ветвлениями - смерть для GPU: тысячи ядер видеокарты расходятся на первом же ветвлении и простаивают. Майнит любой ноутбук на Intel или AMD. Никаких ферм - сеть принадлежит людям, а не складам с железом.",
+    why3_t:"Честный запуск 2026", why3_b:"Ноль премайна. Ноль аллокаций «команде». Ноль VC. Генезис-блок пуст, монеты появляются только из майнинга. Первый блок намайнен в день публикации этого сайта - вы опоздали ровно на ноль.",
+    why4_t:"Фоновая энергия", why4_b:"NeuroMorph упирается в кэш и конвейер CPU, а не в потребление: майнинг на 2-4 потоках почти не греет машину и живёт на «холостых» циклах. Это монета фоновых вычислений, а не мегаваттных ангаров.",
+    why5_t:"Лёгкая нода", why5_b:"Полная нода - один бинарник без зависимостей (чистый Go, stdlib). Запускается на VPS за $3, Raspberry Pi или домашнем ПК. Блокчейн - человекочитаемый JSONL: аудит цепи возможен глазами.",
+    why6_t:"Ключи только у вас", why6_b:"Веб-кошелёк подписывает транзакции в браузере (ed25519), приватный ключ не покидает устройство. Тот же ключ работает в CLI-кошельке. Никакой регистрации, почты, KYC.",
+    algo_h2:'Как работает <em>NeuroMorph</em>',
+    algo_intro:"Для каждого варианта блока (nonce) алгоритм:",
+    algo_1:'Разворачивает из хэша заголовка <b>случайную программу</b> (384-768 инструкций) для виртуальной машины: целочисленная математика, IEEE-754 float, аппаратные AES-раунды, ветвления, зависящие от данных.',
+    algo_2:'Заполняет <b>2 МиБ scratchpad</b> - ровно под L2/L3-кэш процессора. Случайный доступ к нему делает дешёвую внешнюю память бесполезной.',
+    algo_2b:'Проходит цепочкой случайных, зависящих от данных чтений по <b>64-МиБ memory-hard датасету</b> (пересобирается каждую эпоху) - привязывая каждый хэш к латентности настоящей DRAM, так что любой ASIC обязан нести 64 МиБ реальной памяти.',
+    algo_3:'Прогоняет 32-64 цикла исполнения, вмешивая регистры обратно в память - пропустить работу нельзя.',
+    algo_4:'Сворачивает всё в SHA-256 и сравнивает с целью сложности.',
+    algo_outro:'А на границе каждой эпохи (4096 блоков ≈ 3 дня) из хэша цепи рождаются <b>новые правила VM</b>. ASIC, выпущенный сегодня, через эпоху исполняет уже «не тот» алгоритм. Единственное устройство, которому всё равно, - универсальный процессор.',
+    algo_warn:'🧪 Бесплатный открытый опенсорсный проект. Майнь, форкай, поднимай свою ноду - код полностью твой.',
+    mine_h2:'Начать <em>майнить</em>',
+    mc_browser_t:"Майнить в браузере", mc_browser_b:"Проще всего. Телефон (iOS / Android), планшет или ПК. Без установки. Медленнее, но работает где угодно.", mc_browser_go:"Открыть браузерный майнер →",
+    mc_app_t:"Майнить приложением", mc_app_b:"Быстрее. Скачайте нативный CPU-майнер для Windows или Linux и запустите со своим адресом.", mc_app_go:"К шагам ниже ↓",
+    mine_s1_t:"Создайте кошелёк", mine_s1_b:'Откройте <a href="wallet/">веб-кошелёк</a>, нажмите «Создать», сохраните приватный ключ и скопируйте адрес <code>crb1…</code>',
+    mine_s2_t:"Скачайте майнер", mine_s2_b:'Свежие сборки - на <a href="https://github.com/Cereblix/cereblix/releases/latest" target="_blank" rel="noopener">GitHub Releases</a>: <a href="https://github.com/Cereblix/cereblix/releases/latest/download/cereblix-miner-windows-amd64.exe">Windows x64</a> · <a href="https://github.com/Cereblix/cereblix/releases/latest/download/cereblix-miner-linux-amd64">Linux x64</a> &nbsp;(Intel и AMD; код открыт - <a href="https://github.com/Cereblix/cereblix" target="_blank" rel="noopener">github.com/Cereblix/cereblix</a>)',
+    mine_s3_t:"Запустите", mine_s3_b:'По умолчанию используются все ядра; ограничить: <code>-threads 4</code>. Майнер сам подключится к публичной ноде. Нашли блок - 50 CRB упали на адрес. Баланс виден в кошельке через ~минуту.',
+    mine_s4_t:"(Необязательно) Поднимите свою ноду", mine_s4_b:'Своя нода = свой голос в сети и независимая проверка цепи. Скачать: <a href="https://github.com/Cereblix/cereblix/releases/latest/download/cereblixd-linux-amd64">Linux</a> · <a href="https://github.com/Cereblix/cereblix/releases/latest/download/cereblixd-windows-amd64.exe">Windows</a> · или собрать из <a href="https://github.com/Cereblix/cereblix" target="_blank" rel="noopener">исходников</a>',
+    sp_h:'Соло или <em>пул</em>?',
+    solo_t:"Соло", solo_b:"Майнишь напрямую против сети. Нашёл блок - забираешь все 50 CRB. Но это лотерея: на слабом CPU между блоками можно ждать часами или днями. Подходит, если у тебя мощный многоядерник.",
+    pool_t:"Пул", pool_b:"Майнишь вместе со всеми. Получаешь стабильный ручеёк пропорционально своей работе, и пул сам платит на твой адрес по достижении 0.05 CRB (комиссия 1%). Лучший вариант для ноутбуков и обычных CPU - намного меньше разброса.",
+    sp_note:'💡 На пуле майнер пишет <b>«share accepted»</b> - это <b>шары</b> (доказательства работы на облегчённой цели), а не полные блоки. Реальная награда приходит автоматическими выплатами пула на твой адрес. Майнер тот же - меняется только <code>-node</code>.',
+    ru_note:'🇷🇺 <b>РФ / СНГ</b> и cereblix.com медленный или не открывается? Майнь через наш московский узел - та же сеть, тот же пул, без Cloudflare: <code>-node https://ru.cereblix.com/pool/api</code> (соло: <code>-node https://ru.cereblix.com/api</code>).',
+    hive_note:'🐝 <b>Риг на Hive OS?</b> Добавь <b>Custom miner</b> во Flight Sheet - Installation URL <code>https://github.com/Cereblix/cereblix/releases/latest/download/cereblix-hiveos.tar.gz</code>, Pool URL <code>https://cereblix.com/pool/api</code>, кошелёк <code>crb1…</code>. Автостарт, переживает ребут, хешрейт виден в дашборде.',
+    safe_note:'⚠️ <b>Только официальный майнер</b> с этой страницы или из <a href="https://github.com/Cereblix/cereblix/releases/latest" target="_blank" rel="noopener">GitHub Releases</a>. Любой «xmrig-cereblix» - <b>не наш</b>, XMRig не умеет NeuroMorph.',
+    spec_h2:'Параметры <em>сети</em>',
+    spec_ticker:"Тикер", spec_algo:"Алгоритм", spec_algo_v:"NeuroMorph v1 - самомутирующая PoW-VM, CPU-only",
+    spec_time:"Время блока", spec_time_v:"60 секунд, ретаргет каждые 20 блоков",
+    spec_reward:"Награда", spec_reward_v:"50 CRB, халвинг каждые 1 051 200 блоков (~2 года)",
+    spec_max:"Максимум эмиссии", spec_epoch:"Эпоха мутации VM", spec_epoch_v:"4096 блоков (~2.8 дня)",
+    spec_premine:"Премайн", spec_premine_v:'<b>0</b> - генезис пуст',
+    spec_sig:"Подписи / адреса", spec_seed:"Seed-нода", spec_api:"API эксплорера",
+    spec_latest:'Последние <em>блоки</em>', bl_time:"Время", bl_hash:"Хэш", bl_miner:"Майнер",
+    faq1_q:"Почему «ASIC-устойчивость навсегда» - правда, а не маркетинг?",
+    faq1_a:"Классические «ASIC-устойчивые» алгоритмы (Ethash, Equihash) были статичны - и под них в итоге выпустили чипы. NeuroMorph статичным не бывает: правила исполнения перерождаются каждую эпоху из хэша цепи, который невозможно предсказать. Любое фиксированное железо устаревает через ~3 дня. Устройство, которое умеет исполнять произвольные будущие программы с ветвлениями, float и AES - это и есть CPU. Поэтому «ASIC для Cereblix» - оксюморон: его кремний обязан превратиться в процессор.",
+    faq2_q:"А GPU и ботнеты?",
+    faq2_a:"GPU: случайные ветвления каждые несколько инструкций приводят к дивергенции warp'ов - видеокарта работает на скорости одного-двух своих скалярных ядер, т.е. медленнее ноутбука. Ботнеты - проблема всех CPU-монет; наш ответ экономический: низкая капитализация на старте делает их нерентабельными, а эгалитарный майнинг распределяет монету шире, чем любой «честный» GPU-запуск.",
+    faq3_q:"Где торгуется CRB? Сколько он стоит?",
+    faq3_a:'Скоро выходим на DEX-биржи. Следите за новостями в нашем <a href="https://t.me/cereblix" target="_blank" rel="noopener">Telegram</a>.',
+    faq4_q:"Это форк Monero/RandomX?",
+    faq4_a:"Нет. Кодовая база написана с нуля на Go (ядро + нода + майнер ~2500 строк, ноль внешних зависимостей). NeuroMorph концептуально развивает идею случайных программ RandomX, но добавляет главное: эпохальную мутацию самой семантики VM. RandomX зафиксирован навечно - NeuroMorph не фиксирован в принципе.",
+    faq5_q:"Как поддержать сеть?",
+    faq5_a:'Майните (даже 1-2 потока - вклад в безопасность), держите ноду, зеркальте исходники. Код открыт: <a href="https://github.com/Cereblix/cereblix" target="_blank" rel="noopener">github.com/Cereblix/cereblix</a>.',
+    footer1:"Cereblix · запущена 11 июня 2026 · без премайна, без фонда · открытый код",
+    footer2:"Бесплатный открытый опенсорсный проект - майнь, форкай, поднимай свою ноду.",
+    name_cere_t:"cereb - от cerebrum (мозг) 🧠",
+    name_cere_b:"Думает твой процессор: NeuroMorph гоняет на CPU мозгоподобные случайные программы. Нейроны, синапсы, «мозговые» вычисления - вся суть монеты.",
+    name_lix_t:"lix - от helix (спираль ДНК) 🧬",
+    name_lix_b:"ДНК - это генетика и эволюция. Наш алгоритм каждые 4096 блоков переписывает собственную «ДНК» - правила VM, как генетическая мутация. Суффикс «-lix» зашивает самомутацию.",
+    name_tag:'<b>Эволюционирующий мозг</b> - самомутирующий, мозгоподобный proof-of-work, живущий на твоём CPU. А тикер читается прямо из имени: <b>C</b>e<b>R</b>e<b>B</b>lix → CRB.',
+  }
+};
+
+function detectLang(){
+  const saved = localStorage.getItem('lang');
+  if (saved === 'ru' || saved === 'en') return saved;
+  return (navigator.language || 'en').toLowerCase().startsWith('ru') ? 'ru' : 'en';
+}
+// Snapshot the original English HTML so switching back to EN restores it.
+const EN_CACHE = {};
+function applyLang(lang){
+  document.documentElement.lang = lang;
+  document.querySelectorAll('[data-i],[data-i-html]').forEach(el=>{
+    const key = el.getAttribute('data-i') || el.getAttribute('data-i-html');
+    const html = el.hasAttribute('data-i-html');
+    if (!(key in EN_CACHE)) EN_CACHE[key] = el.innerHTML; // first pass = English source
+    let val = lang === 'en' ? EN_CACHE[key] : (I18N.ru[key] ?? EN_CACHE[key]);
+    el.innerHTML = val;
+  });
+  document.querySelectorAll('.langsw button').forEach(b=>b.classList.toggle('on', b.dataset.lang===lang));
+}
+function setLang(l){ localStorage.setItem('lang', l); applyLang(l); load(); }
+
+const API = 'api';
+const fmt = v => (v/1e8).toLocaleString(document.documentElement.lang==='ru'?'ru-RU':'en-US',{maximumFractionDigits:2});
+let lastBlockAge = 0, lastFetch = 0;
+async function load(){
+  try{
+    const s = await (await fetch(API+'/status?_='+Date.now(), {cache:'no-store'})).json();
+    const loc = document.documentElement.lang==='ru'?'ru-RU':'en-US';
+    document.getElementById('s-height').textContent = s.height.toLocaleString(loc);
+    document.getElementById('s-hashrate').textContent = ((+s.hashrate||0)/1e6).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})+' MH/s';
+    document.getElementById('s-supply').textContent = fmt(s.supply);
+    document.getElementById('s-reward').textContent = fmt(s.reward) + ' CRB';
+    document.getElementById('s-epoch').textContent = s.epoch;
+    // Epoch countdown for the "?" tooltip.
+    const EPOCH = 4096, nextB = (s.epoch + 1) * EPOCH, rem = nextB - s.height;
+    const hrs = Math.round(rem * 60 / 3600), ru = document.documentElement.lang === 'ru';
+    const en = document.getElementById('epoch-next');
+    if (en) en.textContent = ru
+      ? `След. эпоха #${s.epoch + 1} - через ${rem.toLocaleString('ru-RU')} блоков (~${hrs} ч).`
+      : `Next epoch #${s.epoch + 1} - in ${rem.toLocaleString('en-US')} blocks (~${hrs} h).`;
+    lastBlockAge = s.block_age || 0; lastFetch = Date.now();
+    const bs = await (await fetch(API+'/blocks?last=12&_='+Date.now(), {cache:'no-store'})).json();
+    document.querySelector('#blocks tbody').innerHTML = bs.map(b=>
+      `<tr><td>${b.height}</td><td>${new Date(b.time*1000).toLocaleTimeString(loc)}</td>
+      <td style="font-family:monospace;font-size:12px">${b.hash.slice(0,20)}…</td>
+      <td>${b.txs}</td><td style="font-family:monospace;font-size:12px">${b.miner.slice(0,14)}…</td></tr>`).join('');
+  }catch(e){ console.error(e); }
+}
+function tick(){
+  const el = document.getElementById('s-age');
+  if(!el) return;
+  const age = lastBlockAge + Math.floor((Date.now()-lastFetch)/1000);
+  const ru = document.documentElement.lang==='ru';
+  el.textContent = age < 60 ? age + (ru?' с':'s') : Math.floor(age/60) + (ru?' м ':'m ') + (age%60) + (ru?' с':'s');
+}
+// Build the DNA double helix: each base pair is a column whose two dots
+// animate in opposite sine phase; per-column delay creates the rotating helix.
+function buildDNA(el, count){
+  if(!el) return;
+  let html='';
+  for(let i=0;i<count;i++){
+    const d = (-i*0.13).toFixed(2)+'s';
+    html += `<span class="bp"><s style="animation-delay:${d}"></s><i class="a" style="animation-delay:${d}"></i><i class="b" style="animation-delay:${d}"></i></span>`;
+  }
+  el.innerHTML = html;
+}
+buildDNA(document.getElementById('dna2'), 26);
+applyLang(detectLang());
+load();
+setInterval(load, 10000);
+setInterval(tick, 1000);
+</script>
+</body>
+</html>

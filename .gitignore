@@ -1,0 +1,43 @@
+# Secrets — NEVER commit
+.secrets/
+KEYS.txt
+NETWORK_WALLET.txt
+*.pat
+*.token
+# OPERATIONS.md is the private runbook (server, deploy, keys) - never publish
+OPERATIONS.md
+# tools/ holds local operational scripts; MANY embed server creds, private keys,
+# the authority key, or the deploy password (srv.py). Ignore the whole directory
+# by default so a stray `git add -A` can never leak one, and explicitly re-include
+# only the safe, public dev helpers below.
+tools/*
+!tools/getfonts.sh
+!tools/shot.js
+!tools/shot3.js
+!tools/shot4.js
+!tools/test-sha.js
+!tools/wallet-test.sh
+!tools/wasm-smoke.js
+!tools/xplatform-test.sh
+logo/
+
+# Wallets & chain data
+wallet.json
+*.wallet
+cerebra-data/
+*-data/
+
+# Local test artifacts & binaries
+local-test/
+release/
+bin/
+*.exe
+cerebra-miner-linux-amd64
+cerebrad-linux-amd64
+cerebra-wallet-linux-amd64
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.wasm
+shots/

@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cereblix Pool - live mining dashboard</title>
+<meta name="theme-color" content="#06080f">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<style>
+@font-face{font-family:'Space Grotesk';font-weight:500;font-display:swap;src:url('fonts/spacegrotesk-500.woff2') format('woff2')}
+@font-face{font-family:'Space Grotesk';font-weight:700;font-display:swap;src:url('fonts/spacegrotesk-700.woff2') format('woff2')}
+@font-face{font-family:'Inter';font-weight:400;font-display:swap;src:url('fonts/inter-400.woff2') format('woff2')}
+@font-face{font-family:'Inter';font-weight:500;font-display:swap;src:url('fonts/inter-500.woff2') format('woff2')}
+@font-face{font-family:'Inter';font-weight:700;font-display:swap;src:url('fonts/inter-700.woff2') format('woff2')}
+:root{--bg:#06080f;--glass:rgba(146,180,255,.05);--border:rgba(146,180,255,.13);--border2:rgba(120,200,255,.35);--acc:#22d3ee;--acc2:#a78bfa;--txt:#e8ecf6;--mut:#90a0bd;--ok:#34d399;--err:#f87171;--fd:'Space Grotesk',system-ui,sans-serif;--grad:linear-gradient(115deg,var(--acc),var(--acc2))}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--txt);font:16px/1.6 'Inter',system-ui,Segoe UI,Roboto,sans-serif;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+html{overflow-x:hidden}
+::selection{background:rgba(34,211,238,.28)}
+.bg{position:fixed;inset:0;z-index:-2;overflow:hidden;background:radial-gradient(1100px 680px at 50% -12%,#13234a 0%,transparent 60%),radial-gradient(760px 520px at 100% -4%,#1c1440 0%,transparent 55%),var(--bg)}
+.aurora{position:absolute;border-radius:50%;filter:blur(90px);opacity:.45}
+.aurora.a1{width:460px;height:460px;background:radial-gradient(circle,#22d3ee,transparent 64%);top:-160px;left:-90px;animation:dr1 24s ease-in-out infinite}
+.aurora.a2{width:430px;height:430px;background:radial-gradient(circle,#a78bfa,transparent 64%);top:-120px;right:-110px;animation:dr2 28s ease-in-out infinite}
+@keyframes dr1{50%{transform:translate(50px,40px) scale(1.1)}}@keyframes dr2{50%{transform:translate(-45px,50px) scale(1.06)}}
+@media(prefers-reduced-motion:reduce){.aurora{animation:none}}
+.wrap{max-width:920px;margin:0 auto;padding:0 16px 60px}
+.logo{flex:0 0 auto;display:block}
+nav{display:flex;align-items:center;gap:14px;padding:14px 0;flex-wrap:wrap}
+nav .brand{display:flex;align-items:center;gap:11px;text-decoration:none;color:var(--txt)}
+nav .brand .logo{width:34px;height:34px;filter:drop-shadow(0 4px 13px rgba(34,211,238,.4))}
+nav .brand b{font-family:var(--fd);font-size:20px;font-weight:700;letter-spacing:-.01em}
+nav .brand b i{font-style:normal;color:var(--acc2)}
+nav .links{margin-left:auto;display:flex;gap:16px;flex-wrap:wrap;align-items:center}
+nav .links a{color:var(--mut);text-decoration:none;font-size:14.5px;font-weight:500;white-space:nowrap}
+nav .links a:hover,nav .links a.active{color:var(--acc)}
+@media(max-width:620px){nav .links{margin-left:0;width:100%;gap:15px;overflow-x:auto}}
+.langsw{display:inline-flex;gap:2px;border:1px solid var(--border);border-radius:9px;overflow:hidden;background:var(--glass)}
+.langsw button{background:transparent;color:var(--mut);border:0;padding:5px 10px;cursor:pointer;font-size:13px;font-weight:600;font-family:inherit}
+.langsw button.on{background:var(--grad);color:#06121f}
+h1{font-family:var(--fd);font-size:clamp(24px,5vw,32px);font-weight:700;letter-spacing:-.02em;margin:14px 0 6px}h1 em{font-style:normal;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.sub{color:var(--mut);margin-bottom:20px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:18px}
+.stat{background:var(--glass);border:1px solid var(--border);border-radius:15px;padding:16px 18px;backdrop-filter:blur(8px)}
+.stat .k{font-size:12.5px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em}
+.stat .v{font-family:var(--fd);font-size:23px;font-weight:700;margin-top:4px;letter-spacing:-.01em}
+.stat .v small{font-size:13px;color:var(--mut);font-weight:500}
+.card{background:var(--glass);border:1px solid var(--border);border-radius:18px;padding:22px;margin-bottom:16px;backdrop-filter:blur(8px)}
+.card h2{font-family:var(--fd);font-size:18px;font-weight:700;margin-bottom:12px}
+pre{background:#0b1120;border:1px solid var(--border);border-radius:11px;padding:13px 15px;overflow-x:auto;font:13.5px ui-monospace,Consolas,monospace;color:#cbd5e1}
+label{font-size:13.5px;color:var(--mut)}
+input{width:100%;background:#0b1120;border:1px solid var(--border);border-radius:11px;color:var(--txt);padding:12px 13px;font-size:15px;margin:6px 0 4px;font-family:ui-monospace,Consolas,monospace}
+input:focus{outline:none;border-color:var(--acc)}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--border)}
+th{color:var(--mut);font-weight:600;font-size:12.5px;text-transform:uppercase;letter-spacing:.03em}
+td.mono,th.num,td.num{font-family:ui-monospace,Consolas,monospace}
+td.num,th.num{text-align:right}
+tr.me{background:linear-gradient(135deg,rgba(167,139,250,.14),rgba(34,211,238,.07))}
+.addr{font-family:ui-monospace,Consolas,monospace;font-size:13px}
+.note{background:linear-gradient(135deg,rgba(167,139,250,.12),rgba(34,211,238,.06));border:1px solid var(--border2);border-radius:12px;padding:12px 16px;font-size:13.5px;color:#cbd5e1;margin-top:6px}
+.tag{display:inline-block;background:rgba(52,211,153,.14);border:1px solid rgba(52,211,153,.4);color:#a7f3d0;border-radius:7px;font-size:11.5px;padding:2px 8px;font-weight:600;margin-left:8px;vertical-align:middle}
+a{color:var(--acc)}
+.muted{color:var(--mut)}
+.empty{color:var(--mut);padding:14px 4px}
+.pager{display:flex;gap:8px;justify-content:center;align-items:center;margin-top:12px;flex-wrap:wrap}
+.pager button{background:var(--glass);border:1px solid var(--border);color:var(--txt);border-radius:9px;padding:6px 14px;cursor:pointer;font-family:inherit;font-size:14px}
+.pager button:disabled{opacity:.4;cursor:default}
+.lnk{color:var(--acc);cursor:pointer;font-size:13px}
+</style>
+</head>
+<body>
+<div class="bg" aria-hidden="true"><div class="aurora a1"></div><div class="aurora a2"></div></div>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse"><stop stop-color="#22d3ee"/><stop offset="1" stop-color="#a78bfa"/></linearGradient></defs></svg>
+<div class="wrap">
+<nav>
+  <a class="brand" href="./"><svg class="logo" viewBox="0 0 40 40" fill="none" aria-hidden="true"><rect x="2" y="2" width="36" height="36" rx="11" fill="url(#lg)"/><path d="M14 8C27 13 27 16 20 20 13 24 13 27 26 32" stroke="#06121f" stroke-width="2.3" stroke-linecap="round"/><path d="M26 8C13 13 13 16 20 20 27 24 27 27 14 32" stroke="#06121f" stroke-width="2.3" stroke-linecap="round"/></svg><b>Cereb<i>lix</i></b></a>
+  <div class="links">
+    <a href="./" data-i="home">Home</a>
+    <a href="./#mine" data-i="mine">Mine</a>
+    <a href="pool.html" class="active" data-i="pool">Pool</a>
+    <a href="explorer.html" data-i="explorer">Explorer</a>
+    <a href="wallet/" data-i="wallet">Wallet</a>
+    <a href="faucet.html" data-i="faucet">Faucet</a>
+    <a href="./#roadmap" data-i="roadmap">Roadmap</a>
+    <a href="https://github.com/Cereblix/cereblix" target="_blank" rel="noopener">GitHub</a>
+    <span class="langsw"><button data-lang="en" onclick="setLang('en')">EN</button><button data-lang="ru" onclick="setLang('ru')">RU</button></span>
+  </div>
+</nav>
+
+<h1 data-i-html="title">Mining <em>pool</em> <span id="live" class="tag" style="display:none">● LIVE</span></h1>
+<div class="sub" data-i="sub">Steady, low-variance rewards: the pool pays you proportionally to the work you submit, even when network difficulty is high. Point the stock miner at it - nothing else to install.</div>
+
+<div class="grid" id="stats"></div>
+
+<div class="card">
+  <h2 data-i="how_t">Mine on the pool</h2>
+  <pre id="cmd">cereblix-miner -addr crb1YOURADDRESS -node https://cereblix.com/pool/api</pre>
+  <div class="note" data-i-html="ru_note">🇷🇺 <b>RU / CIS</b> - if cereblix.com is slow or blocked, mine through our Moscow relay (same pool, no Cloudflare): <code>cereblix-miner -addr crb1YOURADDRESS -node https://ru.cereblix.com/pool/api</code></div>
+  <div class="note" data-i-html="how_n">Your miner logs <b>"share accepted"</b> - those are shares (proofs of work at an easier target), not full blocks. Rewards arrive automatically as pool payouts once your balance crosses the minimum. Each share is <b>cryptographically bound to your address</b> (per-miner extranonce), so no one can claim your work.</div>
+  <div class="note" data-i-html="pay_n">⏳ <b>Payouts take ~100 blocks (about 1.5–2 hours) to start.</b> A block reward only becomes spendable after <b>100 confirmations</b> (coinbase maturity) - a standard safeguard so the pool never pays out coins from a block that could still be reversed by a chain reorganization. Your earnings accrue immediately and are paid as soon as they mature and cross the minimum payout.</div>
+  <div class="note" data-i-html="hive_n">🐝 <b>Mining rig on Hive OS?</b> Add a <b>Custom miner</b> in your Flight Sheet: <b>Installation URL</b> <code>https://github.com/Cereblix/cereblix/releases/latest/download/cereblix-hiveos.tar.gz</code>, <b>Pool URL</b> <code>https://cereblix.com/pool/api</code>, and your <code>crb1…</code> wallet. Auto-starts, survives reboots, shows hashrate in the dashboard.</div>
+  <div class="note" data-i-html="win_n">🪟 <b>Windows / Linux / macOS?</b> Grab the official <code>cereblix-miner</code> from <a href="https://github.com/Cereblix/cereblix/releases/latest" target="_blank" rel="noopener">GitHub Releases</a> and run <code>cereblix-miner -addr crb1YOUR_ADDRESS -node https://cereblix.com/pool/api</code>. ⚠️ Only use the official miner - any "xmrig-cereblix" is NOT ours (XMRig can't mine NeuroMorph).</div>
+</div>
+
+<div class="card">
+  <h2 data-i="you_t">Your stats</h2>
+  <label data-i="you_l">Your CRB address</label>
+  <input id="addr" placeholder="crb1..." autocomplete="off" oninput="render()">
+  <div id="you" class="muted" style="font-size:14px;margin-top:8px" data-i="you_hint">Enter your address to highlight your row below.</div>
+</div>
+
+<div class="card">
+  <h2 data-i="miners_t">Miners</h2>
+  <div id="minerbox"><div class="empty" data-i="loading">Loading…</div></div>
+</div>
+
+<div class="sub" style="text-align:center;font-size:13px" data-i-html="foot">Pool wallet: <span id="pooladdr" class="addr"></span> · auto-refreshes every 10s</div>
+</div>
+
+<script>
+const I = { en:{}, ru:{
+  home:"Главная", mine:"Майнинг", pool:"Пул", explorer:"Обозреватель", wallet:"Кошелёк", faucet:"Кран", roadmap:"Дорожная карта",
+  title:'Майнинг-<em>пул</em>',
+  sub:"Стабильные выплаты с низкой дисперсией: пул платит пропорционально присланной работе, даже когда сложность сети высокая. Просто направь обычный майнер на него - ничего ставить не нужно.",
+  how_t:"Майнить на пуле",
+  how_n:'Майнер пишет <b>"share accepted"</b> - это шары (доказательства работы на облегчённой цели), а не целые блоки. Выплаты приходят автоматически, когда баланс превысит минимум. Каждая шара <b>криптографически привязана к твоему адресу</b> (extranonce на майнера), поэтому чужой твою работу не присвоит.',
+  pay_n:'⏳ <b>Выплаты начинают доходить через ~100 блоков (примерно 1.5–2 часа).</b> Награда за блок становится тратимой только после <b>100 подтверждений</b> (coinbase maturity) - стандартная защита, чтобы пул не выплатил монеты с блока, который ещё может «откатиться» при реорганизации цепи. Твой заработок начисляется сразу, а выплачивается, как только дозреет и превысит минимальную сумму выплаты.',
+  hive_n:'🐝 <b>Риг на Hive OS?</b> Добавь <b>Custom miner</b> во Flight Sheet: <b>Installation URL</b> <code>https://github.com/Cereblix/cereblix/releases/latest/download/cereblix-hiveos.tar.gz</code>, <b>Pool URL</b> <code>https://cereblix.com/pool/api</code>, кошелёк <code>crb1…</code>. Автостарт, переживает ребут, хешрейт виден в дашборде.',
+  win_n:'🪟 <b>Windows / Linux / macOS?</b> Возьми официальный <code>cereblix-miner</code> из <a href="https://github.com/Cereblix/cereblix/releases/latest" target="_blank" rel="noopener">GitHub Releases</a> и запусти <code>cereblix-miner -addr crb1ТВОЙ_АДРЕС -node https://cereblix.com/pool/api</code>. ⚠️ Только официальный майнер - любой «xmrig-cereblix» НЕ наш (XMRig не умеет NeuroMorph).',
+  ru_note:'🇷🇺 <b>РФ / СНГ</b> - если cereblix.com медленный или не открывается, майнь через наш московский узел (тот же пул, без Cloudflare): <code>cereblix-miner -addr crb1ВАШ_АДРЕС -node https://ru.cereblix.com/pool/api</code>',
+  you_t:"Твоя статистика", you_l:"Твой адрес CRB", you_hint:"Введи адрес, чтобы подсветить свою строку ниже.",
+  miners_t:"Майнеры", loading:"Загрузка…",
+  foot:'Кошелёк пула: <span id="pooladdr" class="addr"></span> · обновление каждые 10с',
+  k_pool_hr:"Хешрейт пула", k_net_hr:"Хешрейт сети", k_blocks:"Блоков найдено", k_miners:"Активных майнеров",
+  k_fee:"Комиссия пула", k_paid:"Всего выплачено", k_owed:"К выплате", k_minpay:"Мин. выплата",
+  c_addr:"Адрес", c_hr:"Хешрейт", c_shares:"Шары (раунд)", c_earned:"Начислено", c_owed:"К выплате", c_paid:"Выплачено",
+  none:"Пока нет активных майнеров - стань первым.", you_row:"это ты",
+  m_showing:"показано", c_of:"из", c_page:"стр.", m_showall:"Показать всех (включая выплаченных)", m_active:"Только активные"
+}};
+const EN={
+  k_pool_hr:"Pool hashrate", k_net_hr:"Network hashrate", k_blocks:"Blocks found", k_miners:"Active miners",
+  k_fee:"Pool fee", k_paid:"Total paid", k_owed:"Owed", k_minpay:"Min payout",
+  c_addr:"Address", c_hr:"Hashrate", c_shares:"Shares (round)", c_earned:"Earned", c_owed:"Owed", c_paid:"Paid",
+  none:"No active miners yet - be the first.", you_row:"you",
+  m_showing:"showing", c_of:"of", c_page:"page", m_showall:"Show all (incl. paid out)", m_active:"Active only"
+};
+function detect(){const s=localStorage.getItem('lang');return (s==='ru'||s==='en')?s:((navigator.language||'en').toLowerCase().startsWith('ru')?'ru':'en');}
+let LANG=detect();
+function applyLang(l){LANG=l;document.documentElement.lang=l;
+  document.querySelectorAll('[data-i],[data-i-html]').forEach(el=>{const k=el.getAttribute('data-i')||el.getAttribute('data-i-html');if(!(k in EN))EN[k]=el.innerHTML;el.innerHTML=l==='en'?EN[k]:(I.ru[k]??EN[k]);});
+  document.querySelectorAll('.langsw button').forEach(b=>b.classList.toggle('on',b.dataset.lang===l));
+  render();}
+function setLang(l){localStorage.setItem('lang',l);applyLang(l);}
+const t=k=>LANG==='en'?(EN[k]??k):(I.ru[k]??EN[k]??k);
+
+const POOL='pool/api', NODE='api';
+const $=id=>document.getElementById(id);
+const U=1e8;
+// Network & pool TOTALS are always shown in MH/s (fixed unit).
+function fmtMH(h){h=+h||0; return (h/1e6).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})+' MH/s';}
+// Per-miner hashrate scales: kH/s normally, MH/s once a miner crosses 1 MH/s.
+function fmtHR(h){h=+h||0; return h>=1e6 ? (h/1e6).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})+' MH/s' : (h/1e3).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})+' kH/s';}
+function fmtCRB(v){return ((+v||0)/U).toLocaleString(undefined,{maximumFractionDigits:4})+' CRB';}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function shortAddr(a){return a.slice(0,10)+'…'+a.slice(-6);}
+
+let LAST=null, NET=null;
+async function poll(){
+  // Fetch each source independently so one failing never blocks the other or
+  // wedges the page on "Loading…".
+  try{ LAST = await (await fetch(POOL+'/poolstats',{cache:'no-store'})).json(); }
+  catch(e){ if(!LAST){ const mb=$('minerbox'); if(mb) mb.innerHTML='<div class="empty">'+(LANG==='ru'?'Не удалось загрузить статистику пула, повтор…':'Could not load pool stats, retrying…')+'</div>'; } }
+  try{ NET = await (await fetch(NODE+'/status',{cache:'no-store'})).json(); }catch(e){}
+  if(LAST){ const lv=$('live'); if(lv) lv.style.display='inline-block'; }
+  render();
+}
+function render(){
+  const s=LAST; if(!s) return;
+  // Each section is isolated: a failure in one never leaves another stuck.
+  try{ renderStats(s); }catch(e){}
+  try{ renderMiners(s); }catch(e){ const mb=$('minerbox'); if(mb) mb.innerHTML='<div class="empty">—</div>'; }
+  try{ renderYou(s); }catch(e){}
+}
+function renderStats(s){
+  const fee=((+s.fee_permil||0)/10).toFixed(1);
+  const tiles=[
+    ['k_pool_hr', fmtMH(s.pool_hashrate)],
+    ['k_net_hr', NET&&NET.hashrate!=null? fmtMH(NET.hashrate):'—'],
+    ['k_blocks', String(s.blocks_found)],
+    ['k_miners', String((Array.isArray(s.miners)?s.miners:[]).filter(m=>(+m.hashrate||0)>0).length)],
+    ['k_fee', fee+'<small>%</small>'],
+    ['k_paid', fmtCRB(s.total_paid)],
+    ['k_owed', fmtCRB(s.total_owed)],
+    ['k_minpay', fmtCRB(s.min_payout)]
+  ];
+  if($('stats')) $('stats').innerHTML=tiles.map(([k,v])=>`<div class="stat"><div class="k">${esc(t(k))}</div><div class="v">${v}</div></div>`).join('');
+  if($('pooladdr')) $('pooladdr').textContent=s.pool_address||'';
+  const a=$('addr'), av=a?a.value.trim():'';
+  if($('cmd')) $('cmd').textContent='cereblix-miner -addr '+(/^crb1[0-9a-f]{40}$/.test(av)?av:'crb1YOURADDRESS')+' -node https://cereblix.com/pool/api';
+}
+// Miners arrive in one poolstats fetch, so paging is client-side (no extra load).
+// Default view hides idle sub-threshold/paid-out miners; "Show all" reveals every
+// miner the pool has ever credited, paged, so anyone can audit the full set.
+const MINERS_PER = 50;
+let minerPage = 0, showAllMiners = false;
+function minerList(s){
+  const all = Array.isArray(s.miners)?s.miners:[];
+  const list = showAllMiners ? all.slice() : all.filter(m=>(+m.hashrate||0)>0||(+m.owed||0)>=(+s.min_payout||0));
+  return list.sort((x,y)=>((+y.hashrate||0)-(+x.hashrate||0))||((+y.shares||0)-(+x.shares||0))||((+y.paid||0)-(+x.paid||0)));
+}
+function renderMiners(s){
+  const a=$('addr'), me=(a?a.value.trim():'').toLowerCase();
+  const miners=minerList(s);
+  const mb=$('minerbox'); if(!mb) return;
+  const total=miners.length;
+  const toggle=`<div style="text-align:center;margin-top:10px"><a class="lnk" onclick="toggleAllMiners()">${showAllMiners?esc(t('m_active')):esc(t('m_showall'))}</a></div>`;
+  if(!total){ mb.innerHTML='<div class="empty">'+esc(t('none'))+'</div>'+toggle; return; }
+  const pages=Math.ceil(total/MINERS_PER);
+  if(minerPage>=pages) minerPage=pages-1;
+  if(minerPage<0) minerPage=0;
+  const start=minerPage*MINERS_PER, pageItems=miners.slice(start,start+MINERS_PER);
+  const rows=pageItems.map(m=>{
+    const addr=String(m.address||''), mine=addr.toLowerCase()===me;
+    return `<tr class="${mine?'me':''}"><td class="addr">${esc(shortAddr(addr))}${mine?' <span class="tag">'+esc(t('you_row'))+'</span>':''}</td>`
+      +`<td class="num">${fmtHR(m.hashrate)}</td><td class="num">${(+m.shares||0).toFixed(0)}</td>`
+      +`<td class="num">${fmtCRB(m.earned)}</td><td class="num">${fmtCRB(m.owed)}</td><td class="num">${fmtCRB(m.paid)}</td></tr>`;
+  }).join('');
+  const pager = pages>1 ? `<div class="pager">
+    <button onclick="minerPageNav(-1)" ${minerPage===0?'disabled':''}>‹</button>
+    <span class="muted" style="font-size:13px">${esc(t('m_showing'))} ${start+1}–${Math.min(start+MINERS_PER,total)} ${esc(t('c_of'))} ${total} · ${esc(t('c_page'))} ${minerPage+1}/${pages}</span>
+    <button onclick="minerPageNav(1)" ${minerPage>=pages-1?'disabled':''}>›</button></div>` : '';
+  mb.innerHTML=`<table><thead><tr><th>${esc(t('c_addr'))}</th><th class="num">${esc(t('c_hr'))}</th><th class="num">${esc(t('c_shares'))}</th><th class="num">${esc(t('c_earned'))}</th><th class="num">${esc(t('c_owed'))}</th><th class="num">${esc(t('c_paid'))}</th></tr></thead><tbody>${rows}</tbody></table>${pager}${toggle}`;
+}
+function minerPageNav(d){ minerPage+=d; render(); }
+function toggleAllMiners(){ showAllMiners=!showAllMiners; minerPage=0; render(); }
+function renderYou(s){
+  const a=$('addr'), me=(a?a.value.trim():'').toLowerCase(), y=$('you'); if(!y) return;
+  if(!/^crb1[0-9a-f]{40}$/.test(me)){ y.innerHTML=t('you_hint'); return; }
+  const mine=(Array.isArray(s.miners)?s.miners:[]).find(m=>String(m.address||'').toLowerCase()===me);
+  y.innerHTML = mine
+    ? `${esc(t('c_hr'))}: <b>${fmtHR(mine.hashrate)}</b> · ${esc(t('c_owed'))}: <b>${fmtCRB(mine.owed)}</b> · ${esc(t('c_paid'))}: <b>${fmtCRB(mine.paid)}</b>`
+    : (LANG==='ru'?'Этот адрес ещё не присылал шар на пул.':'No shares from this address on the pool yet.');
+}
+applyLang(LANG);
+poll();
+setInterval(poll,10000);
+</script>
+</body>
+</html>

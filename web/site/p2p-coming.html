@@ -1,0 +1,51 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<style>
+@font-face{font-family:'Space Grotesk';font-weight:700;src:url('fonts/spacegrotesk-700.woff2') format('woff2')}
+@font-face{font-family:'Inter';font-weight:500;src:url('fonts/inter-500.woff2') format('woff2')}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#06080f}
+.b{position:relative;width:1200px;height:630px;overflow:hidden;
+  background:radial-gradient(900px 620px at 16% -22%,#103047 0%,transparent 60%),
+             radial-gradient(840px 620px at 94% 126%,#1d1a4a 0%,transparent 55%),#06080f;
+  font-family:'Inter',system-ui,sans-serif}
+.aur{position:absolute;border-radius:50%;filter:blur(96px);opacity:.5;z-index:0}
+.a1{width:500px;height:500px;background:radial-gradient(circle,#22d3ee,transparent 64%);top:-190px;left:-60px}
+.a2{width:480px;height:480px;background:radial-gradient(circle,#a78bfa,transparent 64%);bottom:-210px;right:-40px}
+.grid{position:absolute;inset:0;z-index:0;opacity:.05;
+  background-image:linear-gradient(#9fb4d8 1px,transparent 1px),linear-gradient(90deg,#9fb4d8 1px,transparent 1px);
+  background-size:54px 54px}
+.wrap{position:relative;z-index:1;height:100%;display:flex;flex-direction:column;justify-content:center;padding:0 84px}
+.kick{display:inline-flex;align-items:center;gap:11px;align-self:flex-start;
+  font-family:'Space Grotesk';font-weight:700;font-size:20px;letter-spacing:.08em;text-transform:uppercase;
+  color:#22d3ee;border:1.5px solid rgba(34,211,238,.42);border-radius:999px;padding:9px 21px;margin-bottom:28px}
+.kick .dot{width:9px;height:9px;border-radius:50%;background:#22d3ee;box-shadow:0 0 14px #22d3ee}
+.ttl{font-family:'Space Grotesk';font-weight:700;letter-spacing:-.03em;line-height:.9}
+.ttl .l1{font-size:122px;
+  background:linear-gradient(106deg,#22d3ee 0%,#5ea0f2 46%,#a78bfa 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.ttl .l2{display:block;font-size:70px;color:#e8ecf6;margin-top:10px;letter-spacing:-.01em}
+.sub{margin-top:30px;color:#aeb9d0;font-size:28px;font-weight:500;max-width:780px;line-height:1.36}
+.sub b{color:#e8ecf6;font-weight:600}
+.chips{display:flex;gap:13px;margin-top:34px}
+.chip{font-family:'Space Grotesk';font-weight:700;font-size:20px;color:#cfe9f5;
+  background:rgba(34,211,238,.10);border:1px solid rgba(34,211,238,.30);border-radius:12px;padding:11px 19px}
+.logo{position:absolute;top:62px;right:78px;z-index:1;width:150px;height:150px;border-radius:34px;
+  background:linear-gradient(135deg,#22d3ee 0%,#5ea0f2 50%,#a78bfa 100%);display:flex;align-items:center;justify-content:center;
+  box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.logo svg{width:96px;height:96px}
+.url{position:absolute;bottom:36px;right:48px;z-index:1;font-family:'Space Grotesk';font-weight:700;font-size:23px;color:#90a0bd}
+.url b{color:#e8ecf6}
+</style></head>
+<body>
+<div class="b" id="banner">
+  <div class="grid"></div>
+  <div class="aur a1"></div><div class="aur a2"></div>
+  <div class="logo"><svg viewBox="0 0 40 40" fill="none" aria-hidden="true"><path d="M14 8C27 13 27 16 20 20 13 24 13 27 26 32" stroke="#06121f" stroke-width="3" stroke-linecap="round"/><path d="M26 8C13 13 13 16 20 20 27 24 27 27 14 32" stroke="#06121f" stroke-width="3" stroke-linecap="round"/></svg></div>
+  <div class="wrap">
+    <span class="kick"><span class="dot"></span>Roadmap · now in development</span>
+    <div class="ttl"><span class="l1">Cereblix P2P</span><span class="l2">is coming</span></div>
+    <div class="sub">Our own <b>P2P platform</b> with built-in <b>escrow protection</b> - buy, sell &amp; swap CRB directly between people. Funds are held safely until both sides confirm, so no one gets scammed.</div>
+    <div class="chips"><span class="chip">Peer-to-peer</span><span class="chip">Secure escrow</span><span class="chip">Scam-protected</span></div>
+  </div>
+  <div class="url"><b>cereblix.com</b> · CRB</div>
+</div>
+</body></html>

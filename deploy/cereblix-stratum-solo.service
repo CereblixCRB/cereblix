@@ -1,0 +1,16 @@
+[Unit]
+Description=Cereblix Stratum bridge SOLO (Stratum <-> node getwork, full network target)
+After=network-online.target cereblixd.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=cereblix
+Group=cereblix
+ExecStart=/opt/cerebra/bin/cereblix-stratum -listen :3334 -pool http://127.0.0.1:18751/api
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,44 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<style>
+@font-face{font-family:'Space Grotesk';font-weight:700;src:url('fonts/spacegrotesk-700.woff2') format('woff2')}
+@font-face{font-family:'Inter';font-weight:500;src:url('fonts/inter-500.woff2') format('woff2')}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#06080f}
+.b{position:relative;width:1200px;height:630px;overflow:hidden;
+  background:radial-gradient(900px 600px at 22% -25%,#1a2350 0%,transparent 60%),
+             radial-gradient(820px 580px at 88% 130%,#241a45 0%,transparent 55%),#06080f;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:30px;
+  font-family:'Inter',system-ui,sans-serif;text-align:center}
+.aur{position:absolute;border-radius:50%;filter:blur(90px);opacity:.45;z-index:0}
+.a1{width:420px;height:420px;background:radial-gradient(circle,#5865F2,transparent 64%);top:-150px;left:60px}
+.a2{width:400px;height:400px;background:radial-gradient(circle,#a78bfa,transparent 64%);bottom:-170px;right:90px}
+.row{display:flex;align-items:center;gap:46px;z-index:1}
+.tile{width:188px;height:188px;border-radius:42px;display:flex;align-items:center;justify-content:center;
+  box-shadow:0 18px 60px rgba(0,0,0,.5)}
+.dc{background:#5865F2}
+.cb{background:linear-gradient(135deg,#22d3ee 0%,#5ea0f2 50%,#a78bfa 100%)}
+.dc svg{width:112px;height:84px;fill:#fff}
+.cb svg{width:120px;height:120px}
+.x{font-family:'Space Grotesk';font-weight:700;font-size:60px;color:#90a0bd;z-index:1}
+.ttl{font-family:'Space Grotesk';font-weight:700;font-size:62px;letter-spacing:-.02em;line-height:1;z-index:1;
+  background:linear-gradient(110deg,#5865F2,#22d3ee 55%,#a78bfa);-webkit-background-clip:text;background-clip:text;color:transparent}
+.sub{color:#e8ecf6;font-size:25px;font-weight:500;z-index:1}
+.inv{z-index:1;font-family:'Space Grotesk';font-weight:700;font-size:27px;color:#fff;
+  background:#5865F2;border-radius:999px;padding:12px 30px}
+.url{position:absolute;bottom:26px;right:40px;z-index:1;font-family:'Space Grotesk';font-weight:700;font-size:20px;color:#90a0bd}
+.url b{color:#e8ecf6}
+</style></head>
+<body>
+<div class="b" id="banner">
+  <div class="aur a1"></div><div class="aur a2"></div>
+  <div class="row">
+    <div class="tile dc"><svg viewBox="0 0 24 18" aria-hidden="true"><path d="M20.317 1.369A19.79 19.79 0 0 0 15.432 0a.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0A12.64 12.64 0 0 0 8.64.037.077.077 0 0 0 8.562 0 19.736 19.736 0 0 0 3.677 1.37a.07.07 0 0 0-.032.027C.533 6.046-.32 10.58.099 15.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.197.373.291a.077.077 0 0 1-.006.128 12.3 12.3 0 0 1-1.873.891.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 12.331c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg></div>
+    <div class="x">×</div>
+    <div class="tile cb"><svg viewBox="0 0 40 40" fill="none" aria-hidden="true"><path d="M14 8C27 13 27 16 20 20 13 24 13 27 26 32" stroke="#06121f" stroke-width="3" stroke-linecap="round"/><path d="M26 8C13 13 13 16 20 20 27 24 27 27 14 32" stroke="#06121f" stroke-width="3" stroke-linecap="round"/></svg></div>
+  </div>
+  <div class="ttl">Cereblix is now on Discord</div>
+  <div class="sub">Join the community - news · roadmap · mining help · chat</div>
+  <div class="inv">discord.gg/HnffKP86JM</div>
+  <div class="url"><b>cereblix.com</b> · CRB</div>
+</div>
+</body></html>

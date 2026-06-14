@@ -1,0 +1,42 @@
+<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8">
+<style>
+@font-face{font-family:'Space Grotesk';font-weight:500;src:url('fonts/spacegrotesk-500.woff2') format('woff2')}
+@font-face{font-family:'Space Grotesk';font-weight:700;src:url('fonts/spacegrotesk-700.woff2') format('woff2')}
+@font-face{font-family:'Inter';font-weight:400;src:url('fonts/inter-400.woff2') format('woff2')}
+@font-face{font-family:'Inter';font-weight:500;src:url('fonts/inter-500.woff2') format('woff2')}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#06080f}
+/* 1500x500 = X/Twitter header (RU). Content centred so the bottom-left avatar
+   circle and mobile edge-crops never cover the info. */
+.banner{position:relative;width:1500px;height:500px;overflow:hidden;
+  background:radial-gradient(1150px 720px at 50% -34%,#13234a 0%,transparent 60%),
+             radial-gradient(900px 650px at 88% 134%,#1c1440 0%,transparent 55%),#06080f;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  font-family:'Inter',system-ui,sans-serif;text-align:center}
+.aur{position:absolute;border-radius:50%;filter:blur(82px);opacity:.5;z-index:0}
+.a1{width:430px;height:430px;background:radial-gradient(circle,#22d3ee,transparent 64%);top:-185px;right:70px}
+.a2{width:380px;height:380px;background:radial-gradient(circle,#a78bfa,transparent 64%);bottom:-205px;left:140px}
+.head{display:flex;align-items:center;gap:26px;z-index:1}
+.logo{width:120px;height:120px;filter:drop-shadow(0 8px 28px rgba(34,211,238,.45))}
+.title{font-family:'Space Grotesk';font-weight:700;font-size:106px;letter-spacing:-.02em;line-height:1;
+  background:linear-gradient(110deg,#22d3ee,#a78bfa);-webkit-background-clip:text;background-clip:text;color:transparent}
+.tag{color:#e8ecf6;font-size:25px;font-weight:500;margin-top:22px;letter-spacing:.005em;z-index:1}
+.tag b{color:#22d3ee}
+.chips{display:flex;gap:11px;margin-top:25px;z-index:1}
+.chip{font-family:'Space Grotesk';font-weight:700;font-size:15px;color:#34d399;border:1px solid rgba(52,211,153,.45);background:rgba(52,211,153,.1);border-radius:999px;padding:7px 17px}
+.chip.b{color:#a78bfa;border-color:rgba(167,139,250,.45);background:rgba(167,139,250,.1)}
+.url{position:absolute;top:32px;right:48px;z-index:1;font-family:'Space Grotesk';font-weight:700;font-size:23px;color:#90a0bd}
+.url b{color:#e8ecf6}
+</style></head>
+<body>
+<div class="banner" id="banner">
+  <div class="aur a1"></div><div class="aur a2"></div>
+  <div class="head">
+    <svg class="logo" viewBox="0 0 40 40" fill="none" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse"><stop stop-color="#22d3ee"/><stop offset="1" stop-color="#a78bfa"/></linearGradient></defs><rect x="2" y="2" width="36" height="36" rx="11" fill="url(#lg)"/><path d="M14 8C27 13 27 16 20 20 13 24 13 27 26 32" stroke="#06121f" stroke-width="2.3" stroke-linecap="round"/><path d="M26 8C13 13 13 16 20 20 27 24 27 27 14 32" stroke="#06121f" stroke-width="2.3" stroke-linecap="round"/></svg>
+    <div class="title">CEREBLIX</div>
+  </div>
+  <div class="tag">Криптовалюта только для CPU · самомутирующийся PoW <b>NeuroMorph</b></div>
+  <div class="chips"><span class="chip">БЕЗ ПРЕМАЙНА</span><span class="chip">БЕЗ ПРЕСЕЙЛА</span><span class="chip">ЧЕСТНЫЙ ЗАПУСК</span><span class="chip b">МАЙНИНГ В БРАУЗЕРЕ</span><span class="chip b">1 CPU = 1 ГОЛОС</span></div>
+  <div class="url"><b>cereblix.com</b> · CRB</div>
+</div>
+</body></html>

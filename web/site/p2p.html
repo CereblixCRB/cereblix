@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cereblix · P2P Exchange</title>
+<script src="/wallet/nacl.min.js"></script>
+<style>
+  :root{--bg:#070a14;--card:#101524;--card2:#161d30;--line:rgba(125,145,200,.16);--txt:#e9edfb;--mut:#8a97bd;--dim:#5e6a8c;--acc:#6d8bff;--acc2:#a974ff;--grad:linear-gradient(135deg,#6d8bff,#a974ff);--ok:#2fd6a0;--warn:#ffc23d;--err:#ff6b7d;--radius:16px;--shadow:0 18px 50px -20px rgba(0,0,0,.7)}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);font:15px/1.55 -apple-system,Segoe UI,Roboto,Inter,sans-serif;background-image:radial-gradient(900px 500px at 82% -8%,rgba(169,116,255,.18),transparent 60%),radial-gradient(800px 500px at 8% 4%,rgba(109,139,255,.16),transparent 55%);background-attachment:fixed;-webkit-font-smoothing:antialiased}
+  a{color:var(--acc);text-decoration:none}.wrap{max-width:1040px;margin:0 auto;padding:22px 18px 70px}
+  header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:4px 2px 22px}
+  .brand{display:flex;align-items:center;gap:11px;font-weight:750;font-size:19px}
+  .brand .logo{width:34px;height:34px;border-radius:10px;background:var(--grad);display:grid;place-items:center;box-shadow:0 8px 24px -8px rgba(109,139,255,.7)}
+  .brand small{display:block;font-size:11px;font-weight:600;color:var(--mut);letter-spacing:1.5px;text-transform:uppercase;margin-top:-2px}
+  .hgroup{display:flex;align-items:center;gap:10px}
+  .chip{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;color:var(--mut);background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:999px;padding:6px 13px}
+  .chip .dot{width:7px;height:7px;border-radius:50%;background:var(--dim)}.chip.on .dot{background:var(--ok);box-shadow:0 0 10px var(--ok)}
+  .card{background:linear-gradient(180deg,rgba(22,29,48,.85),rgba(13,17,28,.9));border:1px solid var(--line);border-radius:var(--radius);padding:20px;margin-bottom:16px;box-shadow:var(--shadow);backdrop-filter:blur(8px)}
+  .card h2{margin:0 0 4px;font-size:17px}
+  h3{margin:0 0 12px;font-size:11.5px;color:var(--mut);font-weight:700;text-transform:uppercase;letter-spacing:1.1px}
+  button{font:inherit;font-weight:650;cursor:pointer;border:0;border-radius:11px;padding:10px 16px;color:#0a1430;background:var(--grad);transition:transform .12s,box-shadow .2s,background .2s,opacity .2s;box-shadow:0 10px 24px -12px rgba(109,139,255,.8)}
+  button:hover{transform:translateY(-1.5px);box-shadow:0 16px 30px -12px rgba(140,120,255,.9)}button:active{transform:translateY(0)}
+  button:disabled{opacity:.45;cursor:not-allowed;transform:none;box-shadow:none}
+  button.ghost{background:rgba(255,255,255,.04);color:var(--txt);border:1px solid var(--line);box-shadow:none}button.ghost:hover{background:rgba(255,255,255,.09);border-color:rgba(140,160,220,.35)}
+  button.ok{background:linear-gradient(135deg,#2fd6a0,#22b3c9);color:#042018}button.warn{background:linear-gradient(135deg,#ffc23d,#ff9b3d);color:#2a1900}
+  button.danger{background:rgba(255,107,125,.12);color:#ffb3bd;border:1px solid rgba(255,107,125,.4);box-shadow:none}
+  button.mini{padding:6px 11px;font-size:12.5px;border-radius:9px}
+  label{display:block;font-size:11.5px;color:var(--mut);margin:12px 0 6px;font-weight:600}
+  input,select{width:100%;background:var(--card2);border:1px solid var(--line);color:var(--txt);border-radius:11px;padding:11px 13px;font:inherit;transition:border .15s,box-shadow .15s}
+  input::placeholder{color:var(--dim)}input:focus,select:focus{outline:0;border-color:rgba(109,139,255,.7);box-shadow:0 0 0 3px rgba(109,139,255,.18)}
+  select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg width='12' height='8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238a97bd' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 13px center;padding-right:34px}
+  .grid{display:grid;gap:14px}.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.grow{flex:1;min-width:0}
+  .tabs{display:flex;gap:6px;background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:14px;padding:5px;margin-bottom:18px;flex-wrap:wrap}
+  .tabs button{background:transparent;color:var(--mut);box-shadow:none;border-radius:10px;font-weight:650;padding:9px 15px}.tabs button:hover{color:var(--txt);transform:none}
+  .tabs button.active{background:var(--grad);color:#0a1430;box-shadow:0 8px 20px -10px rgba(109,139,255,.8)}
+  table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:12px 8px;border-bottom:1px solid var(--line);font-size:13.5px}
+  th{color:var(--mut);font-weight:650;font-size:11.5px;text-transform:uppercase;letter-spacing:.6px}
+  tbody tr{transition:background .12s}tbody tr:hover{background:rgba(255,255,255,.025)}td.empty{color:var(--dim);text-align:center;padding:26px}
+  .tag{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:650;padding:3px 9px;border-radius:999px;border:1px solid var(--line);color:var(--mut)}
+  .tag.crb{color:#a9c2ff;border-color:rgba(70,110,210,.5);background:rgba(70,110,210,.1)}.tag.usdt{color:#7fe7bd;border-color:rgba(47,160,120,.45);background:rgba(47,160,120,.1)}
+  .state{font-weight:700;font-size:12.5px;display:inline-flex;align-items:center;gap:6px}.state::before{content:'';width:7px;height:7px;border-radius:50%;background:currentColor;box-shadow:0 0 8px currentColor}
+  .s-AWAITING_CRB,.s-funding{color:var(--acc2)}.s-AWAITING_USDT,.s-BOTH_FUNDED_AWAITING_ADMIN{color:var(--warn)}.s-RELEASING{color:var(--acc)}
+  .s-COMPLETED,.s-open{color:var(--ok)}.s-EXPIRED,.s-REFUNDED,.s-cancelled,.s-taken{color:var(--dim)}
+  .muted{color:var(--mut)}.dim{color:var(--dim)}.small{font-size:12.5px}.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;word-break:break-all}.hide{display:none!important}
+  .gate{max-width:460px;margin:8vh auto;text-align:center}.gate .logo-lg{width:58px;height:58px;border-radius:16px;background:var(--grad);margin:0 auto 14px;display:grid;place-items:center;box-shadow:0 16px 40px -12px rgba(140,120,255,.8)}.gate p{color:var(--mut)}
+  .stack{display:flex;flex-direction:column;gap:10px;margin-top:18px}.stack button{width:100%;padding:13px}.or{display:flex;align-items:center;gap:12px;color:var(--dim);font-size:12px;margin:6px 0}.or::before,.or::after{content:'';flex:1;height:1px;background:var(--line)}
+  .legs{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:6px}@media(max-width:680px){.legs{grid-template-columns:1fr}}
+  .leg{background:var(--card2);border:1px solid var(--line);border-radius:14px;padding:15px}.leg.funded{border-color:rgba(47,214,160,.5);box-shadow:inset 0 0 0 1px rgba(47,214,160,.2)}.leg.pending{border-color:rgba(169,116,255,.5)}.leg.idle{opacity:.5}
+  .leg .top{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px}
+  .copyrow{display:flex;align-items:center;gap:8px;background:rgba(0,0,0,.28);border:1px solid var(--line);border-radius:10px;padding:9px 11px;margin-top:8px}
+  .progress{height:6px;border-radius:6px;background:rgba(255,255,255,.06);overflow:hidden;margin:14px 0 2px}.progress i{display:block;height:100%;background:var(--grad);transition:width .5s ease}
+  .pulse{animation:pulse 1.4s ease-in-out infinite}@keyframes pulse{0%,100%{opacity:.55}50%{opacity:1}}
+  .seg{display:inline-flex;background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:4px;gap:4px}.seg button{background:transparent;color:var(--mut);box-shadow:none;border-radius:9px;padding:9px 18px}.seg button:hover{transform:none;color:var(--txt)}
+  .seg button.on.auto{background:linear-gradient(135deg,#2fd6a0,#22b3c9);color:#042018}.seg button.on.semi{background:linear-gradient(135deg,#ffc23d,#ff9b3d);color:#2a1900}
+  .seg.lang{padding:3px;border-radius:10px}.seg.lang button{padding:5px 11px;font-size:12px;border-radius:7px;font-weight:700}.seg.lang button.on{background:var(--grad);color:#0a1430}
+  #toasts{position:fixed;right:18px;bottom:18px;display:flex;flex-direction:column;gap:10px;z-index:60}
+  .toast{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--acc);border-radius:12px;padding:12px 16px;box-shadow:var(--shadow);min-width:220px;max-width:340px;animation:slin .25s ease;font-size:13.5px}.toast.err{border-left-color:var(--err)}.toast.ok{border-left-color:var(--ok)}@keyframes slin{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:none}}
+  #ov{position:fixed;inset:0;background:rgba(4,6,14,.66);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;z-index:50;padding:18px}#ov.show{display:flex}
+  .modal{background:linear-gradient(180deg,#161d30,#0f1422);border:1px solid var(--line);border-radius:18px;padding:22px;width:100%;max-width:460px;box-shadow:var(--shadow);animation:pop .2s ease}@keyframes pop{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:none}}.modal h2{margin:0 0 4px;font-size:17px}
+  .notice{background:rgba(169,116,255,.08);border:1px solid rgba(169,116,255,.28);color:#cdbcff;border-radius:12px;padding:10px 14px;font-size:12.5px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand"><span class="logo"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 3c0 5 12 5 12 10S6 17 6 21M18 3c0 5-12 5-12 10s12 5 12 8" stroke="#0a1430" stroke-width="2" stroke-linecap="round"/></svg></span><span>Cereblix<small data-i18n="subtitle">P2P Exchange</small></span></div>
+    <div class="hgroup"><div class="seg lang"><button id="lg_en" onclick="setLang('en')">EN</button><button id="lg_ru" onclick="setLang('ru')">RU</button></div><div id="who" class="chip"><span class="dot"></span><span id="whoTxt">offline</span></div></div>
+  </header>
+
+  <div id="gate" class="card gate">
+    <div class="logo-lg"><svg width="30" height="30" viewBox="0 0 24 24" fill="none"><path d="M6 3c0 5 12 5 12 10S6 17 6 21M18 3c0 5-12 5-12 10s12 5 12 8" stroke="#0a1430" stroke-width="2" stroke-linecap="round"/></svg></div>
+    <h2 data-i18n="gate_title">Sign in to the P2P exchange</h2>
+    <p class="small" data-i18n="gate_desc"></p>
+    <div class="stack"><button onclick="genAndLogin()" data-i18n="gate_create">Create a test wallet & sign in</button><button class="ghost" onclick="importLogin()" data-i18n="gate_import">Import seed (hex)</button></div>
+    <div class="or" data-i18n="gate_demo">operator demo</div>
+    <button class="ghost" style="width:100%" onclick="login(ADMIN_SEED)" data-i18n="gate_admin">★ Sign in as Admin</button>
+    <div id="gateMsg" class="small" style="margin-top:12px;color:var(--err)"></div>
+  </div>
+
+  <div id="app" class="hide">
+    <div class="tabs">
+      <button data-tab="offers" class="active" onclick="tab('offers')" data-i18n="tab_offers">Offers</button>
+      <button data-tab="myoffers" onclick="tab('myoffers')" data-i18n="tab_myoffers">My offers</button>
+      <button data-tab="mine" onclick="tab('mine')" data-i18n="tab_mine">My trades</button>
+      <button id="adminTabBtn" data-tab="admin" class="hide" onclick="tab('admin')" data-i18n="tab_admin">★ Admin</button>
+      <span class="grow"></span><button class="ghost" onclick="logout()" data-i18n="logout">Sign out</button>
+    </div>
+
+    <div id="tab-offers">
+      <div class="card">
+        <h3 data-i18n="create_offer">Create offer</h3>
+        <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr))">
+          <div><label data-i18n="f_want">I want to</label><select id="o_side"><option value="sell_crb" data-i18n="opt_sell">Sell CRB for USDT</option><option value="buy_crb" data-i18n="opt_buy">Buy CRB for USDT</option></select></div>
+          <div><label data-i18n="f_net">USDT network</label><select id="o_rail"><option value="polygon">USDT · Polygon</option><option value="solana">USDT · Solana</option></select></div>
+        </div>
+        <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-top:2px">
+          <div><label data-i18n="f_amount">Amount, CRB</label><input id="o_amount" type="number" min="0.01" step="0.01" value="10" oninput="offerHint()"></div>
+          <div><label data-i18n="f_price">Price, USDT per 1 CRB</label><input id="o_price" type="number" min="0.0001" step="0.0001" value="1.00" oninput="offerHint()"></div>
+        </div>
+        <div id="o_usdtWrap"><label id="o_usdtLabel" data-i18n="f_usdt_recv">Address to receive USDT</label><input id="o_usdt" class="mono" data-i18n-ph="ph_usdt"></div>
+        <div class="row" style="margin-top:16px"><button onclick="createOffer()" data-i18n="btn_publish">Publish offer</button><span id="o_hint" class="small dim"></span></div>
+      </div>
+      <div class="card"><h3 data-i18n="open_offers">Open offers</h3>
+        <table><thead><tr><th data-i18n="th_side">Side</th><th data-i18n="th_net">Network</th><th data-i18n="th_amount">Amount</th><th data-i18n="th_price">Price</th><th data-i18n="th_total">Total USDT</th><th></th></tr></thead><tbody id="offers"></tbody></table>
+      </div>
+    </div>
+
+    <div id="tab-trade" class="hide"></div>
+
+    <div id="tab-myoffers" class="hide"><div class="card"><h3 data-i18n="my_offers">My offers</h3>
+      <table><thead><tr><th data-i18n="th_side">Side</th><th data-i18n="th_amount">Amount</th><th data-i18n="th_price">Price</th><th data-i18n="th_status">Status</th><th></th></tr></thead><tbody id="myoffers"></tbody></table></div></div>
+
+    <div id="tab-mine" class="hide"><div class="card"><h3 data-i18n="my_trades">My trades</h3>
+      <table><thead><tr><th data-i18n="th_id">ID</th><th data-i18n="th_pair">Pair</th><th>CRB</th><th>USDT</th><th data-i18n="th_status">Status</th><th></th></tr></thead><tbody id="mine"></tbody></table></div></div>
+
+    <div id="tab-admin" class="hide">
+      <div class="card"><h3 data-i18n="mode_title">Platform mode</h3>
+        <div class="row" style="justify-content:space-between"><div class="seg"><button id="m_auto" class="auto" onclick="setMode('auto')" data-i18n="mode_auto">Auto</button><button id="m_semi" class="semi" onclick="setMode('semi')" data-i18n="mode_semi">Semi-auto</button></div><span class="chip"><span data-i18n="mode_current">current:</span> <b id="modeNow" style="color:var(--txt)">—</b></span></div>
+        <p class="small muted" style="margin:12px 0 0" data-i18n="mode_desc"></p></div>
+      <div class="card"><h3 data-i18n="all_trades">All trades</h3>
+        <table><thead><tr><th data-i18n="th_id">ID</th><th data-i18n="th_pair">Pair</th><th>CRB</th><th>USDT</th><th data-i18n="th_legs">Legs</th><th data-i18n="th_status">Status</th><th></th></tr></thead><tbody id="adminTrades"></tbody></table></div>
+    </div>
+  </div>
+  <div class="notice" style="margin-top:8px" data-i18n="notice"></div>
+</div>
+
+<div id="ov" onclick="if(event.target.id==='ov')closeModal()"><div class="modal" id="modalBox"></div></div>
+<div id="toasts"></div>
+
+<script>
+const ADMIN_SEED="6b577bf5eb24c02cb8e56a9f910aaf7d45f021e75461d29aa1433e05c84172dc";
+const I18N={en:{
+ subtitle:"P2P Exchange",offline:"offline",gate_title:"Sign in to the P2P exchange",
+ gate_desc:"The exchange opens only after wallet login. The request is signed by your CRB key right in the browser — your private key never leaves it.",
+ gate_create:"Create a test wallet & sign in",gate_import:"Import seed (hex)",gate_demo:"operator demo",gate_admin:"★ Sign in as Admin",
+ tab_offers:"Offers",tab_myoffers:"My offers",tab_mine:"My trades",tab_admin:"★ Admin",logout:"Sign out",
+ create_offer:"Create offer",f_want:"I want to",opt_sell:"Sell CRB for USDT",opt_buy:"Buy CRB for USDT",f_net:"USDT network",f_amount:"Amount, CRB",f_price:"Price, USDT per 1 CRB",
+ f_usdt_recv:"Address to receive USDT",ph_usdt:"0x… (Polygon) or Solana address",btn_publish:"Publish offer",
+ open_offers:"Open offers",th_side:"Side",th_net:"Network",th_amount:"Amount",th_price:"Price",th_total:"Total USDT",th_status:"Status",th_legs:"Legs",th_id:"ID",th_pair:"Pair",
+ empty_offers:"empty for now — create the first offer",sells_crb:"sells CRB",buys_crb:"buys CRB",btn_take:"Take",
+ my_offers:"My offers",empty_myoffers:"no offers yet",cancel:"Cancel",
+ hint_get:"you will receive ≈ %1 USDT",hint_pay:"you will pay ≈ %1 USDT",
+ fund_title:"Lock CRB to publish",fund_desc:"Send %1 CRB to the address below. Your offer goes live once the funds are locked (~a couple of minutes).",ok_got:"Got it",
+ trade:"Trade",pay_window:"deadline",to_lock:"to lock",to_deposit:"to deposit",
+ leg_send_crb:"Send CRB here to lock",leg_locking:"locking… (~a couple of minutes after you send)",leg_crb_locked:"CRB locked in escrow",
+ leg_send_usdt:"Send USDT here",leg_usdt_idle:"available after CRB is locked",funded:"funded",
+ crb_released:"CRB released",usdt_released:"USDT released",back_offers:"← back",copy:"copy",
+ my_trades:"My trades",empty_mine:"no trades yet",open:"open",
+ mode_title:"Platform mode",mode_auto:"Auto",mode_semi:"Semi-auto",mode_current:"current:",
+ mode_desc:"“Auto” releases the counter-assets the moment both legs are ready. “Semi-auto” holds every release for your approval below.",
+ all_trades:"All trades",empty_trades:"no trades yet",approve:"Approve",signin:"Sign in",
+ import_title:"Import wallet",import_label:"Seed (64 hex chars)",gen_title:"Test wallet created",gen_desc:"This is your access key. Save it if you like (not required for testing).",
+ take_title:"Take offer",take_buy:"You pay %1 USDT and receive %2 CRB",take_sell:"You send %1 CRB and receive %2 USDT",taker_usdt:"Your address to receive USDT",create_trade:"Open deal",
+ taker_usdt_refund:"Your USDT address (for refund if the deal is cancelled)",f_usdt_buy:"Your USDT address (to send from / for refunds)",fund_usdt_title:"Lock USDT to publish",fund_usdt_desc:"Send %1 USDT to the address below. Your offer goes live once the USDT is locked (~a minute).",err_self:"You cannot take your own offer",
+ notice:"Test page · backend /otc · default mode “semi-auto” · real mainnet rails CRB / USDT-Polygon / USDT-Solana.",
+ t_copied:"Copied",t_signedin:"Signed in as %1",t_offer_pub:"Offer created",t_trade:"Deal opened",t_mode:"Mode: %1",t_release:"Release started",t_cancelled:"Offer cancelled",
+ st_AWAITING_CRB:"Locking CRB",st_AWAITING_USDT:"Awaiting USDT",st_BOTH_FUNDED_AWAITING_ADMIN:"Awaiting admin",st_RELEASING:"Releasing",st_RELEASE_RETRY:"Finalizing…",st_FAILED_REVIEW:"On hold (review)",st_COMPLETED:"Completed",st_EXPIRED:"Expired",st_REFUNDED:"Refunded",
+ os_funding:"Locking…",os_funding_usdt:"Locking…",os_open:"Open",os_taken:"Taken",os_cancelled:"Cancelled",
+ err_login_first:"Sign in first",err_bad:"Bad request",err_challenge:"Login session expired — try again",err_cred:"Bad key data",err_sig:"Bad signature",
+ err_side:"Choose a side",err_rail:"Choose a network",err_price:"Check amount / price",err_maker_usdt:"Enter your USDT address (where you receive USDT)",
+ err_offer_closed:"Offer is no longer open",err_taker_usdt:"Enter your USDT address (where you receive USDT)",err_notfound:"Not found",err_admin:"Admin only",err_mode:"Bad mode",err_not_awaiting:"Trade is not awaiting approval",err_offer_nf:"Offer not found"
+},ru:{
+ subtitle:"P2P биржа",offline:"не в сети",gate_title:"Вход в P2P-биржу",
+ gate_desc:"Биржа открывается только после входа кошельком. Запрос подписывается вашим CRB-ключом прямо в браузере — приватник никуда не уходит.",
+ gate_create:"Создать тест-кошелёк и войти",gate_import:"Импорт сид (hex)",gate_demo:"демо для оператора",gate_admin:"★ Войти как Админ",
+ tab_offers:"Объявления",tab_myoffers:"Мои объявления",tab_mine:"Мои сделки",tab_admin:"★ Админ",logout:"Выйти",
+ create_offer:"Создать объявление",f_want:"Я хочу",opt_sell:"Продать CRB за USDT",opt_buy:"Купить CRB за USDT",f_net:"Сеть USDT",f_amount:"Сумма, CRB",f_price:"Цена, USDT за 1 CRB",
+ f_usdt_recv:"Адрес для получения USDT",ph_usdt:"0x… (Polygon) или адрес Solana",btn_publish:"Опубликовать",
+ open_offers:"Открытые объявления",th_side:"Сторона",th_net:"Сеть",th_amount:"Сумма",th_price:"Цена",th_total:"Итого USDT",th_status:"Статус",th_legs:"Ноги",th_id:"ID",th_pair:"Пара",
+ empty_offers:"пока пусто — создайте первое объявление",sells_crb:"продаёт CRB",buys_crb:"покупает CRB",btn_take:"Взять",
+ my_offers:"Мои объявления",empty_myoffers:"объявлений нет",cancel:"Отменить",
+ hint_get:"вы получите ≈ %1 USDT",hint_pay:"вы заплатите ≈ %1 USDT",
+ fund_title:"Заблокируйте CRB для публикации",fund_desc:"Переведите %1 CRB на адрес ниже. Объявление станет активным, как только средства заблокируются (~пара минут).",ok_got:"Понятно",
+ trade:"Сделка",pay_window:"дедлайн",to_lock:"к блокировке",to_deposit:"к внесению",
+ leg_send_crb:"Переведите CRB сюда для блокировки",leg_locking:"блокировка… (~пара минут после перевода)",leg_crb_locked:"CRB заблокирован в эскроу",
+ leg_send_usdt:"Переведите USDT сюда",leg_usdt_idle:"станет доступно после блокировки CRB",funded:"внесено",
+ crb_released:"CRB выдан",usdt_released:"USDT выдан",back_offers:"← назад",copy:"копир.",
+ my_trades:"Мои сделки",empty_mine:"сделок ещё нет",open:"открыть",
+ mode_title:"Режим площадки",mode_auto:"Авто",mode_semi:"Полу-авто",mode_current:"текущий:",
+ mode_desc:"«Авто» — движок отдаёт встречные монеты сразу, как обе ноги готовы. «Полу-авто» — каждая выдача ждёт вашего подтверждения ниже.",
+ all_trades:"Все сделки",empty_trades:"сделок ещё нет",approve:"Подтвердить",signin:"Войти",
+ import_title:"Импорт кошелька",import_label:"Сид (64 hex-символа)",gen_title:"Тест-кошелёк создан",gen_desc:"Это ваш ключ доступа. Сохраните при желании (для теста не обязательно).",
+ take_title:"Взять объявление",take_buy:"Вы платите %1 USDT и получаете %2 CRB",take_sell:"Вы отправляете %1 CRB и получаете %2 USDT",taker_usdt:"Ваш адрес для получения USDT",create_trade:"Открыть сделку",
+ taker_usdt_refund:"Ваш адрес USDT (для возврата, если сделка отменится)",f_usdt_buy:"Ваш адрес USDT (откуда переводите / для возврата)",fund_usdt_title:"Заблокируйте USDT для публикации",fund_usdt_desc:"Переведите %1 USDT на адрес ниже. Объявление станет активным, как только USDT заблокируется (~минута).",err_self:"Нельзя взять собственное объявление",
+ notice:"Тестовая страница · бэкенд /otc · режим по умолчанию «полу-авто» · реальные mainnet-рельсы CRB / USDT-Polygon / USDT-Solana.",
+ t_copied:"Скопировано",t_signedin:"Вы вошли как %1",t_offer_pub:"Объявление создано",t_trade:"Сделка открыта",t_mode:"Режим: %1",t_release:"Выдача запущена",t_cancelled:"Объявление отменено",
+ st_AWAITING_CRB:"Блокировка CRB",st_AWAITING_USDT:"Ожидание USDT",st_BOTH_FUNDED_AWAITING_ADMIN:"Ждёт админа",st_RELEASING:"Выдача",st_RELEASE_RETRY:"Завершение…",st_FAILED_REVIEW:"На паузе (проверка)",st_COMPLETED:"Завершена",st_EXPIRED:"Истекла",st_REFUNDED:"Возврат",
+ os_funding:"Блокируется…",os_funding_usdt:"Блокируется…",os_open:"Открыт",os_taken:"Взят",os_cancelled:"Отменён",
+ err_login_first:"Сначала войдите",err_bad:"Неверный запрос",err_challenge:"Сессия входа истекла — попробуйте снова",err_cred:"Неверные данные ключа",err_sig:"Неверная подпись",
+ err_side:"Выберите сторону",err_rail:"Выберите сеть",err_price:"Проверьте сумму / цену",err_maker_usdt:"Укажите адрес USDT (куда получаете USDT)",
+ err_offer_closed:"Объявление больше не активно",err_taker_usdt:"Укажите адрес USDT (куда получаете USDT)",err_notfound:"Не найдено",err_admin:"Только для админа",err_mode:"Неверный режим",err_not_awaiting:"Сделка не ждёт подтверждения",err_offer_nf:"Объявление не найдено"
+}};
+const ERRMAP={'login first':'err_login_first','bad json':'err_bad','challenge expired':'err_challenge','bad pub/sig':'err_cred','bad signature':'err_sig','side must be sell_crb or buy_crb':'err_side','rail must be polygon or solana':'err_rail','bad price/amount':'err_price','maker_usdt required (where you receive USDT)':'err_maker_usdt','offer not open':'err_offer_closed','taker_usdt required (where you receive USDT)':'err_taker_usdt','not found':'err_notfound','admin only':'err_admin','mode must be auto or semi':'err_mode','trade not awaiting approval':'err_not_awaiting','offer not found':'err_offer_nf','cannot take your own offer':'err_self'};
+
+let LANG=(navigator.language||'').startsWith('ru')?'ru':'en';if(localStorage.getItem('otc_lang'))LANG=localStorage.getItem('otc_lang');
+let TOK=null,ME=null,IS_ADMIN=false,curTrade=null,curTab='offers',pollTimer=null;
+function t(k){return (I18N[LANG]&&I18N[LANG][k])||I18N.en[k]||k}
+function tp(k){let s=t(k);for(let i=1;i<arguments.length;i++)s=s.replace('%'+i,arguments[i]);return s}
+function locErr(m){if(ERRMAP[m])return t(ERRMAP[m]);if(m==='network')return LANG==='ru'?'Ошибка сети — проверьте соединение':'Network error — check your connection';if(m&&m.indexOf('slow down')>=0)return LANG==='ru'?'Слишком часто — подождите немного':'Too many requests — slow down';if(m&&m.indexOf('out of range')>=0)return LANG==='ru'?'Значение вне допустимого диапазона':'Value out of allowed range';if(m&&m.indexOf('invalid for this network')>=0)return LANG==='ru'?'Адрес недействителен для этой сети':'Address invalid for this network';if(m&&m.indexOf('too small')>=0)return LANG==='ru'?'Сумма слишком мала':'Amount too small';return m||t('err_bad')}
+function stLabel(s){const v=(I18N[LANG]||{})['st_'+s]||I18N.en['st_'+s];return v||s}
+function osLabel(s){const v=(I18N[LANG]||{})['os_'+s]||I18N.en['os_'+s];return v||s}
+const hex2b=h=>{h=h.trim();const a=new Uint8Array(h.length/2);for(let i=0;i<a.length;i++)a[i]=parseInt(h.substr(i*2,2),16);return a};
+const b2hex=b=>Array.from(b).map(x=>x.toString(16).padStart(2,'0')).join('');
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function short(a){return a?a.slice(0,9)+'…'+a.slice(-6):''}
+function toast(m,ty){const d=document.createElement('div');d.className='toast '+(ty||'');d.textContent=m;$('toasts').appendChild(d);setTimeout(()=>d.remove(),3800)}
+function tErr(e){toast(locErr(e.message),'err')}
+function copy(x){const ok=()=>toast(t('t_copied'),'ok');if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(x).then(ok).catch(()=>fbcopy(x,ok))}else fbcopy(x,ok)}
+function fbcopy(x,ok){const ta=document.createElement('textarea');ta.value=x;ta.style.cssText='position:fixed;opacity:0';document.body.appendChild(ta);ta.focus();ta.select();try{document.execCommand('copy');ok()}catch(e){toast(x,'')}ta.remove()}
+function openModal(h){$('modalBox').innerHTML=h;$('ov').classList.add('show')}
+function closeModal(){$('ov').classList.remove('show')}
+function applyStatic(){document.querySelectorAll('[data-i18n]').forEach(e=>e.textContent=t(e.dataset.i18n));document.querySelectorAll('[data-i18n-ph]').forEach(e=>e.placeholder=t(e.dataset.i18nPh));setWho();updateOfferForm();offerHint()}
+function setWho(){$('whoTxt').textContent=ME?((IS_ADMIN?'★ ':'')+short(ME)):t('offline')}
+function setLang(l){LANG=l;localStorage.setItem('otc_lang',l);$('lg_en').classList.toggle('on',l==='en');$('lg_ru').classList.toggle('on',l==='ru');applyStatic();rerender()}
+function rerender(){if($('app').classList.contains('hide'))return;if(!$('tab-trade').classList.contains('hide')){renderTrade();return}({offers:loadOffers,myoffers:loadMyOffers,mine:loadMine,admin:loadAdmin}[curTab]||(()=>{}))()}
+async function api(p,o={}){o.headers=Object.assign({'Content-Type':'application/json'},o.headers||{});if(TOK)o.headers['Authorization']='Bearer '+TOK;let r;try{r=await fetch('/otc'+p,o)}catch(e){throw new Error('network')}const x=await r.text();let j={};try{j=JSON.parse(x)}catch(e){}if(r.status===401&&TOK){logout();throw new Error('challenge expired')}if(!r.ok)throw new Error(j.error||x||('HTTP '+r.status));return j}
+function kpFromSeed(h){return nacl.sign.keyPair.fromSeed(hex2b(h))}
+
+async function login(seedHex){try{
+  if(typeof nacl==='undefined')throw new Error(LANG==='ru'?'Не загрузилась библиотека кошелька':'Wallet library failed to load');
+  if(!/^[0-9a-fA-F]{64}$/.test((seedHex||'').trim()))throw new Error(LANG==='ru'?'Сид должен быть 64 hex-символа':'Seed must be 64 hex chars');
+  const kp=kpFromSeed(seedHex);const ch=await api('/challenge');const sig=nacl.sign.detached(new TextEncoder().encode(ch.msg),kp.secretKey);
+  const res=await api('/login',{method:'POST',body:JSON.stringify({pub:b2hex(kp.publicKey),nonce:ch.nonce,sig:b2hex(sig)})});
+  TOK=res.token;ME=res.addr;IS_ADMIN=res.admin;$('who').className='chip on';setWho();$('gate').classList.add('hide');$('app').classList.remove('hide');$('adminTabBtn').classList.toggle('hide',!IS_ADMIN);closeModal();tab('offers');toast(tp('t_signedin',short(ME)),'ok')
+}catch(e){$('gateMsg').textContent=locErr(e.message);tErr(e)}}
+function genAndLogin(){const s=new Uint8Array(32);crypto.getRandomValues(s);const h=b2hex(s);openModal(`<h2>${t('gen_title')}</h2><p class="small muted">${t('gen_desc')}</p><div class="copyrow"><span class="mono grow">${h}</span><button class="ghost mini" onclick="copy('${h}')">${t('copy')}</button></div><div class="row" style="margin-top:16px;justify-content:flex-end"><button class="ghost" onclick="closeModal()">${t('cancel')}</button><button onclick="login('${h}')">${t('signin')}</button></div>`)}
+function importLogin(){openModal(`<h2>${t('import_title')}</h2><label>${t('import_label')}</label><input id="imp" class="mono" placeholder="abcd…"><div class="row" style="margin-top:16px;justify-content:flex-end"><button class="ghost" onclick="closeModal()">${t('cancel')}</button><button onclick="login($('imp').value.trim())">${t('signin')}</button></div>`)}
+function logout(){if(TOK){api('/logout').catch(()=>{})}TOK=ME=null;IS_ADMIN=false;curTrade=null;clearInterval(pollTimer);$('app').classList.add('hide');$('gate').classList.remove('hide');$('who').className='chip';setWho()}
+
+function tab(name){curTab=name;['offers','trade','myoffers','mine','admin'].forEach(x=>$('tab-'+x).classList.toggle('hide',x!==name));document.querySelectorAll('.tabs [data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));clearInterval(pollTimer);rerender()}
+function offerHint(){if(!$('o_amount'))return;$('o_hint').style.color='';const amt=+$('o_amount').value||0,pr=+$('o_price').value||0,tot=(amt*pr);$('o_hint').textContent=$('o_side')&&$('o_side').value==='sell_crb'?tp('hint_get',tot.toFixed(2)):tp('hint_pay',tot.toFixed(2))}
+document.addEventListener('visibilitychange',()=>{if(document.hidden){clearInterval(pollTimer)}else if(curTrade&&!$('tab-trade').classList.contains('hide')){renderTrade();pollTimer=setInterval(renderTrade,5000)}});
+function updateOfferForm(){if(!$('o_side'))return;const buy=$('o_side').value==='buy_crb';$('o_usdtWrap').style.display='';if($('o_usdtLabel'))$('o_usdtLabel').textContent=buy?t('f_usdt_buy'):t('f_usdt_recv')}
+document.addEventListener('DOMContentLoaded',()=>{$('o_side').addEventListener('change',()=>{updateOfferForm();offerHint()})});
+
+let OFFERS={},MYOFFERS={};
+function railLabel(r){return r==='polygon'?'Polygon':r==='solana'?'Solana':esc(String(r))}
+function copyPrev(btn){const s=btn.parentElement.querySelector('.mono');if(s)copy(s.textContent)}
+function startTakeId(id){const x=OFFERS[id];if(x)startTake(x)}
+function openFundId(id){const x=MYOFFERS[id];if(x)fundModal(x)}
+async function loadOffers(){let o;try{o=await api('/offers')}catch(e){return tErr(e)}OFFERS={};const tb=$('offers');tb.innerHTML='';if(!o.length){tb.innerHTML=`<tr><td colspan=6 class=empty>${t('empty_offers')}</td></tr>`;return}
+  o.forEach(x=>{OFFERS[x.ID]=x;const side=x.Side==='sell_crb'?t('sells_crb'):t('buys_crb');const tr=document.createElement('tr');tr.innerHTML=`<td><b>${side}</b></td><td><span class="tag usdt">USDT · ${railLabel(x.Rail)}</span></td><td><b>${Number(x.AmountCRB)}</b> CRB</td><td>${Number(x.Price)}</td><td>${Number(x.AmountUSDT).toFixed(2)}</td><td style="text-align:right"><button class="mini" onclick="startTakeId('${esc(x.ID)}')">${t('btn_take')}</button></td>`;tb.appendChild(tr)})}
+async function createOffer(){try{const body={Side:$('o_side').value,Rail:$('o_rail').value,AmountCRB:+$('o_amount').value,Price:+$('o_price').value,MakerUSDT:$('o_usdt').value.trim()};
+  const o=await api('/offers',{method:'POST',body:JSON.stringify(body)});toast(t('t_offer_pub'),'ok');
+  if(o.Status==='funding'||o.Status==='funding_usdt'){fundModal(o)}tab('myoffers')
+}catch(e){$('o_hint').textContent=locErr(e.message);$('o_hint').style.color='var(--err)';tErr(e)}}
+function fundModal(o){const usdt=o.Side==='buy_crb';
+  const addr=usdt?o.EscrowUSDT:o.EscrowCRB;
+  const title=usdt?t('fund_usdt_title'):t('fund_title');
+  const desc=usdt?tp('fund_usdt_desc',Number(o.AmountUSDT).toFixed(2)):tp('fund_desc',Number(o.AmountCRB));
+  const amt=usdt?(Number(o.AmountUSDT).toFixed(2)+' USDT · '+railLabel(o.Rail)):(Number(o.AmountCRB)+' CRB');
+  openModal(`<h2>${title}</h2><p class="small muted">${desc}</p><div class="copyrow"><span class="mono grow">${esc(addr)}</span><button class="ghost mini" onclick="copyPrev(this)">${t('copy')}</button></div><div class="small dim" style="margin-top:8px">${t('to_lock')}: <b style="color:var(--txt)">${amt}</b></div><div class="row" style="margin-top:16px;justify-content:flex-end"><button onclick="closeModal()">${t('ok_got')}</button></div>`)}
+
+function startTake(x){const buy=x.Side==='buy_crb';
+  const lbl=buy?t('taker_usdt'):t('taker_usdt_refund');
+  openModal(`<h2>${t('take_title')}</h2><p class="small muted">${buy?tp('take_sell',Number(x.AmountCRB),Number(x.AmountUSDT).toFixed(2)):tp('take_buy',Number(x.AmountUSDT).toFixed(2),Number(x.AmountCRB))} · ${railLabel(x.Rail)}</p><label>${lbl}</label><input id="tk_usdt" class="mono" placeholder="0x… / Solana"><div class="row" style="margin-top:16px;justify-content:flex-end"><button class="ghost" onclick="closeModal()">${t('cancel')}</button><button id="tk_btn" onclick="doTake('${esc(x.ID)}','${esc(x.Side)}')">${t('create_trade')}</button></div>`)}
+function doTake(id,side){const usdt=($('tk_usdt').value||'').trim();const b=$('tk_btn');if(b)b.disabled=true;api('/take',{method:'POST',body:JSON.stringify({OfferID:id,TakerUSDT:usdt})}).then(tr=>{closeModal();openTrade(tr.ID);toast(t('t_trade'),'ok')}).catch(e=>{if(b)b.disabled=false;loadOffers();tErr(e)})}
+
+function openTrade(id){curTrade=id;['offers','myoffers','mine','admin'].forEach(x=>$('tab-'+x).classList.add('hide'));$('tab-trade').classList.remove('hide');document.querySelectorAll('.tabs [data-tab]').forEach(b=>b.classList.remove('active'));renderTrade();clearInterval(pollTimer);pollTimer=setInterval(renderTrade,5000)}
+function crbLeg(tr){const locked=tr.CRBLocked;const cls=locked?'funded':'pending';
+  let inner;if(locked){inner=`<span class="state s-COMPLETED">${t('leg_crb_locked')}</span>`}else{inner=`<div class="small muted">${t('leg_send_crb')}</div><div class="copyrow"><span class="mono grow">${esc(tr.EscrowCRB)}</span><button class="ghost mini" onclick="copyPrev(this)">${t('copy')}</button></div><div class="small pulse" style="margin-top:7px;color:var(--acc2)">${t('leg_locking')}</div>`}
+  return `<div class="leg ${cls}"><div class="top"><span class="tag crb">CRB</span><span class="small dim">${Number(tr.AmountCRB)} CRB</span></div>${inner}</div>`}
+function usdtLeg(tr){const f=tr.USDTFunded;return `<div class="leg ${f?'funded':'pending'}"><div class="top"><span class="tag usdt">USDT · ${railLabel(tr.Rail)}</span>${f?`<span class="state s-COMPLETED">${t('funded')}</span>`:`<span class="small dim">${Number(tr.AmountUSDT).toFixed(6)}</span>`}</div>${f?'':`<div class="small muted">${t('leg_send_usdt')}</div><div class="copyrow"><span class="mono grow">${esc(tr.EscrowUSDT)}</span><button class="ghost mini" onclick="copyPrev(this)">${t('copy')}</button></div>`}</div>`}
+async function renderTrade(){let tr;try{tr=await api('/trade?id='+curTrade)}catch(e){if(e.message==='not found'||e.message==='forbidden'){clearInterval(pollTimer);$('tab-trade').innerHTML=`<div class="card"><p class="muted">${t('err_notfound')}</p><button class="ghost" style="margin-top:10px" onclick="tab('offers')">${t('back_offers')}</button></div>`}return}const pct=(tr.CRBLocked?50:0)+(tr.USDTFunded?50:0);
+  $('tab-trade').innerHTML=`<div class="card"><div class="row" style="justify-content:space-between;align-items:flex-start"><div><h2 style="margin:0">${t('trade')}</h2><div class="mono small dim">${esc(tr.ID)}</div></div><span class="state s-${esc(tr.State)}">${stLabel(tr.State)}</span></div>
+   <p class="muted small" style="margin:10px 0 0">${Number(tr.AmountCRB)} CRB ⇄ ${Number(tr.AmountUSDT).toFixed(6)} USDT · ${railLabel(tr.Rail)} · ${t('pay_window')} ${new Date(tr.Deadline*1000).toLocaleTimeString()}</p>
+   <div class="progress"><i style="width:${pct}%"></i></div><div class="legs">${crbLeg(tr)}${usdtLeg(tr)}</div>
+   ${tr.RelCRBTx?`<p class="small" style="margin:8px 0 0">${t('crb_released')} · <span class="mono">${esc(tr.RelCRBTx)}</span></p>`:''}${tr.RelUSDTTx?`<p class="small" style="margin:6px 0 0">${t('usdt_released')} · <span class="mono">${esc(tr.RelUSDTTx)}</span></p>`:''}
+   ${tr.Note?`<p class="small muted" style="margin-top:10px">▸ ${esc(tr.Note)}</p>`:''}<button class="ghost" style="margin-top:16px" onclick="tab('offers')">${t('back_offers')}</button></div>`}
+
+async function loadMyOffers(){let o;try{o=await api('/myoffers')}catch(e){return tErr(e)}MYOFFERS={};const tb=$('myoffers');tb.innerHTML='';if(!o.length){tb.innerHTML=`<tr><td colspan=5 class=empty>${t('empty_myoffers')}</td></tr>`;return}
+  o.sort((a,b)=>b.Created-a.Created).forEach(x=>{MYOFFERS[x.ID]=x;const side=x.Side==='sell_crb'?t('sells_crb'):t('buys_crb');
+    const lockBtn=(x.Status==='funding'||x.Status==='funding_usdt')?`<button class="mini" onclick="openFundId('${esc(x.ID)}')">${t('to_lock')}</button> `:'';
+    const tr=document.createElement('tr');tr.innerHTML=`<td>${side}</td><td>${Number(x.AmountCRB)} CRB</td><td>${Number(x.Price)}</td><td><span class="state s-${esc(x.Status)}">${osLabel(x.Status)}</span></td><td style="text-align:right">${lockBtn}<button class="danger mini" onclick="cancelOffer('${esc(x.ID)}')">${t('cancel')}</button></td>`;tb.appendChild(tr)})}
+async function cancelOffer(id){try{await api('/offers/cancel',{method:'POST',body:JSON.stringify({ID:id})});toast(t('t_cancelled'),'ok');loadMyOffers()}catch(e){tErr(e)}}
+
+async function loadMine(){let ts;try{ts=await api('/mytrades')}catch(e){return tErr(e)}const tb=$('mine');tb.innerHTML='';if(!ts.length){tb.innerHTML=`<tr><td colspan=6 class=empty>${t('empty_mine')}</td></tr>`;return}
+  ts.sort((a,b)=>b.Created-a.Created).forEach(x=>{const tr=document.createElement('tr');tr.innerHTML=`<td class="mono small">${esc(String(x.ID).slice(0,8))}</td><td><span class="tag crb">CRB</span> · ${railLabel(x.Rail)}</td><td>${Number(x.AmountCRB)}</td><td>${Number(x.AmountUSDT).toFixed(4)}</td><td><span class="state s-${esc(x.State)}">${stLabel(x.State)}</span></td><td style="text-align:right"><button class="ghost mini" onclick="openTrade('${esc(x.ID)}')">${t('open')}</button></td>`;tb.appendChild(tr)})}
+
+async function loadAdmin(){let r;try{r=await api('/admin/trades')}catch(e){return tErr(e)}$('modeNow').textContent=t('mode_'+r.mode)||r.mode;$('m_auto').classList.toggle('on',r.mode==='auto');$('m_semi').classList.toggle('on',r.mode==='semi');
+  const tb=$('adminTrades');tb.innerHTML='';if(!r.trades.length){tb.innerHTML=`<tr><td colspan=7 class=empty>${t('empty_trades')}</td></tr>`;return}
+  r.trades.sort((a,b)=>b.Created-a.Created).forEach(x=>{const legs=`<span class="${x.CRBLocked?'state s-COMPLETED':'dim'}" style="font-size:11px">CRB</span> <span class="${x.USDTFunded?'state s-COMPLETED':'dim'}" style="font-size:11px">USDT</span>`;const act=(x.State==='BOTH_FUNDED_AWAITING_ADMIN'||x.State==='RELEASE_RETRY')?`<button class="ok mini" onclick="approve('${esc(x.ID)}')">${t('approve')}</button>`:'';
+    const tr=document.createElement('tr');tr.innerHTML=`<td class="mono small">${esc(String(x.ID).slice(0,8))}</td><td>CRB · ${railLabel(x.Rail)}</td><td>${Number(x.AmountCRB)}</td><td>${Number(x.AmountUSDT).toFixed(4)}</td><td>${legs}</td><td><span class="state s-${esc(x.State)}">${stLabel(x.State)}</span></td><td style="text-align:right">${act}</td>`;tb.appendChild(tr)})}
+async function setMode(m){try{await api('/admin/mode',{method:'POST',body:JSON.stringify({Mode:m})});toast(tp('t_mode',t('mode_'+m)),'ok');loadAdmin()}catch(e){tErr(e)}}
+async function approve(id){try{await api('/admin/approve',{method:'POST',body:JSON.stringify({ID:id})});toast(t('t_release'),'ok');setTimeout(loadAdmin,1500)}catch(e){tErr(e)}}
+setLang(LANG);
+</script>
+</body>
+</html>

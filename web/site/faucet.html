@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cereblix Faucet - free CRB to get started</title>
+<meta name="theme-color" content="#06080f">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<style>
+@font-face{font-family:'Space Grotesk';font-weight:500;font-display:swap;src:url('fonts/spacegrotesk-500.woff2') format('woff2')}
+@font-face{font-family:'Space Grotesk';font-weight:700;font-display:swap;src:url('fonts/spacegrotesk-700.woff2') format('woff2')}
+@font-face{font-family:'Inter';font-weight:400;font-display:swap;src:url('fonts/inter-400.woff2') format('woff2')}
+@font-face{font-family:'Inter';font-weight:500;font-display:swap;src:url('fonts/inter-500.woff2') format('woff2')}
+@font-face{font-family:'Inter';font-weight:700;font-display:swap;src:url('fonts/inter-700.woff2') format('woff2')}
+:root{--bg:#06080f;--glass:rgba(146,180,255,.05);--border:rgba(146,180,255,.13);--border2:rgba(120,200,255,.35);--acc:#22d3ee;--acc2:#a78bfa;--txt:#e8ecf6;--mut:#90a0bd;--ok:#34d399;--err:#f87171;--fd:'Space Grotesk',system-ui,sans-serif;--grad:linear-gradient(115deg,var(--acc),var(--acc2))}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--txt);font:16px/1.6 'Inter',system-ui,Segoe UI,Roboto,sans-serif;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+html{overflow-x:hidden}
+::selection{background:rgba(34,211,238,.28)}
+.bg{position:fixed;inset:0;z-index:-2;overflow:hidden;background:radial-gradient(1100px 680px at 50% -12%,#13234a 0%,transparent 60%),radial-gradient(760px 520px at 100% -4%,#1c1440 0%,transparent 55%),var(--bg)}
+.aurora{position:absolute;border-radius:50%;filter:blur(90px);opacity:.45}
+.aurora.a1{width:460px;height:460px;background:radial-gradient(circle,#22d3ee,transparent 64%);top:-160px;left:-90px;animation:dr1 24s ease-in-out infinite}
+.aurora.a2{width:430px;height:430px;background:radial-gradient(circle,#a78bfa,transparent 64%);top:-120px;right:-110px;animation:dr2 28s ease-in-out infinite}
+@keyframes dr1{50%{transform:translate(50px,40px) scale(1.1)}}@keyframes dr2{50%{transform:translate(-45px,50px) scale(1.06)}}
+@media(prefers-reduced-motion:reduce){.aurora{animation:none}}
+.wrap{max-width:620px;margin:0 auto;padding:0 16px 60px}
+.logo{flex:0 0 auto;display:block}
+nav{display:flex;align-items:center;gap:14px;padding:14px 0;flex-wrap:wrap}
+nav .brand{display:flex;align-items:center;gap:11px;text-decoration:none;color:var(--txt)}
+nav .brand .logo{width:34px;height:34px;filter:drop-shadow(0 4px 13px rgba(34,211,238,.4))}
+nav .brand b{font-family:var(--fd);font-size:20px;font-weight:700;letter-spacing:-.01em}
+nav .brand b i{font-style:normal;color:var(--acc2)}
+nav .links{margin-left:auto;display:flex;gap:16px;flex-wrap:wrap;align-items:center}
+nav .links a{color:var(--mut);text-decoration:none;font-size:14.5px;font-weight:500;white-space:nowrap}
+nav .links a:hover,nav .links a.active{color:var(--acc)}
+@media(max-width:560px){nav .links{margin-left:0;width:100%;gap:15px;overflow-x:auto}}
+.langsw{display:inline-flex;gap:2px;border:1px solid var(--border);border-radius:9px;overflow:hidden;background:var(--glass)}
+.langsw button{background:transparent;color:var(--mut);border:0;padding:5px 10px;cursor:pointer;font-size:13px;font-weight:600;font-family:inherit}
+.langsw button.on{background:var(--grad);color:#06121f}
+h1{font-family:var(--fd);font-size:clamp(24px,5vw,30px);font-weight:700;letter-spacing:-.02em;margin:14px 0 6px}h1 em{font-style:normal;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.sub{color:var(--mut);margin-bottom:18px}
+.card{background:var(--glass);border:1px solid var(--border);border-radius:18px;padding:22px;margin-bottom:16px;backdrop-filter:blur(8px)}
+label{font-size:13.5px;color:var(--mut)}
+input{width:100%;background:#0b1120;border:1px solid var(--border);border-radius:11px;color:var(--txt);padding:12px 13px;font-size:15px;margin:6px 0 14px;font-family:ui-monospace,Consolas,monospace}
+input:focus{outline:none;border-color:var(--acc)}
+button.go{background:var(--grad);border:0;color:#06121f;font-family:var(--fd);font-weight:700;padding:14px 22px;border-radius:13px;cursor:pointer;font-size:16px;width:100%;box-shadow:0 8px 22px -6px rgba(34,211,238,.5);transition:transform .15s,filter .15s}
+button.go:hover{transform:translateY(-2px);filter:brightness(1.05)}
+button.go:disabled{opacity:.6;cursor:default;transform:none}
+.msg{margin-top:14px;font-size:14.5px;padding:12px 14px;border-radius:11px;display:none}
+.msg.ok{display:block;background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.4);color:#a7f3d0}
+.msg.err{display:block;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.4);color:#fecaca}
+.msg.work{display:block;background:var(--glass);border:1px solid var(--border);color:var(--mut)}
+.msg a{color:var(--acc)}
+.note{background:linear-gradient(135deg,rgba(167,139,250,.12),rgba(34,211,238,.06));border:1px solid var(--border2);border-radius:12px;padding:12px 16px;font-size:13.5px;color:#cbd5e1;margin-top:14px}
+.bar{height:6px;background:#0b1120;border-radius:6px;overflow:hidden;margin-top:8px;display:none}
+.bar i{display:block;height:100%;width:0;background:var(--grad);transition:width .15s}
+a{color:var(--acc)}
+</style>
+</head>
+<body>
+<div class="bg" aria-hidden="true"><div class="aurora a1"></div><div class="aurora a2"></div></div>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse"><stop stop-color="#22d3ee"/><stop offset="1" stop-color="#a78bfa"/></linearGradient></defs></svg>
+<div class="wrap">
+<nav>
+  <a class="brand" href="./"><svg class="logo" viewBox="0 0 40 40" fill="none" aria-hidden="true"><rect x="2" y="2" width="36" height="36" rx="11" fill="url(#lg)"/><path d="M14 8C27 13 27 16 20 20 13 24 13 27 26 32" stroke="#06121f" stroke-width="2.3" stroke-linecap="round"/><path d="M26 8C13 13 13 16 20 20 27 24 27 27 14 32" stroke="#06121f" stroke-width="2.3" stroke-linecap="round"/></svg><b>Cereb<i>lix</i></b></a>
+  <div class="links">
+    <a href="./" data-i="home">Home</a>
+    <a href="./#mine" data-i="mine">Mine</a>
+    <a href="pool.html" data-i="pool">Pool</a>
+    <a href="explorer.html" data-i="explorer">Explorer</a>
+    <a href="wallet/" data-i="wallet">Wallet</a>
+    <a href="faucet.html" class="active" data-i="faucet">Faucet</a>
+    <a href="./#roadmap" data-i="roadmap">Roadmap</a>
+    <a href="https://github.com/Cereblix/cereblix" target="_blank" rel="noopener">GitHub</a>
+    <span class="langsw"><button data-lang="en" onclick="setLang('en')">EN</button><button data-lang="ru" onclick="setLang('ru')">RU</button></span>
+  </div>
+</nav>
+
+<h1 data-i-html="title">Free <em>CRB</em> faucet</h1>
+<div class="sub" data-i="sub">New here? Grab a tiny bit of CRB to try the wallet and send your first transaction - no rig needed.</div>
+
+<div class="card">
+  <label data-i="addr_l">Your CRB address</label>
+  <input id="addr" placeholder="crb1..." autocomplete="off">
+  <button class="go" id="btn" onclick="claim()" data-i="btn">Mine a share &amp; claim</button>
+  <div class="bar" id="bar"><i id="barfill"></i></div>
+  <div class="msg" id="msg"></div>
+  <div class="note" data-i-html="note">One claim per address and per IP every <b>3 hours</b>. The amount scales with your mining: <b>0.001</b> CRB to start, <b>0.01</b> after a block, <b>0.1</b> past 100 blocks. To claim, your browser mines <b>one real NeuroMorph share</b> - genuine work in our own algorithm that mines toward the faucet's treasury (and now and then strikes a full block for it). That's the anti-bot check: bots have to actually mine for us.</div>
+</div>
+
+<div class="card" style="font-size:14px;color:var(--mut)">
+  <span data-i="more">Want more than a drop? </span><a href="./#mine" data-i="more_link">Mine CRB</a><span data-i="more2"> - 50 CRB per block, on any CPU.</span>
+</div>
+</div>
+
+<script>
+const I = { en:{}, ru:{
+  home:"Главная", mine:"Майнинг", pool:"Пул", explorer:"Обозреватель", wallet:"Кошелёк", faucet:"Кран", roadmap:"Дорожная карта",
+  title:'Бесплатный кран <em>CRB</em>',
+  sub:"Только пришёл? Возьми немного CRB, чтобы попробовать кошелёк и сделать первую транзакцию - без рига.",
+  addr_l:"Твой адрес CRB", btn:"Намайнить шару и получить",
+  note:'Одна выдача на адрес и на IP раз в <b>3 часа</b>. Сумма растёт с майнингом: <b>0.001</b> CRB на старте, <b>0.01</b> после блока, <b>0.1</b> после 100 блоков. Чтобы получить, браузер майнит <b>одну настоящую NeuroMorph-шару</b> - реальная работа нашего алгоритма, которая майнит в пользу казны крана (и время от времени выбивает для неё целый блок). Это и есть анти-бот: ботам придётся реально майнить на нас.',
+  more:"Нужно больше капли? ", more_link:"Майни CRB", more2:" - 50 CRB за блок, на любом процессоре."
+}};
+const EN={};
+function detect(){const s=localStorage.getItem('lang');return (s==='ru'||s==='en')?s:((navigator.language||'en').toLowerCase().startsWith('ru')?'ru':'en');}
+let LANG=detect();
+function applyLang(l){LANG=l;document.documentElement.lang=l;
+  document.querySelectorAll('[data-i],[data-i-html]').forEach(el=>{const k=el.getAttribute('data-i')||el.getAttribute('data-i-html');if(!(k in EN))EN[k]=el.innerHTML;el.innerHTML=l==='en'?EN[k]:(I.ru[k]??EN[k]);});
+  document.querySelectorAll('.langsw button').forEach(b=>b.classList.toggle('on',b.dataset.lang===l));}
+function setLang(l){localStorage.setItem('lang',l);applyLang(l);}
+const t=k=>LANG==='en'?(EN[k]??k):(I.ru[k]??EN[k]??k);
+
+const API='faucet';
+const $=id=>document.getElementById(id);
+function show(cls,html){const m=$('msg');m.className='msg '+cls;m.innerHTML=html;}
+
+let worker=null, hashes=0, t0=0;
+function stopMiner(){ if(worker){try{worker.terminate();}catch(e){} worker=null;} }
+
+async function claim(){
+  const addr=$('addr').value.trim();
+  if(!/^crb1[0-9a-f]{40}$/.test(addr)){show('err',LANG==='ru'?'Введите корректный адрес crb1…':'Enter a valid crb1… address');return;}
+  $('btn').disabled=true; $('bar').style.display='block'; $('barfill').style.width='0';
+  show('work',LANG==='ru'?'Загружаю майнер…':'Loading the miner…');
+  let ch;
+  try{ ch=await (await fetch(API+'/challenge?addr='+addr+'&_='+Date.now(),{cache:'no-store'})).json(); }
+  catch(e){ show('err',(LANG==='ru'?'Ошибка: ':'Error: ')+e.message); $('btn').disabled=false; $('bar').style.display='none'; return; }
+  if(ch.error){ show('err',ch.error); $('btn').disabled=false; $('bar').style.display='none'; return; }
+  hashes=0; t0=Date.now();
+  stopMiner();
+  worker=new Worker('miner-worker.js');
+  worker.onmessage=async (e)=>{
+    const m=e.data;
+    if(m.type==='ready'){
+      worker.postMessage({type:'work', work:{id:ch.challenge, header:ch.header, target:ch.target, seed:ch.seed, height:ch.height}, startNonce:'0'});
+      show('work',LANG==='ru'?'Майню NeuroMorph-шару…':'Mining a NeuroMorph share…');
+    } else if(m.type==='progress'){
+      hashes+=m.hashed;
+      const hr=hashes/Math.max(0.1,(Date.now()-t0)/1000);
+      $('barfill').style.width=Math.min(95,hashes/2)+'%';
+      show('work',(LANG==='ru'?'Майню шару… ':'Mining a share… ')+Math.round(hr)+' H/s');
+    } else if(m.type==='found'){
+      stopMiner(); $('barfill').style.width='100%';
+      show('work',LANG==='ru'?'Шара найдена, отправляю…':'Share found, sending…');
+      try{
+        const res=await (await fetch(API+'/claim',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({addr,challenge:ch.challenge,nonce:String(m.nonce)})})).json();
+        if(res.error) show('err',res.error);
+        else show('ok',(LANG==='ru'?'Отправлено '+res.amount+' CRB! ':'Sent '+res.amount+' CRB! ')+'<a href="explorer.html" target="_blank">'+res.txid.slice(0,20)+'…</a>');
+      }catch(e){ show('err',(LANG==='ru'?'Ошибка: ':'Error: ')+e.message); }
+      $('btn').disabled=false; $('bar').style.display='none';
+    } else if(m.type==='err'){
+      stopMiner(); show('err','miner: '+m.err); $('btn').disabled=false; $('bar').style.display='none';
+    }
+  };
+}
+applyLang(LANG);
+</script>
+</body>
+</html>
