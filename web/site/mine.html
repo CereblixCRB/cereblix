@@ -105,6 +105,7 @@ a{color:var(--acc)}
   <a href="#browser" data-i="q_browser">📱 Browser</a>
   <a href="#native" data-i="q_native">💻 Native app</a>
   <a href="#xmrig" data-i="q_xmrig">⚡ XMRig</a>
+  <a href="#proxy" data-i="q_proxy">🚜 Farm proxy</a>
   <a href="#node" data-i="q_node">🖧 Your own node</a>
 </div>
 
@@ -162,8 +163,10 @@ xmrig-cereblix -o stratum.cereblix.com:3333 -a nm/1 -u crb1YOUR_ADDRESS -p x
 xmrig-cereblix -o stratum.cereblix.com:3334 -a nm/1 -u crb1YOUR_ADDRESS -p x</div>
   <div class="muted" data-i-html="s_xmrig_solo">💡 Solo (<code>:3334</code>) now serves an easy <b>auto-vardiff</b> share target, so XMRig shows steady <b>"accepted"</b> shares + live hashrate just like the pool - while real blocks still pay the full 50 CRB. Choose your own difficulty with <code>-p diff=N</code>.</div>
   <div class="muted" data-i-html="s_xmrig_cores">🧮 <b>CPU cores.</b> This build uses <b>all your CPU cores by default</b>. If it ever runs on fewer threads than your CPU has, set the count yourself: add <code>-t N</code> (N = number of threads) or <code>--cpu-max-threads-hint=50</code> (percent of cores). On <b>Hive OS</b> leave <i>Extra config arguments</i> empty (algo <code>nm/1</code> and all cores are automatic); to limit cores there add <code>"max-threads-hint": 50</code> (JSON, not <code>-t</code>).</div>
+</section>
 
-  <h3 data-i-html="s_proxy_h">🖧 Running a farm? Aggregate rigs with the proxy</h3>
+<section class="sec" id="proxy">
+  <h2 data-i-html="s_proxy_h">🚜 Running a farm? Aggregate rigs with the proxy</h2>
   <p class="lead" data-i-html="s_proxy_p">Our fee-free <b>xmrig-cereblix-proxy</b> (Stratum proxy) lets a whole farm share one connection and one config: point the proxy at the pool, then point every rig at the proxy.</p>
   <div class="dls">
     <a class="dl" href="https://github.com/CereblixCRB/cereblix/releases/download/xmrig/xmrig-cereblix-proxy-windows-x64.exe"><b>🪟 Windows x64</b><span>xmrig-cereblix-proxy</span></a>
@@ -225,7 +228,7 @@ const I = {
     start:"Запустить майнинг", stop:"Остановить",
     st_hr:"H/s (ваше устройство)", st_found:"найдено блоков",
     note:"Честно: браузерный майнинг - это про участие и интерес, а не про заработок: телефон выдаёт от единиц до нескольких десятков хэшей в секунду. Пока вкладка открыта, расходуются батарея и процессор. Держите вкладку активной - телефоны душат фоновые вкладки.",
-    q_browser:"📱 Браузер", q_native:"💻 Приложение", q_xmrig:"⚡ XMRig", q_node:"🖧 Своя нода",
+    q_browser:"📱 Браузер", q_native:"💻 Приложение", q_xmrig:"⚡ XMRig", q_proxy:"🚜 Ферма (прокси)", q_node:"🖧 Своя нода",
     s_browser_h:"📱 1 · Майнинг в браузере",
     s_browser_p:"Проще всего - без установки и подписи. Телефон (iOS и Android), планшет или ПК; хэшер NeuroMorph работает как WebAssembly. Медленно (телефон выдаёт единицы-десятки H/s), зато запускается буквально где угодно.",
     s_native_h:"💻 2 · Нативный CPU-майнер",
@@ -237,7 +240,7 @@ const I = {
     s_xmrig_src:'Исходники (GPL): <a href="https://cereblix.com/xmrig-cereblix-src.tar.gz">xmrig-cereblix-src.tar.gz</a> · зеркало в <a href="https://github.com/CereblixCRB/cereblix/releases/tag/xmrig" target="_blank" rel="noopener">релизе xmrig на GitHub</a>. Intel Mac - соберите из исходников (бинарник нативный arm64).',
     s_xmrig_solo:'💡 Соло (<code>:3334</code>) теперь отдаёт лёгкий <b>авто-vardiff</b> share-target, так что XMRig стабильно показывает <b>«accepted»</b> и хешрейт - как на пуле, при этом настоящие блоки по-прежнему дают все 50 CRB. Свою сложность выбирайте через <code>-p diff=N</code>.',
     s_xmrig_cores:'🧮 <b>Ядра CPU.</b> По умолчанию используются <b>все ядра процессора</b>. Если вдруг задействованы не все потоки - задайте число вручную: добавьте <code>-t N</code> (N - число потоков) или <code>--cpu-max-threads-hint=50</code> (процент ядер). На <b>Hive OS</b> поле <i>Extra config arguments</i> оставьте пустым (algo <code>nm/1</code> и все ядра включаются сами); ограничить ядра там - <code>"max-threads-hint": 50</code> (JSON, не <code>-t</code>).',
-    s_proxy_h:'🖧 Большая ферма? Агрегируйте риги через прокси',
+    s_proxy_h:'🚜 Большая ферма? Агрегируйте риги через прокси',
     s_proxy_p:'Наш бесплатный <b>xmrig-cereblix-proxy</b> (Stratum-прокси) позволяет всей ферме работать через одно соединение и один конфиг: наводите прокси на пул, а каждый риг - на прокси.',
     s_proxy_src:'Исходники (GPL): <a href="https://github.com/CereblixCRB/cereblix/releases/download/xmrig/xmrig-cereblix-proxy-src.tar.gz">xmrig-cereblix-proxy-src.tar.gz</a>.',
     s_proxy_n:'⚠️ Апстрим - только <b>пул</b> (<code>stratum.cereblix.com:3333</code>). Заработок по-прежнему виден по адресу на <a href="pool.html">дашборде пула</a>.',
