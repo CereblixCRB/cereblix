@@ -197,7 +197,8 @@ then point every rig at the proxy.
 | Source (GPLv3) | [xmrig-cereblix-proxy-src.tar.gz](https://github.com/CereblixCRB/cereblix/releases/download/xmrig/xmrig-cereblix-proxy-src.tar.gz) |
 
 ```sh
-# 1. proxy config.json - "mode":"simple" is REQUIRED for nm/1; "url" = the pool (upstream), "bind" = where your rigs connect
+# 1. config.json - "simple" works with any miner; big farms can use "nicehash"
+#    ("nicehash" = ONE pool connection for all rigs - needs miner v1.1+ AND proxy v1.2+)
 { "mode": "simple", "pools": [ { "algo": "nm/1", "url": "stratum.cereblix.com:3333", "user": "crb1YOURADDRESS", "pass": "x", "keepalive": true } ], "bind": [ "0.0.0.0:3333" ] }
 
 # 2. run the proxy
