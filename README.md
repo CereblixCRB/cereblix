@@ -161,6 +161,17 @@ Both endpoints show steady `accepted` shares: the **solo** endpoint uses
 blocks still pay the full 50 CRB. Pick your own share difficulty with
 **`-p diff=50000`** (or login `crb1...+50000`).
 
+**🇷🇺 RU / CIS.** If shares keep dropping out or the connection times out (a flaky
+route to the main server), use the Moscow relay instead — a local route, no
+Cloudflare, same Stratum protocol. Only the host changes:
+
+```sh
+# pool
+xmrig-cereblix -o ru.cereblix.com:3333 -a nm/1 -u crb1YOURADDRESS -p x
+# solo
+xmrig-cereblix -o ru.cereblix.com:3334 -a nm/1 -u crb1YOURADDRESS -p x
+```
+
 **CPU cores.** This build uses **all your CPU cores by default**. If it ever
 starts on fewer threads than your CPU has, set the count yourself: add
 **`-t N`** (N = number of threads), or **`--cpu-max-threads-hint=PERCENT`**
@@ -196,8 +207,9 @@ xmrig-cereblix-proxy -c config.json
 xmrig-cereblix -a nm/1 -o PROXY_IP:3333 -u crb1YOURADDRESS -p x
 ```
 
-The proxy's upstream must be the **pool** (`stratum.cereblix.com:3333`). Your
-earnings still track per address on the pool dashboard.
+The proxy's upstream must be the **pool** (`stratum.cereblix.com:3333`, or for
+RU/CIS `ru.cereblix.com:3333`). Your earnings still track per address on the pool
+dashboard.
 
 A ready-made [`config.json`](https://github.com/CereblixCRB/cereblix/releases/download/xmrig/xmrig-cereblix-proxy-config.json)
 is on the release - just put in your address.
