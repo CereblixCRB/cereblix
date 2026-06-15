@@ -173,6 +173,65 @@ used; to limit cores there, put `"max-threads-hint": 50` (JSON, not `-t`).
 > run it. To mine with XMRig against *your own* node, see
 > [Mine to your own node with XMRig](#mine-to-your-own-node-with-xmrig) below.
 
+### Run a farm through a proxy (xmrig-cereblix-proxy)
+
+Running many rigs? Our **fee-free `xmrig-cereblix-proxy`** (a Stratum proxy) lets
+the whole farm share one connection and one config: point the proxy at the pool,
+then point every rig at the proxy.
+
+| Platform | Download |
+|---|---|
+| Windows x64 | [xmrig-cereblix-proxy-windows-x64.exe](https://github.com/CereblixCRB/cereblix/releases/download/xmrig/xmrig-cereblix-proxy-windows-x64.exe) |
+| Linux x64 | [xmrig-cereblix-proxy-linux-x64](https://github.com/CereblixCRB/cereblix/releases/download/xmrig/xmrig-cereblix-proxy-linux-x64) |
+| Source (GPLv3) | [xmrig-cereblix-proxy-src.tar.gz](https://github.com/CereblixCRB/cereblix/releases/download/xmrig/xmrig-cereblix-proxy-src.tar.gz) |
+
+```sh
+# 1. proxy config.json - "url" = the pool (upstream), "bind" = where your rigs connect
+{ "pools": [ { "algo": "nm/1", "url": "stratum.cereblix.com:3333", "user": "crb1YOURADDRESS", "pass": "x", "keepalive": true } ], "bind": [ "0.0.0.0:3333" ] }
+
+# 2. run the proxy
+xmrig-cereblix-proxy -c config.json
+
+# 3. point every rig at the proxy (not the pool):
+xmrig-cereblix -a nm/1 -o PROXY_IP:3333 -u crb1YOURADDRESS -p x
+```
+
+The proxy's upstream must be the **pool** (`stratum.cereblix.com:3333`). Your
+earnings still track per address on the pool dashboard.
+
+A ready-made [`config.json`](https://github.com/CereblixCRB/cereblix/releases/download/xmrig/xmrig-cereblix-proxy-config.json)
+is on the release - just put in your address.
+
+**Monitoring & per-rig stats.** The proxy has a built-in HTTP API. With the
+`"http"` block enabled (it is in the sample config) you can read live stats:
+
+```sh
+curl http://127.0.0.1:8080/1/summary    # hashrate, accepted, connected miners
+curl http://127.0.0.1:8080/1/workers    # per-rig breakdown ("workers": true)
+```
+
+The console also prints hashrate and accepted/rejected shares periodically.
+
+**Run it 24/7 (Linux, systemd).** A sample unit
+[`cereblix-proxy.service`](https://github.com/CereblixCRB/cereblix/releases/download/xmrig/cereblix-proxy.service)
+is on the release:
+
+```sh
+sudo useradd -r -s /usr/sbin/nologin cereblix          # once
+sudo mkdir -p /opt/cereblix-proxy
+sudo cp xmrig-cereblix-proxy config.json /opt/cereblix-proxy/
+sudo cp cereblix-proxy.service /etc/systemd/system/
+sudo systemctl enable --now cereblix-proxy
+journalctl -u cereblix-proxy -f                        # watch it
+```
+
+**Remote rigs over TLS.** To accept rigs over an encrypted connection, add a TLS
+bind, e.g. `"bind": ["0.0.0.0:3333", { "host": "0.0.0.0", "port": 3443, "tls": true }]`.
+
+**Updates.** The proxy checks for a newer build on start and prints a one-line
+notice with the download link - it **never** downloads or runs anything. Turn it
+off with `--no-version-check` or `"version-check": false` in the config.
+
 ### Free faucet
 
 No coins yet? Grab a little from the faucet to try the wallet. The anti-bot check
