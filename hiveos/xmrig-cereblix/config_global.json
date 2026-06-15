@@ -1,0 +1,9 @@
+{
+    "autosave": false,
+    "background": false,
+    "colors": false,
+    "cpu": {
+        "enabled": true,
+        "huge-pages": true
+    }
+}
