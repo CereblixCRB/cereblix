@@ -161,6 +161,7 @@ xmrig-cereblix -o stratum.cereblix.com:3333 -a nm/1 -u crb1YOUR_ADDRESS -p x
 # solo - whole 50 CRB blocks (now shows steady feedback shares too; -p diff=N to pick difficulty)
 xmrig-cereblix -o stratum.cereblix.com:3334 -a nm/1 -u crb1YOUR_ADDRESS -p x</div>
   <div class="muted" data-i-html="s_xmrig_solo">💡 Solo (<code>:3334</code>) now serves an easy <b>auto-vardiff</b> share target, so XMRig shows steady <b>"accepted"</b> shares + live hashrate just like the pool - while real blocks still pay the full 50 CRB. Choose your own difficulty with <code>-p diff=N</code>.</div>
+  <div class="muted" data-i-html="s_xmrig_cores">🧮 <b>CPU cores.</b> This build uses <b>all your CPU cores by default</b>. If it ever runs on fewer threads than your CPU has, set the count yourself: add <code>-t N</code> (N = number of threads) or <code>--cpu-max-threads-hint=50</code> (percent of cores). On <b>Hive OS</b> leave <i>Extra config arguments</i> empty (algo <code>nm/1</code> and all cores are automatic); to limit cores there add <code>"max-threads-hint": 50</code> (JSON, not <code>-t</code>).</div>
 </section>
 
 <section class="sec" id="node">
@@ -219,6 +220,7 @@ const I = {
     s_xmrig_p:"Наша официальная сборка XMRig <b>без комиссии</b> (донат разработчику убран, исходники под GPL). На больших CPU масштабируется лучше нативного майнера. Говорит по Stratum - подключайте к нашему, пул или соло.",
     s_xmrig_src:'Исходники (GPL): <a href="https://cereblix.com/xmrig-cereblix-src.tar.gz">xmrig-cereblix-src.tar.gz</a> · зеркало в <a href="https://github.com/CereblixCRB/cereblix/releases/tag/xmrig" target="_blank" rel="noopener">релизе xmrig на GitHub</a>. Intel Mac - соберите из исходников (бинарник нативный arm64).',
     s_xmrig_solo:'💡 Соло (<code>:3334</code>) теперь отдаёт лёгкий <b>авто-vardiff</b> share-target, так что XMRig стабильно показывает <b>«accepted»</b> и хешрейт - как на пуле, при этом настоящие блоки по-прежнему дают все 50 CRB. Свою сложность выбирайте через <code>-p diff=N</code>.',
+    s_xmrig_cores:'🧮 <b>Ядра CPU.</b> По умолчанию используются <b>все ядра процессора</b>. Если вдруг задействованы не все потоки - задайте число вручную: добавьте <code>-t N</code> (N - число потоков) или <code>--cpu-max-threads-hint=50</code> (процент ядер). На <b>Hive OS</b> поле <i>Extra config arguments</i> оставьте пустым (algo <code>nm/1</code> и все ядра включаются сами); ограничить ядра там - <code>"max-threads-hint": 50</code> (JSON, не <code>-t</code>).',
     s_node_h:"🖧 4 · Своя нода",
     s_node_p:"Полная нода = независимая валидация цепочки и ваш голос в сети, без зависимости от наших серверов. Необязательно, но это по-настоящему доверительный (trustless) майнинг.",
     s_node_xm_h:"… и майнинг на свою ноду через XMRig",
