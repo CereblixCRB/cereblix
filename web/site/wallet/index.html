@@ -155,7 +155,9 @@ let histRecent = [], histExtra = [], histPendingRows = '', histTotal = 0, histLo
 
 const $ = id => document.getElementById(id);
 const hex = b => Array.from(b).map(x=>x.toString(16).padStart(2,'0')).join('');
-const unhex = s => new Uint8Array(s.match(/.{2}/g).map(x=>parseInt(x,16)));
+const unhex = s => { const m = (s||'').match(/.{2}/g); return m ? new Uint8Array(m.map(x=>parseInt(x,16))) : new Uint8Array(0); };
+// Escape server-provided strings before putting them in innerHTML (defense in depth).
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
 
 const L = {
   en:{nav_home:"Home",nav_mine:"Mine",nav_pool:"Pool",nav_explorer:"Explorer",nav_wallet:"Wallet",nav_faucet:"Faucet",nav_roadmap:"Roadmap",about:"about",wallet:"Wallet",setup_p:"Keys are created and stored <b>only in your browser</b>. The server never sees your private key - transactions are signed locally (ed25519).",
@@ -174,6 +176,8 @@ const L = {
     out:"− sent",in_:"+ received",empty_hist:"empty so far - mine or receive your first CRB",pend:"pending",unconf:"Unconfirmed",loadmore:"Load more",showing:"showing",of:"of",
     net:(s)=>`height <b>${s.height}</b> · epoch ${s.epoch} · network hashrate ~<b>${((+s.hashrate||0)/1e6).toFixed(2)}</b> MH/s · supply ${fmt(s.supply)} CRB · reward ${fmt(s.reward)} CRB · mempool ${s.mempool}`,
     node_down:"node unavailable: ",bad_to:"invalid recipient address",bad_amount:"invalid amount",
+    insufficient:(bal)=>`amount + fee exceeds your spendable balance (${bal} CRB)`,
+    send_confirm:(amt,to,fee)=>`Send ${amt} CRB\nto ${to}\nfee ${fee} CRB?`,
     speedup:"speed up",cancel_tx:"cancel",
     speedup_confirm:(o,n)=>`Re-broadcast this payment with a higher fee so it confirms sooner?\n\nFee: ${o} → ${n} CRB (same recipient, same amount).`,
     cancel_confirm:(n)=>`Cancel this pending transaction?\n\nIt will be replaced by a tiny self-send (fee ${n} CRB) at the same nonce, so the original payment never executes. Only works while it is still unconfirmed.`,
@@ -196,6 +200,8 @@ const L = {
     out:"− отправка",in_:"+ получение",empty_hist:"пока пусто - намайните или получите первые CRB",pend:"в мемпуле",unconf:"Неподтверждённый",loadmore:"Показать ещё",showing:"показано",of:"из",
     net:(s)=>`высота <b>${s.height}</b> · эпоха ${s.epoch} · хэшрейт сети ~<b>${((+s.hashrate||0)/1e6).toFixed(2)}</b> MH/s · эмиссия ${fmt(s.supply)} CRB · награда за блок ${fmt(s.reward)} CRB · мемпул ${s.mempool}`,
     node_down:"нода недоступна: ",bad_to:"некорректный адрес получателя",bad_amount:"некорректная сумма",
+    insufficient:(bal)=>`сумма + комиссия больше доступного баланса (${bal} CRB)`,
+    send_confirm:(amt,to,fee)=>`Отправить ${amt} CRB\nна ${to}\nкомиссия ${fee} CRB?`,
     speedup:"ускорить",cancel_tx:"отменить",
     speedup_confirm:(o,n)=>`Переотправить этот платёж с большей комиссией, чтобы он подтвердился быстрее?\n\nКомиссия: ${o} → ${n} CRB (тот же получатель и сумма).`,
     cancel_confirm:(n)=>`Отменить эту неподтверждённую транзакцию?\n\nОна будет заменена крошечной самоотправкой (комиссия ${n} CRB) с тем же nonce, и исходный платёж не выполнится. Работает, только пока транзакция в мемпуле.`,
@@ -366,7 +372,7 @@ async function refresh(){
           + `<a href="#" onclick="cancelTx(${x.nonce});return false">✖ ${t('cancel_tx')}</a></div>`;
       }
       return `<tr><td>${pendBadge}</td><td class="${out?'out':'in'}">${out?t('out'):t('in_')}</td>
-        <td class="mono" style="font-size:12px">${peer.slice(0,16)}…${actions}</td>
+        <td class="mono" style="font-size:12px">${esc(peer.slice(0,16))}…${actions}</td>
         <td class="${out?'out':'in'}">${out?'−':'+'}${fmt(x.amount)}</td></tr>`;
     }).join('');
     histPendingRows = pr;
@@ -389,7 +395,7 @@ function renderHistory(){
     const out = h.from === keys.address;
     const peer = out ? h.to : h.from;
     return `<tr><td>${h.height}</td><td class="${out?'out':'in'}">${out?t('out'):t('in_')}</td>
-      <td class="mono" style="font-size:12px">${(peer||'').slice(0,16)}…</td>
+      <td class="mono" style="font-size:12px">${esc((peer||'').slice(0,16))}…</td>
       <td class="${out?'out':'in'}">${out?'−':'+'}${fmt(h.amount)}</td></tr>`;
   }).join('');
   const more = confirmed.length < histTotal;
@@ -414,6 +420,18 @@ async function loadMoreHist(){
 }
 
 const toCrb = s => (s / UNIT).toFixed(8).replace(/0+$/, '').replace(/\.$/, '');
+// Parse a CRB decimal string to integer synapses (1 CRB = 1e8) WITHOUT float
+// error: accepts a comma or dot separator (so RU "1,5" is not silently read as
+// 1), rejects junk / negatives / >8 decimals / amounts too large to represent
+// exactly. Returns NaN on bad input.
+function crbToSynapses(str){
+  const s = (str==null?'':String(str)).trim().replace(',', '.');
+  if (s === '' || s === '.' || !/^\d*\.?\d*$/.test(s)) return NaN;
+  const [ip, fp=''] = s.split('.');
+  if (fp.length > 8) return NaN;
+  const syn = Number(ip||'0') * UNIT + Number((fp+'00000000').slice(0,8));
+  return Number.isSafeInteger(syn) ? syn : NaN;
+}
 function resetFee(){ feeEdited = false; netInfo(); }
 
 async function netInfo(){
@@ -452,12 +470,16 @@ async function signAndPost(to, amount, fee, nonce){
 async function sendTx(){
   try {
     const to = $('sendTo').value.trim();
-    const amount = Math.round(parseFloat($('sendAmount').value) * UNIT);
-    const fee = Math.round(parseFloat($('sendFee').value || '0') * UNIT);
+    const amount = crbToSynapses($('sendAmount').value);
+    const fee = crbToSynapses($('sendFee').value || '0');
     if (!/^crb1[0-9a-f]{40}$/.test(to)) throw new Error(t('bad_to'));
     if (!(amount > 0)) throw new Error(t('bad_amount'));
+    if (!(fee >= 0)) throw new Error(t('bad_amount'));
     if (feeFloor && fee < feeFloor) throw new Error(t('fee_low')(toCrb(feeFloor)));
     const b = await api('/balance?addr=' + keys.address);
+    const spendable = (b.spendable != null) ? b.spendable : b.balance;
+    if (amount + fee > spendable) throw new Error(t('insufficient')(toCrb(spendable)));
+    if (!confirm(t('send_confirm')(toCrb(amount), to, toCrb(fee)))) return;
     $('sendBtn').disabled = true;
     const res = await signAndPost(to, amount, fee, b.nonce);
     toast(t('sent')(res.txid.slice(0,16)));
