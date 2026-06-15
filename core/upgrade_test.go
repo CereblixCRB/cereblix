@@ -28,8 +28,8 @@ func TestCoinbaseVersion(t *testing.T) {
 			t.Errorf("coinbaseVersion(%q) = %d, want %d", sig, got, want)
 		}
 	}
-	if got := coinbaseVersion(blkVer(2)); got != NodeConsensusVersion {
-		t.Errorf("blkVer(2) = %d, want %d", got, NodeConsensusVersion)
+	if got := coinbaseVersion(blkVer(NodeConsensusVersion)); got != NodeConsensusVersion {
+		t.Errorf("blkVer(NodeConsensusVersion) = %d, want %d", got, NodeConsensusVersion)
 	}
 }
 

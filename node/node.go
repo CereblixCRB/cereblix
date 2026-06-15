@@ -75,6 +75,8 @@ type Node struct {
 
 	hashCount atomic.Uint64 // built-in miner counter
 	stop      chan struct{}
+
+	concentrationHigh bool // 51%-watch hysteresis (SyncLoop-only, no lock)
 }
 
 // SetUpgrade stores the latest authority-verified upgrade manifest so the node
@@ -344,6 +346,7 @@ func (n *Node) SyncLoop() {
 		}
 		n.savePeers()
 		n.discoverPeers()
+		n.checkConcentration()
 	}
 }
 
@@ -362,8 +365,27 @@ func (n *Node) syncWithPeer(peer string) {
 		return
 	}
 	theirWork, ok := new(big.Int).SetString(their.CumWork, 16)
-	if !ok || theirWork.Cmp(n.Chain.CumWork()) <= 0 {
+	if !ok {
 		return
+	}
+	switch theirWork.Cmp(n.Chain.CumWork()) {
+	case -1:
+		return // we already have strictly more work
+	case 0:
+		// Equal cumulative work: pursue the peer's chain only if its tip wins the
+		// deterministic tie-break (smaller hash). If we win or share the tip,
+		// nudge the peer toward us instead and stop. This collapses a same-height
+		// fork in one round (see core.TryAdoptChain's tie-break) rather than
+		// leaving the network split until work randomly diverges.
+		ourTip := n.Chain.Tip()
+		if their.Hash == ourTip.Hash() {
+			return
+		}
+		if their.Hash >= ourTip.Hash() {
+			go n.pushTip(peer)
+			return
+		}
+		log.Printf("fork: peer %s on competing equal-work tip @%d (theirs wins tie-break, adopting)", peer, their.Height)
 	}
 	// Find the common ancestor (binary search over heights).
 	ourH := n.Chain.Height()
@@ -392,6 +414,12 @@ func (n *Node) syncWithPeer(peer string) {
 		}
 	}
 	log.Printf("sync: peer %s ahead (h=%d vs %d), fetching from %d", peer, their.Height, ourH, anc+1)
+	if anc < ourH {
+		// Adopting a chain that branches below our tip = a reorg; surface depth so
+		// a deepening divergence (the rplant-style self-fork) is visible live, not
+		// only after the fact. A heavier-but-SHORTER candidate is the attack shape.
+		log.Printf("fork: reorg depth %d from peer %s (ancestor %d, our tip %d, theirs %d)", ourH-anc, peer, anc, ourH, their.Height)
+	}
 	var pending []*core.Block
 	from := anc + 1
 	for {
@@ -465,6 +493,29 @@ func (n *Node) broadcastBlock(b *core.Block) {
 			var resp map[string]string
 			_ = n.postJSON(peer+"/p2p/block", b, &resp)
 		}(p)
+	}
+}
+
+// pushTip posts our current tip to a peer whose tip differs, nudging it to
+// re-evaluate now instead of on its next poll: if we win the equal-work
+// tie-break the peer adopts our tip; otherwise its /p2p/block returns "not
+// extending tip" and it syncs back from us. Best-effort.
+func (n *Node) pushTip(peer string) {
+	tip := n.Chain.Tip()
+	var resp map[string]string
+	_ = n.postJSON(peer+"/p2p/block", tip, &resp)
+}
+
+// checkConcentration logs a 51%-watch warning (with hysteresis) when a single
+// address has mined a majority of recent blocks. Observability only.
+func (n *Node) checkConcentration() {
+	top, _ := n.Chain.RecentCoinbaseShare(100)
+	if top >= 0.5 && !n.concentrationHigh {
+		n.concentrationHigh = true
+		log.Printf("hashrate: WARNING one address mined %.0f%% of the last 100 blocks (51%%-watch)", top*100)
+	} else if top < 0.45 && n.concentrationHigh {
+		n.concentrationHigh = false
+		log.Printf("hashrate: concentration eased below 45%% of the last 100 blocks")
 	}
 }
 
@@ -572,10 +623,10 @@ func (n *Node) subscribeLoop(peer string) {
 // the node with expensive PoW-verify (/p2p/block) or sync requests. Limits are
 // generous enough for honest peers syncing in 200-block batches.
 type rateLimiter struct {
-	mu     sync.Mutex
-	b      map[string]*tokenBucket
-	rate   float64 // tokens refilled per second
-	burst  float64 // bucket capacity
+	mu    sync.Mutex
+	b     map[string]*tokenBucket
+	rate  float64 // tokens refilled per second
+	burst float64 // bucket capacity
 }
 
 type tokenBucket struct {
@@ -837,25 +888,25 @@ func (n *Node) RPCHandler() http.Handler {
 		}
 		_, epoch := n.Chain.EpochSeedForNext()
 		writeJSON(w, map[string]any{
-			"height":     tip.Height,
-			"tip":        tip.Hash(),
-			"time":       tip.Time,
-			"target":     tip.Target,
-			"difficulty": diff.String(),
-			"supply":     n.Chain.Supply(),
-			"mempool":    len(n.Chain.MempoolTxs()),
-			"peers":      len(n.peerList()),
-			"epoch":      epoch,
-			"reward":        core.BlockSubsidy(tip.Height + 1),
-			"hashrate":      hashrate,
-			"block_age":     blockAge,
-			"now":           now,
-			"fee_suggested": n.Chain.SuggestedFee(),
-			"fee_floor":     n.Chain.FeeFloor(),
+			"height":            tip.Height,
+			"tip":               tip.Hash(),
+			"time":              tip.Time,
+			"target":            tip.Target,
+			"difficulty":        diff.String(),
+			"supply":            n.Chain.Supply(),
+			"mempool":           len(n.Chain.MempoolTxs()),
+			"peers":             len(n.peerList()),
+			"epoch":             epoch,
+			"reward":            core.BlockSubsidy(tip.Height + 1),
+			"hashrate":          hashrate,
+			"block_age":         blockAge,
+			"now":               now,
+			"fee_suggested":     n.Chain.SuggestedFee(),
+			"fee_floor":         n.Chain.FeeFloor(),
 			"node_version":      n.Version,
 			"consensus_version": core.NodeConsensusVersion,
-			"chain_id":        core.ChainID,
-			"chain_id_height": core.ChainIDHeight,
+			"chain_id":          core.ChainID,
+			"chain_id_height":   core.ChainIDHeight,
 		})
 	})
 

@@ -289,9 +289,23 @@ func applyBlockToTotals(tot map[string]*addrTotals, b *Block) {
 
 // ---------------------------------------------------------------- targets
 
+// bigTwo256 is 2^256, used to convert between a target and its work/difficulty.
+var bigTwo256 = new(big.Int).Lsh(big.NewInt(1), 256)
+
 // expectedTarget computes the required target for the block at height
-// len(blocks), given the current chain prefix.
+// len(blocks). Once the LWMA fork activates (readiness-gated on the v3 signal,
+// see lwmaActivation) it uses the LWMA retarget; before activation, the legacy
+// windowed-average retarget - byte-for-byte unchanged so pre-activation history
+// and blocks stay valid on every node.
 func expectedTarget(blocks []*Block) *big.Int {
+	if lwmaActiveAt(blocks, uint64(len(blocks))) {
+		return lwmaTarget(blocks)
+	}
+	return legacyTarget(blocks)
+}
+
+// legacyTarget is the original windowed-average retarget (before LWMA activation).
+func legacyTarget(blocks []*Block) *big.Int {
 	h := len(blocks)
 	if h < 2 {
 		return new(big.Int).Set(GenesisTarget)
@@ -318,6 +332,56 @@ func expectedTarget(blocks []*Block) *big.Int {
 	avg := sum.Div(sum, big.NewInt(int64(window)))
 	next := avg.Mul(avg, big.NewInt(actual))
 	next.Div(next, big.NewInt(expected))
+	if next.Cmp(MaxTarget) > 0 {
+		next.Set(MaxTarget)
+	}
+	if next.Sign() <= 0 {
+		next.SetInt64(1)
+	}
+	return next
+}
+
+// lwmaTarget computes the next target via LWMA-1 (Linearly Weighted Moving
+// Average of solvetimes): recent blocks weigh more, so difficulty tracks
+// hashrate swings fast without the legacy windowed average's oscillation. Pure
+// integer math (big.Int + int64) so every node derives the identical target.
+// Window = LWMAWindow (90); each solvetime is clamped to [1, 10*spacing] to bound
+// timestamp noise/manipulation without clipping honest gaps.
+func lwmaTarget(blocks []*Block) *big.Int {
+	h := len(blocks)
+	N := LWMAWindow
+	if h < N+1 {
+		return legacyTarget(blocks) // not enough history for a full window yet
+	}
+	const T = BlockTargetSpacing
+	const stMax = 10 * T
+	sumD := new(big.Int)
+	var weighted int64 // sum_{k=1..N} k * solvetime_k
+	for k := 1; k <= N; k++ {
+		idx := h - N + (k - 1) // window blocks: indices h-N .. h-1
+		st := int64(blocks[idx].Time) - int64(blocks[idx-1].Time)
+		if st < 1 {
+			st = 1
+		}
+		if st > stMax {
+			st = stMax
+		}
+		weighted += int64(k) * st
+		d, _ := blocks[idx].TargetInt()
+		sumD.Add(sumD, WorkOf(d))
+	}
+	if weighted < 1 {
+		weighted = 1
+	}
+	// nextDifficulty = sumD * T * (N+1) / (2 * weighted)
+	nextD := new(big.Int).Mul(sumD, big.NewInt(int64(T*(N+1))))
+	nextD.Div(nextD, big.NewInt(2*weighted))
+	if nextD.Sign() <= 0 {
+		nextD.SetInt64(1)
+	}
+	// target = 2^256 / nextDifficulty - 1 (inverse of WorkOf), clamped to floor.
+	next := new(big.Int).Div(bigTwo256, nextD)
+	next.Sub(next, big.NewInt(1))
 	if next.Cmp(MaxTarget) > 0 {
 		next.Set(MaxTarget)
 	}
@@ -393,6 +457,12 @@ func (c *Chain) validateBlock(prefix []*Block, st State, b *Block) error {
 	}
 	if b.Height != uint64(len(prefix)) {
 		return fmt.Errorf("bad height %d, want %d", b.Height, len(prefix))
+	}
+	// Header hash fields must be exactly 32 bytes of hex; otherwise HeaderBytes
+	// would silently zero-pad/truncate them and two distinct blocks could share a
+	// hash. (Canonical equality checks below also enforce this indirectly.)
+	if !valid64Hex(b.PrevHash) || !valid64Hex(b.TxRoot) || !valid64Hex(b.Target) {
+		return errors.New("malformed header field")
 	}
 	if cp, ok := c.Checkpoints[b.Height]; ok && cp != b.Hash() {
 		return fmt.Errorf("block %d conflicts with authority checkpoint", b.Height)
@@ -568,7 +638,21 @@ func (c *Chain) TryAdoptChain(startHeight uint64, newBlocks []*Block) error {
 		threshold.Add(threshold, extra)
 	}
 	if work.Cmp(threshold) <= 0 {
-		return errors.New("candidate chain lacks sufficient work for its reorg depth")
+		// Deterministic equal-work tie-break (depth-1, same height only): when a
+		// competing tip has EXACTLY equal cumulative work, adopt it iff its block
+		// hash is smaller. Every node computes the same winner, so a same-height
+		// fork collapses in one sync round instead of persisting until work
+		// randomly diverges. Anything heavier already took the branch above; the
+		// MaxReorgDepth and checkpoint guards (checked earlier) still bound this.
+		candTip := candidate[len(candidate)-1]
+		curTip := c.blocks[len(c.blocks)-1]
+		tieBreakWin := depth == 1 &&
+			work.Cmp(c.cumWork) == 0 &&
+			candTip.Height == curTip.Height &&
+			candTip.Hash() < curTip.Hash()
+		if !tieBreakWin {
+			return errors.New("candidate chain lacks sufficient work for its reorg depth")
+		}
 	}
 	c.blocks = candidate
 	c.state = st
@@ -892,6 +976,11 @@ func (c *Chain) BuildTemplate(coinbase string) (*Block, error) {
 	if mt := medianTime(c.blocks); now <= mt {
 		now = mt + 1
 	}
+	// Don't hand out a template whose timestamp validateBlock would reject as too
+	// far in the future (can happen if recent blocks pushed the median ahead).
+	if now > uint64(time.Now().Unix())+MaxFutureDrift {
+		return nil, errors.New("median time too far ahead; retry shortly")
+	}
 	b := &Block{
 		Version:  1,
 		Height:   height,
@@ -917,6 +1006,36 @@ func (c *Chain) Tip() *Block {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	return c.blocks[len(c.blocks)-1]
+}
+
+// RecentCoinbaseShare returns the largest fraction of the last `window` blocks
+// mined to one coinbase address, plus the count of distinct coinbase addresses.
+// A share near/over 0.5 is a 51%-concentration signal. Read-only / observability.
+func (c *Chain) RecentCoinbaseShare(window int) (float64, int) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	n := len(c.blocks)
+	if window > n {
+		window = n
+	}
+	if window <= 0 {
+		return 0, 0
+	}
+	counts := map[string]int{}
+	for i := n - window; i < n; i++ {
+		b := c.blocks[i]
+		if len(b.Txs) == 0 {
+			continue
+		}
+		counts[b.Txs[0].To]++
+	}
+	top := 0
+	for _, cnt := range counts {
+		if cnt > top {
+			top = cnt
+		}
+	}
+	return float64(top) / float64(window), len(counts)
 }
 
 func (c *Chain) CumWork() *big.Int {
@@ -1075,13 +1194,13 @@ func (c *Chain) FeeFloor() uint64 {
 
 // HistoryItem is a wallet-facing view of a confirmed transaction.
 type HistoryItem struct {
-	TxID    string `json:"txid"`
-	Height  uint64 `json:"height"`
-	Time    uint64 `json:"time"`
-	From    string `json:"from"` // "coinbase" for block rewards
-	To      string `json:"to"`
-	Amount  uint64 `json:"amount"`
-	Fee     uint64 `json:"fee"`
+	TxID   string `json:"txid"`
+	Height uint64 `json:"height"`
+	Time   uint64 `json:"time"`
+	From   string `json:"from"` // "coinbase" for block rewards
+	To     string `json:"to"`
+	Amount uint64 `json:"amount"`
+	Fee    uint64 `json:"fee"`
 }
 
 // History returns up to `limit` transactions touching addr, newest-first,

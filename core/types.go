@@ -18,7 +18,8 @@ import (
 const (
 	CoinUnit           = 100_000_000 // synapses per 1 CRB
 	BlockTargetSpacing = 60          // seconds
-	RetargetWindow     = 20          // blocks
+	RetargetWindow     = 20          // blocks (legacy retarget, before LWMA activation)
+	LWMAWindow         = 90          // blocks; linear-weighted window for the LWMA retarget (post-activation)
 	HalvingInterval    = 1_051_200   // blocks (~2 years at 60 s)
 	InitialReward      = 50 * CoinUnit
 	EpochLength        = 4096 // blocks per NeuroMorph semantic epoch
@@ -46,6 +47,9 @@ const (
 	// byte-for-byte so all nodes agree on history and on new blocks until
 	// activation - so deploying the new binary early does not fork the chain.
 	FeeMarketHeight = 3195
+
+	// (LWMA difficulty has NO height floor - it activates purely on the v3 signal
+	// reaching LWMAThreshold; see core/upgrade.go lwmaActivation.)
 
 	// ChainIDHeight: from this height, transaction signatures must additionally
 	// commit to ChainID (the genesis hash). This binds a signature to THIS chain
@@ -98,6 +102,18 @@ func ValidAddr(a string) bool {
 		return false
 	}
 	_, err := hex.DecodeString(a[len(AddrPrefix):])
+	return err == nil
+}
+
+// valid64Hex reports whether s is exactly 64 lowercase-or-upper hex chars (a
+// 32-byte field). Header fields (PrevHash, TxRoot, Target) must satisfy this so
+// HeaderBytes cannot silently zero-pad/truncate a malformed field into a
+// colliding header; validateBlock rejects any block that fails it.
+func valid64Hex(s string) bool {
+	if len(s) != 64 {
+		return false
+	}
+	_, err := hex.DecodeString(s)
 	return err == nil
 }
 
