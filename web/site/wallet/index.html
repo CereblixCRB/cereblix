@@ -96,7 +96,7 @@ th{color:var(--mut);font-weight:600}
     <button class="ghost" onclick="document.getElementById('importBox').classList.toggle('hidden')" data-i="import">Import key</button>
   </div>
   <div id="importBox" class="hidden" style="margin-top:14px">
-    <input id="importKey" data-ph="import_ph" placeholder="Private key (128 hex chars)">
+    <input id="importKey" data-ph="import_ph" placeholder="Private key: 64-char seed or 128-char key">
     <button onclick="importWallet()" data-i="import_btn">Import</button>
   </div>
   <div id="newKeyBox" class="hidden">
@@ -159,7 +159,7 @@ const unhex = s => new Uint8Array(s.match(/.{2}/g).map(x=>parseInt(x,16)));
 
 const L = {
   en:{nav_home:"Home",nav_mine:"Mine",nav_pool:"Pool",nav_explorer:"Explorer",nav_wallet:"Wallet",nav_faucet:"Faucet",nav_roadmap:"Roadmap",about:"about",wallet:"Wallet",setup_p:"Keys are created and stored <b>only in your browser</b>. The server never sees your private key - transactions are signed locally (ed25519).",
-    create:"Create new wallet",import:"Import key",import_ph:"Private key (128 hex chars)",import_btn:"Import",
+    create:"Create new wallet",import:"Import key",import_ph:"Private key: 64-char seed or 128-char key",import_btn:"Import",
     newkey_warn:"⚠️ Save your private key somewhere safe. It is the <b>only</b> way to recover your wallet. Lose the key - lose the coins.",
     saved_btn:"I saved the key - continue",balance:"Balance",your_addr:"Your address (click to copy):",show_key:"show private key",logout:"log out",
     send_crb:"Send CRB",send_to_ph:"Recipient address (crb1...)",amount_ph:"Amount CRB",sign_send:"Sign and send",
@@ -168,7 +168,7 @@ const L = {
     fee_auto:"use recommended",
     fee_low:(floor)=>`fee below the network minimum (${floor} CRB)`,
     history:"History",h_block:"Block",h_type:"Type",h_addr:"Address",h_amount:"Amount",loading:"loading…",network:"Network",connecting:"connecting…",
-    e_keylen:"key must be 128 hex characters",err:"Error",copied:"Address copied",
+    e_keylen:"key must be a 64-char seed or a 128-char private key",err:"Error",copied:"Address copied",
     show_confirm:"Show the private key? Make sure nobody is looking at the screen.",your_key:"Your private key:",
     logout_confirm:"Remove the key from this browser? Without a saved copy you'll lose access to the coins.",
     out:"− sent",in_:"+ received",empty_hist:"empty so far - mine or receive your first CRB",pend:"pending",unconf:"Unconfirmed",loadmore:"Load more",showing:"showing",of:"of",
@@ -181,7 +181,7 @@ const L = {
     canceled:(id)=>`Cancel sent (TX ${id}…) - the original is voided once this confirms`,
     sent:(id)=>`Sent! TX ${id}… - will be in the next block`},
   ru:{nav_home:"Главная",nav_mine:"Майнинг",nav_pool:"Пул",nav_explorer:"Обозреватель",nav_wallet:"Кошелёк",nav_faucet:"Кран",nav_roadmap:"Дорожная карта",about:"о проекте",wallet:"Кошелёк",setup_p:"Ключи создаются и хранятся <b>только в вашем браузере</b>. Сервер никогда не видит приватный ключ - подпись транзакций происходит локально (ed25519).",
-    create:"Создать новый кошелёк",import:"Импортировать ключ",import_ph:"Приватный ключ (128 hex-символов)",import_btn:"Импортировать",
+    create:"Создать новый кошелёк",import:"Импортировать ключ",import_ph:"Приватный ключ: 64-симв. seed или 128-симв. ключ",import_btn:"Импортировать",
     newkey_warn:"⚠️ Сохраните приватный ключ в надёжном месте. Это <b>единственный</b> способ восстановить кошелёк. Потеряете ключ - потеряете монеты.",
     saved_btn:"Я сохранил ключ - продолжить",balance:"Баланс",your_addr:"Ваш адрес (нажмите, чтобы скопировать):",show_key:"показать приватный ключ",logout:"выйти",
     send_crb:"Отправить CRB",send_to_ph:"Адрес получателя (crb1...)",amount_ph:"Сумма CRB",sign_send:"Подписать и отправить",
@@ -190,7 +190,7 @@ const L = {
     fee_auto:"взять рекомендованную",
     fee_low:(floor)=>`комиссия ниже сетевого минимума (${floor} CRB)`,
     history:"История",h_block:"Блок",h_type:"Тип",h_addr:"Адрес",h_amount:"Сумма",loading:"загрузка…",network:"Сеть",connecting:"подключение…",
-    e_keylen:"ключ должен быть 128 hex-символов",err:"Ошибка",copied:"Адрес скопирован",
+    e_keylen:"ключ: 64-симв. seed или 128-симв. приватный ключ",err:"Ошибка",copied:"Адрес скопирован",
     show_confirm:"Показать приватный ключ? Убедитесь, что никто не смотрит на экран.",your_key:"Ваш приватный ключ:",
     logout_confirm:"Удалить ключ из этого браузера? Без сохранённой копии ключа вы потеряете доступ к монетам.",
     out:"− отправка",in_:"+ получение",empty_hist:"пока пусто - намайните или получите первые CRB",pend:"в мемпуле",unconf:"Неподтверждённый",loadmore:"Показать ещё",showing:"показано",of:"из",
@@ -267,10 +267,16 @@ async function addrFromPub(pub){
 }
 
 async function setKeys(secretHex){
-  const sk = unhex(secretHex);
-  if (sk.length !== 64) throw new Error(t('e_keylen'));
-  const kp = nacl.sign.keyPair.fromSecretKey(sk);
-  keys = { secretKey: sk, publicKey: kp.publicKey, address: await addrFromPub(kp.publicKey) };
+  const h = (secretHex || '').trim().toLowerCase().replace(/^0x/, '');
+  if (!/^[0-9a-f]+$/.test(h) || (h.length !== 128 && h.length !== 64)) throw new Error(t('e_keylen'));
+  const raw = unhex(h);
+  // An ed25519 secret key is seed(32) || public(32). ALWAYS re-derive the public
+  // key from the SEED rather than trusting a stored public half: a key whose
+  // public half doesn't match its seed yields an address that can receive but
+  // can NEVER sign ("invalid signature"). fromSeed guarantees they correspond,
+  // and also lets you import a bare 32-byte (64 hex) seed.
+  const kp = nacl.sign.keyPair.fromSeed(raw.slice(0, 32));
+  keys = { secretKey: kp.secretKey, publicKey: kp.publicKey, address: await addrFromPub(kp.publicKey) };
 }
 
 // Refuse to mint a key unless a cryptographically secure RNG is present.
