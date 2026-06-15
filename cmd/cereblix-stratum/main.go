@@ -208,10 +208,23 @@ func (c *client) short() string {
 	return c.addr
 }
 
+// writeTimeout bounds every write to a miner. Without it, a half-open TCP
+// connection (a silent NAT/router/Wi-Fi drop) fills the kernel send buffer and
+// Encode blocks FOREVER while holding writeMu -> the poller stops pushing new
+// jobs and the submit-ack path freezes, so the miner grinds a stale job at full
+// hashrate and never reconnects (the "full speed but stops solving shares" bug).
+// On a write timeout we close the conn so the miner reconnects to fresh work.
+const writeTimeout = 30 * time.Second
+
 func (c *client) send(v any) error {
 	c.writeMu.Lock()
 	defer c.writeMu.Unlock()
-	return c.enc.Encode(v)
+	_ = c.conn.SetWriteDeadline(time.Now().Add(writeTimeout))
+	if err := c.enc.Encode(v); err != nil {
+		c.conn.Close() // unblocks the read loop + stops the poller -> miner reconnects
+		return err
+	}
+	return nil
 }
 
 func (c *client) sendResult(id any, result any) {
@@ -498,6 +511,10 @@ func main() {
 		if err != nil {
 			log.Printf("stratum: accept: %v", err)
 			continue
+		}
+		if tcp, ok := conn.(*net.TCPConn); ok {
+			tcp.SetKeepAlive(true)
+			tcp.SetKeepAlivePeriod(30 * time.Second) // detect half-open peers at the TCP layer
 		}
 		go handleConn(conn)
 	}
