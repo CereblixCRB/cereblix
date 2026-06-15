@@ -357,6 +357,20 @@ source) is distributed alongside the bridge; on big multi-core CPUs - especially
   *accepted feedback share*, while a real block is forwarded and paid - so a found
   block can never be lost in the bridge. `-v` logs each job and share with its
   round-trip latency.
+- **Connection resilience.** A per-connection poller pushes a new job whenever the
+  template changes. Every write to a miner is bounded by a **write deadline** and the
+  connection is **closed on a write error**, plus **TCP keepalive** is enabled - so a
+  silently half-open link (NAT/router/Wi-Fi drop) can no longer freeze the poller and
+  leave a miner grinding a stale job at full hashrate; it is torn down and the miner
+  reconnects to fresh work.
+- **Regional endpoint.** The RU/CIS relay (`ru.cereblix.com`) runs the same two
+  instances (`:3333` pool → main's pool, `:3334` solo → the relay's own node), a
+  local route that bypasses Cloudflare and the main box.
+- **Farm proxy (`xmrig-cereblix-proxy`).** An optional Stratum→Stratum aggregator so
+  a farm shares one config. Two modes: **simple** (one upstream connection per rig -
+  works with any miner) and **nicehash** (one upstream connection for the whole farm;
+  the proxy reserves nonce byte 119 per rig, so it needs a miner that keeps that byte
+  fixed - miner ≥ 1.1 + proxy ≥ 1.2). The pool still re-verifies every share either way.
 
 ### 6.8. Faucet with a proof-of-useful-work captcha (`cmd/cereblix-faucet`)
 A faucet that lets newcomers try the wallet without mining first. Its anti-bot
