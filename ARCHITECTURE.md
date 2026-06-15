@@ -180,7 +180,7 @@ slower than a laptop.
 |----------------------|----------------------------------------------------|
 | Ticker               | CRB (1 CRB = 10^8 synapses)                         |
 | Algorithm            | NeuroMorph - self-mutating, memory-hard PoW VM     |
-| Block time           | 60 s, retarget every 20 blocks                     |
+| Block time           | 60 s · LWMA difficulty, 90-block window             |
 | Reward               | 50 CRB, halving every 1,051,200 blocks (~2 years)  |
 | Max supply           | ~105,120,000 CRB                                    |
 | VM mutation epoch    | 4096 blocks (~2.8 days)                             |
@@ -189,10 +189,18 @@ slower than a laptop.
 
 ### 4.2. Difficulty & work
 - The target is a 256-bit number; a hash is valid if `hash <= target`.
-- Retarget over a 20-block window: average target x (actual time / expected
-  time), clamped to a [1/4 .. 4x] band against time-warp.
-- Fork choice is by **most cumulative work** (`WorkOf(target) = 2^256 /
-  (target+1)`), not by length.
+- **Difficulty — LWMA (from v2.2.0).** A Linearly Weighted Moving Average of the
+  last 90 block solvetimes (recent blocks weighted more) so difficulty tracks
+  hashrate changes quickly without the legacy windowed-average oscillation; each
+  solvetime is clamped to [1 s, 600 s] against time-warp. Readiness-gated (§4.5):
+  before activation the legacy 20-block average retarget (average target x actual/
+  expected time, clamped to a [1/4 .. 4x] band) is used byte-for-byte, so history
+  stays valid.
+- **Fork choice** is by **most cumulative work** (`WorkOf(target) = 2^256 /
+  (target+1)`), not by length. On an *exact* work tie at the same height (a
+  same-height collision), the block with the numerically smaller hash wins — a
+  deterministic tie-break, so competing tips converge in one round instead of the
+  network staying split until work randomly diverges.
 
 ### 4.3. Addresses & transactions
 - Keys: ed25519. Address: `crb1` + hex(SHA-256(pubkey)[:20]).
@@ -240,7 +248,12 @@ past its floor where a supermajority of the last 100 blocks signal the new
 version. A fork therefore cannot activate until most hashrate is already on the
 new software, so the minority left behind never becomes the heavier chain - the
 upgrade is split-proof, and combined with the self-updating node (§6.9) it needs
-no manual coordination.
+no manual coordination. The fee market (consensus v2) and the LWMA difficulty
+(consensus v3, from v2.2.0) both use this gate; each fork measures a **frozen**
+required-version constant - never the moving node version - so a later version
+bump cannot retroactively re-date an already-activated fork. The LWMA gate is
+**floorless**: it activates purely on the supermajority signal (90 of the last
+100 blocks on v3), which a large external pool can't reach until it too upgrades.
 
 ### 4.6. Genesis
 Empty coinbase to an unspendable address, timestamp 2026-06-11 00:00:00 UTC.

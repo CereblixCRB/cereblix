@@ -42,7 +42,7 @@ proof-of-work algorithm.** No GPU, no ASIC - ever. One CPU, one vote.
 |---|---|
 | Ticker | CRB (1 CRB = 10⁸ synapses) |
 | Algorithm | NeuroMorph v1 - self-mutating PoW VM, CPU-only |
-| Block time | 60 s, retarget every 20 blocks |
+| Block time | 60 s · LWMA difficulty, 90-block window (v2.2.0) |
 | Reward | 50 CRB, halving every 1,051,200 blocks (~2 years) |
 | Max supply | ~105,120,000 CRB |
 | VM mutation epoch | 4096 blocks |

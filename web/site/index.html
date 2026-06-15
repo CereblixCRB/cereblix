@@ -399,7 +399,7 @@ cereblix-miner -node http://127.0.0.1:18751/api -addr crb1YOUR_ADDRESS</pre>
   <div class="card"><table>
     <tr><th data-i="spec_ticker">Ticker</th><td>CRB (1 CRB = 10⁸ synapses)</td></tr>
     <tr><th data-i="spec_algo">Algorithm</th><td data-i="spec_algo_v">NeuroMorph v1 - self-mutating PoW VM, CPU-only</td></tr>
-    <tr><th data-i="spec_time">Block time</th><td data-i="spec_time_v">60 seconds, retarget every 20 blocks</td></tr>
+    <tr><th data-i="spec_time">Block time</th><td data-i="spec_time_v">60 seconds · LWMA difficulty (90-block window)</td></tr>
     <tr><th data-i="spec_reward">Reward</th><td data-i="spec_reward_v">50 CRB, halving every 1,051,200 blocks (~2 years)</td></tr>
     <tr><th data-i="spec_max">Max supply</th><td>~105,120,000 CRB</td></tr>
     <tr><th data-i="spec_epoch">VM mutation epoch</th><td data-i="spec_epoch_v">4096 blocks (~2.8 days)</td></tr>
@@ -637,7 +637,7 @@ const I18N = {
     safe_note:'⚠️ <b>Скачивайте только официальные сборки</b> - с этой страницы, из <a href="mine.html">руководства по майнингу</a> или <a href="https://github.com/CereblixCRB/cereblix/releases/latest" target="_blank" rel="noopener">GitHub Releases</a>. Любой «xmrig-cereblix» или «cereblix» из других мест - <b>не наш</b>, не запускайте.',
     spec_h2:'Параметры <em>сети</em>',
     spec_ticker:"Тикер", spec_algo:"Алгоритм", spec_algo_v:"NeuroMorph v1 - самомутирующая PoW-VM, CPU-only",
-    spec_time:"Время блока", spec_time_v:"60 секунд, ретаргет каждые 20 блоков",
+    spec_time:"Время блока", spec_time_v:"60 секунд · LWMA-сложность (окно 90 блоков)",
     spec_reward:"Награда", spec_reward_v:"50 CRB, халвинг каждые 1 051 200 блоков (~2 года)",
     spec_max:"Максимум эмиссии", spec_epoch:"Эпоха мутации VM", spec_epoch_v:"4096 блоков (~2.8 дня)",
     spec_premine:"Премайн", spec_premine_v:'<b>0</b> - генезис пуст',
