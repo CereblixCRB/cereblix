@@ -161,6 +161,13 @@ Both endpoints show steady `accepted` shares: the **solo** endpoint uses
 blocks still pay the full 50 CRB. Pick your own share difficulty with
 **`-p diff=50000`** (or login `crb1...+50000`).
 
+**CPU cores.** This build uses **all your CPU cores by default**. If it ever
+starts on fewer threads than your CPU has, set the count yourself: add
+**`-t N`** (N = number of threads), or **`--cpu-max-threads-hint=PERCENT`**
+(e.g. `--cpu-max-threads-hint=50` to use half). On **Hive OS** leave *Extra
+config arguments* empty - the algorithm is already `nm/1` and all cores are
+used; to limit cores there, put `"max-threads-hint": 50` (JSON, not `-t`).
+
 > The **only** official `xmrig-cereblix` is this one (cereblix.com or the `xmrig`
 > release). Any other "xmrig-cereblix" you find elsewhere is **not ours** — don't
 > run it. To mine with XMRig against *your own* node, see
@@ -216,7 +223,7 @@ cereblixd -datadir ./data
 # 2. bridge Stratum -> your node, with steady feedback shares + auto-vardiff
 cereblix-stratum -listen :3334 -pool http://127.0.0.1:18751/api -solo
 
-# 3. point XMRig at your local bridge
+# 3. point XMRig at your local bridge (uses all cores by default; -t N to set count)
 xmrig-cereblix -o 127.0.0.1:3334 -a nm/1 -u crb1YOURADDRESS -p x
 ```
 
