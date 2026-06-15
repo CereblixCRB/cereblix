@@ -174,7 +174,8 @@ xmrig-cereblix -o stratum.cereblix.com:3334 -a nm/1 -u crb1YOUR_ADDRESS -p x</di
     <a class="dl" href="https://github.com/CereblixCRB/cereblix/releases/download/xmrig/xmrig-cereblix-proxy-linux-x64"><b>🐧 Linux x64</b><span>xmrig-cereblix-proxy</span></a>
   </div>
   <div class="muted" data-i-html="s_proxy_src">GPL source: <a href="https://github.com/CereblixCRB/cereblix/releases/download/xmrig/xmrig-cereblix-proxy-src.tar.gz">xmrig-cereblix-proxy-src.tar.gz</a>.</div>
-  <div class="cmd"># 1. proxy config.json - "mode":"simple" is REQUIRED for nm/1; "url" = the pool, "bind" = where your rigs connect
+  <div class="cmd"># 1. config.json - "simple" works with any miner version; big farms can use "nicehash"
+#    ("nicehash" = ONE pool connection for ALL rigs - needs miner v1.1+ AND proxy v1.2+)
 { "mode": "simple", "pools": [ { "algo": "nm/1", "url": "stratum.cereblix.com:3333", "user": "crb1YOUR_ADDRESS", "pass": "x", "keepalive": true } ], "bind": [ "0.0.0.0:3333" ] }
 # 2. run the proxy
 xmrig-cereblix-proxy -c config.json
