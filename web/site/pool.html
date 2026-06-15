@@ -42,7 +42,7 @@ h1{font-family:var(--fd);font-size:clamp(24px,5vw,32px);font-weight:700;letter-s
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:18px}
 .stat{background:var(--glass);border:1px solid var(--border);border-radius:15px;padding:16px 18px;backdrop-filter:blur(8px)}
 .stat .k{font-size:12.5px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em}
-.stat .v{font-family:var(--fd);font-size:23px;font-weight:700;margin-top:4px;letter-spacing:-.01em}
+.stat .v{font-family:var(--fd);font-size:23px;font-weight:700;margin-top:4px;letter-spacing:-.01em;white-space:nowrap}
 .stat .v small{font-size:13px;color:var(--mut);font-weight:500}
 .card{background:var(--glass);border:1px solid var(--border);border-radius:18px;padding:22px;margin-bottom:16px;backdrop-filter:blur(8px)}
 .card h2{font-family:var(--fd);font-size:18px;font-weight:700;margin-bottom:12px}
@@ -165,6 +165,7 @@ function fmtMH(h){h=+h||0; return (h/1e6).toLocaleString(undefined,{minimumFract
 // Per-miner hashrate scales: kH/s normally, MH/s once a miner crosses 1 MH/s.
 function fmtHR(h){h=+h||0; return h>=1e6 ? (h/1e6).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})+' MH/s' : (h/1e3).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})+' kH/s';}
 function fmtCRB(v){return ((+v||0)/U).toLocaleString(undefined,{maximumFractionDigits:4})+' CRB';}
+function fmtCRBint(v){return Math.floor((+v||0)/U).toLocaleString(undefined,{maximumFractionDigits:0})+' CRB';}
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 function shortAddr(a){return a.slice(0,10)+'…'+a.slice(-6);}
 
@@ -193,8 +194,8 @@ function renderStats(s){
     ['k_blocks', String(s.blocks_found)],
     ['k_miners', String((Array.isArray(s.miners)?s.miners:[]).filter(m=>(+m.hashrate||0)>0).length)],
     ['k_fee', fee+'<small>%</small>'],
-    ['k_paid', fmtCRB(s.total_paid)],
-    ['k_owed', fmtCRB(s.total_owed)],
+    ['k_paid', fmtCRBint(s.total_paid)],
+    ['k_owed', fmtCRBint(s.total_owed)],
     ['k_minpay', fmtCRB(s.min_payout)]
   ];
   if($('stats')) $('stats').innerHTML=tiles.map(([k,v])=>`<div class="stat"><div class="k">${esc(t(k))}</div><div class="v">${v}</div></div>`).join('');
