@@ -494,7 +494,33 @@ func main() {
 	flag.DurationVar(&pollEvery, "poll", 2*time.Second, "how often to poll the pool for new work")
 	flag.BoolVar(&soloMode, "solo", false, "solo mode: backend is a NODE; serve an easy vardiff share target for feedback (real blocks still go to the node)")
 	flag.BoolVar(&verbose, "v", false, "verbose: log every job sent and every share with round-trip latency (ms)")
+	noUpdate := flag.Bool("noupdate", false, "disable automatic self-update for this run (one-off; see -autoupdate to persist)")
+	doUpdate := flag.Bool("update", false, "update to the latest released bridge (if newer) and exit")
+	doVersion := flag.Bool("version", false, "print version and exit")
+	autoUpd := flag.String("autoupdate", "", "persist auto-update preference: 'on' or 'off', then exit")
 	flag.Parse()
+
+	if *doVersion {
+		printVersion()
+		return
+	}
+	if *doUpdate {
+		runUpdateOnce()
+		return
+	}
+	if *autoUpd != "" {
+		switch strings.ToLower(strings.TrimSpace(*autoUpd)) {
+		case "on", "true", "1", "enable":
+			setAutoUpdate(true)
+		case "off", "false", "0", "disable":
+			setAutoUpdate(false)
+		default:
+			log.Println("usage: cereblix-stratum -autoupdate on|off")
+		}
+		return
+	}
+
+	bootGuard(*listen) // confirm/rollback a freshly self-updated binary before we bind
 
 	ln, err := net.Listen("tcp", *listen)
 	if err != nil {
@@ -504,8 +530,9 @@ func main() {
 	if soloMode {
 		mode = "solo (vardiff: default = pool diff, auto-tuned per miner; override with -p diff=N)"
 	}
-	log.Printf("cereblix-stratum bridge on %s -> %s [%s]%s", *listen, poolAPI, mode,
+	log.Printf("cereblix-stratum v%s bridge on %s -> %s [%s]%s", stratumVersion, *listen, poolAPI, mode,
 		map[bool]string{true: " verbose", false: ""}[verbose])
+	go autoUpdateLoop(!*noUpdate) // authority-signed, verified, with rollback
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
