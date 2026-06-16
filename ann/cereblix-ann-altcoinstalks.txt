@@ -1,0 +1,157 @@
+==================================================================
+ CEREBLIX (CRB) - ANN for Altcoinstalks  (plain text, no BBCode)
+==================================================================
+
+
+THREAD TITLE
+------------------------------------------------------------------
+[ANN][CRB] Cereblix - self-mutating CPU-only PoW | Fair Launch, No Premine
+
+
+OPENING POST  (paste as plain text)
+==================================================================
+
+Cereblix (CRB) - a CPU-only proof-of-work cryptocurrency on NeuroMorph.
+
+NO PREMINE | NO PRESALE | NO ICO | NO FUND
+Empty genesis block - every coin is mined. One CPU, one vote.
+
+Website:  https://cereblix.com
+GitHub:   https://github.com/CereblixCRB/cereblix
+Telegram: https://t.me/cereblix
+X:        https://x.com/Cereblix
+
+
+IN ONE LINE
+------------------------------------------------------------------
+Cereblix (CRB) is a CPU-only proof-of-work coin on NeuroMorph - a virtual
+machine that rewrites its own rules every epoch, so no GPU or ASIC can ever
+gain an edge. Go, zero dependencies, MIT, fair launch. It's crypto for people,
+not farms - a serious, long-term project built to grow with its community and
+become genuinely useful.
+
+
+WHY NEUROMORPH
+------------------------------------------------------------------
+- Self-mutating: every 4096 blocks (~2.8 days) it rebuilds opcodes, program
+  length, constants and AES keys from chain entropy. Hardware for an algorithm
+  that doesn't exist yet is impossible.
+- GPU-resistant: random data-dependent branches cause warp divergence; GPUs
+  stall, a laptop competes.
+- Farm-resistant: a 64 MiB memory-hard dataset prices out cheap cloud
+  parallelism.
+- Verifiable: checking a hash is cheap; producing one needs a real CPU.
+
+
+SPECS
+------------------------------------------------------------------
+Algorithm    : NeuroMorph v1 (self-mutating PoW VM, CPU-only)
+Ticker       : CRB (1 CRB = 1e8 synapses)
+Premine      : 0 (empty genesis)
+Block time   : 60 s (retarget every 20 blocks)
+Reward       : 50 CRB, halving every 1,051,200 blocks (~2 years)
+Max supply   : ~105,120,000 CRB
+Addresses    : ed25519, crb1 + sha256(pubkey)
+Maturity     : 100 blocks
+Anti-replay  : chain-id signed transactions
+
+
+MINE
+------------------------------------------------------------------
+Pool (steady) :  cereblix-miner -addr crb1YOU -node https://cereblix.com/pool/api
+Solo (lottery):  cereblix-miner -addr crb1YOU
+
+- Binaries, Win/Linux:  https://github.com/CereblixCRB/cereblix/releases/latest
+- Browser miner (phone/desktop, pool or solo):  https://cereblix.com/mine.html
+- Free faucet to start with no coins:  https://cereblix.com/faucet.html
+
+Tip: antivirus often flags unsigned CPU miners as a false positive - add an
+exclusion or build from source.
+
+
+LINKS
+------------------------------------------------------------------
+Website + explorer  :  https://cereblix.com
+Web wallet          :  https://cereblix.com/wallet/
+Pool + dashboard    :  https://cereblix.com/pool.html
+Faucet              :  https://cereblix.com/faucet.html
+Source + spec (MIT) :  https://github.com/CereblixCRB/cereblix
+Telegram            :  https://t.me/cereblix
+X / Twitter         :  https://x.com/Cereblix
+
+
+RUN A NODE
+------------------------------------------------------------------
+cereblixd -datadir ./data      (default seed: seed.cereblix.com:18750)
+One Go binary, no dependencies. More nodes = stronger network.
+
+
+ROADMAP - HORIZON 1
+------------------------------------------------------------------
+[done] NeuroMorph, full node, web + CLI wallet, explorer, browser mining
+[done] pool, faucet, one-command miner, domain + HTTPS, public dashboard
+[next] community (Telegram, X, Reddit, forums); many independent miners + nodes
+[then] on-chain liquidity, wider reach, real-world use
+
+Full roadmap: https://cereblix.com/#roadmap
+
+
+Thread for updates, mining help and community. One CPU = one vote.
+
+
+==================================================================
+ FAQ  (plain text)
+==================================================================
+
+Is this a scam?
+Verify, don't trust. Empty genesis = zero premine (check the explorer), 100%
+open source (MIT), chain and wallet inspectable, no sale of any kind.
+Everything was mined publicly.
+
+Where is the whitepaper?
+The spec is ARCHITECTURE.md on GitHub (consensus, NeuroMorph VM, mutation,
+memory-hardness, networking) plus the open code. We chose a verifiable spec
+over a marketing PDF.
+
+How does the mutation work?
+Every 4096 blocks the PoW VM re-derives its own rules (opcodes, program length,
+constants, AES keys) from an unpredictable chain hash. Each nonce runs a fresh
+random program over a 2 MiB scratchpad + a 64 MiB dataset. Verifying is cheap;
+producing needs a real CPU. Any fixed hardware is obsolete within ~3 days.
+
+Why CPU-only?
+1 CPU = 1 vote. GPUs stall on branchy random programs; the memory-hard dataset
+prices out cloud farms. A laptop or phone competes on equal footing - no ASICs,
+no farms.
+
+Premine or dev fund?
+Zero. Empty genesis, no presale, no ICO, no team allocation. Confirm it on the
+explorer.
+
+How do I start with no coins?
+Faucet (https://cereblix.com/faucet.html) for a little to try the wallet, then
+mine in the browser (https://cereblix.com/mine.html) or with the native miner.
+Pool is best for laptops.
+
+Pool or solo?
+Solo = whole blocks, rarely (lottery). Pool = steady payouts proportional to
+your work. Same miner, just change -node. Each pool share is cryptographically
+bound to your address.
+
+Antivirus flags the miner?
+False positive (PUA) - nearly all unsigned CPU miners get flagged. Add an
+exclusion or build from source.
+
+Is it fully decentralized? What is the checkpoint?
+Normal decentralized PoW. During bootstrap there is an optional, removable
+checkpoint signed by the founder that only blocks deep reorg (51%) attacks
+while total hashrate is small - it cannot mint coins or censor transactions,
+and switches off as independent hashrate and nodes grow. Mining itself is fully
+1 CPU = 1 vote.
+
+Listings? Price?
+No timeline. Listings and liquidity follow real adoption, not announcements.
+
+How can I help?
+Run a node, mine, build a pool/explorer/tool, write guides, or join Telegram
+(https://t.me/cereblix) and X (https://x.com/Cereblix). PRs welcome.
