@@ -158,6 +158,7 @@ const I = { en:{}, ru:{
   m_showing:"показано", c_of:"из", c_page:"стр.", m_showall:"Показать всех (включая выплаченных)", m_active:"Только активные",
   m_label:"Майнер", m_label_wallet:"Кошелёк", m_share:"Доля в пуле", m_rank:"Ранг", m_estday:"Оценка / сутки", m_wallet:"Баланс кошелька",
   w_title:"Воркеры", w_worker:"Воркер", w_shares:"Шары", w_last:"Посл. шара", w_now:"сейчас", w_workers:"воркеров", w_window:"за 5 мин",
+  w_hint:'Несколько ригов? Добавь <code>.ИМЯ</code> в конце адреса (или <code>--worker ИМЯ</code> в XMRig/SRBMiner) — и каждый риг будет виден здесь отдельно, со своим хешрейтом.',
   not_pool:"Этот адрес ещё не майнит на пуле - направь майнер (команда выше), чтобы начать зарабатывать."
 }};
 const EN={
@@ -168,6 +169,7 @@ const EN={
   m_showing:"showing", c_of:"of", c_page:"page", m_showall:"Show all (incl. paid out)", m_active:"Active only",
   m_label:"Miner", m_label_wallet:"Wallet", m_share:"Pool share", m_rank:"Rank", m_estday:"Est. / day", m_wallet:"Wallet balance",
   w_title:"Workers", w_worker:"Worker", w_shares:"Shares", w_last:"Last share", w_now:"now", w_workers:"workers", w_window:"last 5 min",
+  w_hint:'Running more than one rig? Add <code>.RIGNAME</code> to the end of your address (or <code>--worker NAME</code> in XMRig/SRBMiner) and each rig shows here separately, with its own hashrate.',
   not_pool:"This address isn't mining on the pool yet - point the miner at it (command above) to start earning."
 };
 function detect(){const s=localStorage.getItem('lang');return (s==='ru'||s==='en')?s:((navigator.language||'en').toLowerCase().startsWith('ru')?'ru':'en');}
@@ -293,6 +295,12 @@ function fmtAgo(s){ s=Math.max(0,Math.floor(+s||0)); if(s<60) return s+'s'; if(s
 function renderWorkersTable(wd){
   const all=(wd&&Array.isArray(wd.workers)?wd.workers:[]).slice().sort((a,b)=>(+b.hashrate||0)-(+a.hashrate||0));
   if(!all.length) return '';
+  // A lone unnamed "(default)" row adds nothing over the main panel (all rigs
+  // collapse into it) — show a tip on how to name rigs instead, so this is only
+  // a table when it actually splits the hashrate.
+  if(all.length===1 && (all[0].worker==='(default)' || !all[0].worker)){
+    return `<div class="wsec"><div class="whead">${esc(t('w_title'))}</div><div class="muted" style="font-size:13.5px">${t('w_hint')}</div></div>`;
+  }
   const total=all.length, pages=Math.ceil(total/WORKERS_PER);
   if(workerPage>=pages) workerPage=pages-1; if(workerPage<0) workerPage=0;
   const start=workerPage*WORKERS_PER, items=all.slice(start,start+WORKERS_PER);
