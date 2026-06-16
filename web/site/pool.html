@@ -56,6 +56,11 @@ th{color:var(--mut);font-weight:600;font-size:12.5px;text-transform:uppercase;le
 td.mono,th.num,td.num{font-family:ui-monospace,Consolas,monospace}
 td.num,th.num{text-align:right}
 tr.me{background:linear-gradient(135deg,rgba(167,139,250,.14),rgba(34,211,238,.07))}
+tbody tr.mrow{cursor:pointer;transition:background .12s}
+tbody tr.mrow:hover{background:rgba(34,211,238,.10)}
+tbody tr.mrow:hover .addr{color:var(--acc)}
+tbody tr.mrow .addr::after{content:'\2197';margin-left:6px;font-size:11px;color:var(--mut);opacity:0;transition:opacity .12s}
+tbody tr.mrow:hover .addr::after{opacity:.8}
 .addr{font-family:ui-monospace,Consolas,monospace;font-size:13px}
 .note{background:linear-gradient(135deg,rgba(167,139,250,.12),rgba(34,211,238,.06));border:1px solid var(--border2);border-radius:12px;padding:12px 16px;font-size:13.5px;color:#cbd5e1;margin-top:6px}
 .tag{display:inline-block;background:rgba(52,211,153,.14);border:1px solid rgba(52,211,153,.4);color:#a7f3d0;border-radius:7px;font-size:11.5px;padding:2px 8px;font-weight:600;margin-left:8px;vertical-align:middle}
@@ -147,7 +152,7 @@ const I = { en:{}, ru:{
   k_pool_hr:"Хешрейт пула", k_net_hr:"Хешрейт сети", k_blocks:"Блоков найдено", k_miners:"Активных майнеров",
   k_fee:"Комиссия пула", k_paid:"Всего выплачено", k_owed:"К выплате", k_minpay:"Мин. выплата",
   c_addr:"Адрес", c_hr:"Хешрейт", c_shares:"Шары (раунд)", c_earned:"Начислено", c_owed:"К выплате", c_paid:"Выплачено",
-  none:"Пока нет активных майнеров - стань первым.", you_row:"это ты",
+  none:"Пока нет активных майнеров - стань первым.", you_row:"это ты", open_wallet:"Открыть кошелёк ↗",
   m_showing:"показано", c_of:"из", c_page:"стр.", m_showall:"Показать всех (включая выплаченных)", m_active:"Только активные",
   m_label:"Майнер", m_label_wallet:"Кошелёк", m_share:"Доля в пуле", m_rank:"Ранг", m_estday:"Оценка / сутки", m_wallet:"Баланс кошелька",
   not_pool:"Этот адрес ещё не майнит на пуле - направь майнер (команда выше), чтобы начать зарабатывать."
@@ -156,7 +161,7 @@ const EN={
   k_pool_hr:"Pool hashrate", k_net_hr:"Network hashrate", k_blocks:"Blocks found", k_miners:"Active miners",
   k_fee:"Pool fee", k_paid:"Total paid", k_owed:"Owed", k_minpay:"Min payout",
   c_addr:"Address", c_hr:"Hashrate", c_shares:"Shares (round)", c_earned:"Earned", c_owed:"Owed", c_paid:"Paid",
-  none:"No active miners yet - be the first.", you_row:"you",
+  none:"No active miners yet - be the first.", you_row:"you", open_wallet:"Open wallet ↗",
   m_showing:"showing", c_of:"of", c_page:"page", m_showall:"Show all (incl. paid out)", m_active:"Active only",
   m_label:"Miner", m_label_wallet:"Wallet", m_share:"Pool share", m_rank:"Rank", m_estday:"Est. / day", m_wallet:"Wallet balance",
   not_pool:"This address isn't mining on the pool yet - point the miner at it (command above) to start earning."
@@ -239,7 +244,7 @@ function renderMiners(s){
   const start=minerPage*MINERS_PER, pageItems=miners.slice(start,start+MINERS_PER);
   const rows=pageItems.map(m=>{
     const addr=String(m.address||''), mine=addr.toLowerCase()===me;
-    return `<tr class="${mine?'me':''}"><td class="addr">${esc(shortAddr(addr))}${mine?' <span class="tag">'+esc(t('you_row'))+'</span>':''}</td>`
+    return `<tr class="mrow${mine?' me':''}" onclick="openWallet('${addr}')" title="${esc(t('open_wallet'))}"><td class="addr">${esc(shortAddr(addr))}${mine?' <span class="tag">'+esc(t('you_row'))+'</span>':''}</td>`
       +`<td class="num">${fmtHR(m.hashrate)}</td><td class="num">${(+m.shares||0).toFixed(0)}</td>`
       +`<td class="num">${fmtCRB(m.earned)}</td><td class="num">${fmtCRB(m.owed)}</td><td class="num">${fmtCRB(m.paid)}</td></tr>`;
   }).join('');
@@ -251,6 +256,8 @@ function renderMiners(s){
 }
 function minerPageNav(d){ minerPage+=d; render(); }
 function toggleAllMiners(){ showAllMiners=!showAllMiners; minerPage=0; render(); }
+// Click a miner row -> open that wallet's full view (balance + tx history) in the explorer.
+function openWallet(a){ a=String(a||''); if(/^crb1[0-9a-f]{40}$/i.test(a)) location.href='explorer.html#addr/'+a; }
 // Per-miner wallet info (balance) is fetched once per address from the node and
 // cached, so the full panel can show on-chain balance next to the pool stats.
 let MINER_EXTRA={}, extraTimer=null, lastInfoAddr='';
