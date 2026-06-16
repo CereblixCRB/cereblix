@@ -1,0 +1,6 @@
+# Files deployed to Linux mining rigs (HiveOS packages) MUST stay LF.
+# CRLF breaks bash on the rig: `#!/usr/bin/env bash\r` => bad interpreter, and
+# `. h-manifest.conf` with \r corrupts the sourced variables.
+*.sh text eol=lf
+h-manifest.conf text eol=lf
+config_global.json text eol=lf

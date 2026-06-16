@@ -32,7 +32,7 @@ import (
 )
 
 const (
-	minerVersion = "1.5"
+	minerVersion = "1.6"
 	hostMain     = "https://cereblix.com"
 	hostRU       = "https://ru.cereblix.com"
 	releasePage  = "https://github.com/CereblixCRB/cereblix/releases/latest"
@@ -273,6 +273,50 @@ func newer(a, b string) bool {
 	return false
 }
 
+// underHive reports whether we're running under Hive OS, where the flight-sheet
+// package owns the binary. Self-updating there is futile (Hive re-deploys the
+// bundled binary on restart) and causes an update->revert->update LOOP, so the
+// miner only NOTIFIES under Hive and lets the package carry the version.
+func underHive() bool {
+	if _, err := os.Stat("/hive"); err == nil {
+		return true
+	}
+	return os.Getenv("HIVE_HOST_URL") != "" || os.Getenv("RIG_ID") != ""
+}
+
+// normalizeNodeURL makes a -node value usable and catches the most common support
+// mistake: pointing the NATIVE miner (HTTP getwork) at the STRATUM bridge (raw
+// TCP, for XMRig). It adds a missing http(s):// scheme and rejects a Stratum
+// endpoint with actionable guidance instead of net/http's cryptic
+// "unsupported protocol scheme" error.
+func normalizeNodeURL(n string) (string, error) {
+	n = strings.TrimSpace(n)
+	if n == "" {
+		return n, nil
+	}
+	low := strings.ToLower(n)
+	hostport := low
+	for _, s := range []string{"https://", "http://", "stratum+tcp://", "stratum://"} {
+		hostport = strings.TrimPrefix(hostport, s)
+	}
+	hostOnly := hostport
+	if i := strings.IndexByte(hostOnly, '/'); i >= 0 {
+		hostOnly = hostOnly[:i]
+	}
+	if strings.HasPrefix(low, "stratum") || strings.Contains(hostOnly, "stratum.") ||
+		strings.HasSuffix(hostOnly, ":3333") || strings.HasSuffix(hostOnly, ":3334") {
+		return "", fmt.Errorf("that looks like a Stratum endpoint (%q).\n"+
+			"  The native cereblix-miner speaks the HTTP pool/node API, NOT Stratum:\n"+
+			"    - Pool:  -node https://cereblix.com/pool/api\n"+
+			"    - Solo:  -node http://YOUR_NODE_IP:18751/api\n"+
+			"  For Stratum (XMRig) use xmrig-cereblix instead - https://cereblix.com/mine.html#xmrig", n)
+	}
+	if !strings.HasPrefix(low, "http://") && !strings.HasPrefix(low, "https://") {
+		n = "https://" + n // bare host like "cereblix.com/pool/api"
+	}
+	return n, nil
+}
+
 // checkUpdate asks GitHub for the latest miner version. If GitHub is blocked
 // (common in RU/CIS) it just suggests a manual check and moves on. If a newer
 // version exists it offers a one-key auto-update.
@@ -288,8 +332,13 @@ func checkUpdate(in *bufio.Reader, tty bool) {
 	}
 	fmt.Printf("\n⬆  A newer miner is available: v%s (you have v%s)\n", latest, minerVersion)
 	fmt.Printf("   Download: %s\n", dlURL())
-	if !tty {
-		fmt.Println("   Run interactively to auto-update, or download manually.")
+	if !tty || underHive() {
+		if underHive() {
+			fmt.Println("   On Hive OS the flight-sheet package manages the binary - update it there;")
+			fmt.Println("   not self-updating (it would be reverted on restart -> a loop).")
+		} else {
+			fmt.Println("   Run interactively to auto-update, or download manually.")
+		}
 		return
 	}
 	fmt.Print("   Auto-update now? [y/N]: ")
@@ -475,6 +524,17 @@ func main() {
 		fmt.Println("No wallet yet? Create one at https://cereblix.com/wallet/")
 		fmt.Print("Enter your CRB address (crb1...): ")
 		cfg.Addr = read(in)
+	}
+
+	// Normalize/validate the node URL (adds a missing scheme; catches the common
+	// "pointed the native miner at the Stratum bridge" mistake) - covers every
+	// path: -node flag, saved config, wizard, and the fallback.
+	if fixed, err := normalizeNodeURL(cfg.Node); err != nil {
+		log.Printf("✗ invalid node / Pool URL: %v", err)
+		os.Exit(2)
+	} else if fixed != cfg.Node {
+		log.Printf("note: normalized node URL to %s", fixed)
+		cfg.Node, cfg.Mode = fixed, modeFromURL(fixed)
 	}
 
 	nodeURL, addr = cfg.Node, cfg.Addr
