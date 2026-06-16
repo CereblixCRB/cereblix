@@ -159,6 +159,7 @@ const I = { en:{}, ru:{
   m_label:"Майнер", m_label_wallet:"Кошелёк", m_share:"Доля в пуле", m_rank:"Ранг", m_estday:"Оценка / сутки", m_wallet:"Баланс кошелька",
   w_title:"Воркеры", w_worker:"Воркер", w_shares:"Шары", w_last:"Посл. шара", w_now:"сейчас", w_workers:"воркеров", w_window:"за 5 мин",
   w_hint:'Несколько ригов? Добавь <code>.ИМЯ</code> в конце адреса (или <code>--worker ИМЯ</code> в XMRig/SRBMiner) — и каждый риг будет виден здесь отдельно, со своим хешрейтом.',
+  p_title:"Выплаты по дням", p_ends:"день закончится через", p_day:"День", p_payout:"Выплата", p_payments:"Выплат", p_today:"Сегодня", p_yesterday:"Вчера",
   not_pool:"Этот адрес ещё не майнит на пуле - направь майнер (команда выше), чтобы начать зарабатывать."
 }};
 const EN={
@@ -170,6 +171,7 @@ const EN={
   m_label:"Miner", m_label_wallet:"Wallet", m_share:"Pool share", m_rank:"Rank", m_estday:"Est. / day", m_wallet:"Wallet balance",
   w_title:"Workers", w_worker:"Worker", w_shares:"Shares", w_last:"Last share", w_now:"now", w_workers:"workers", w_window:"last 5 min",
   w_hint:'Running more than one rig? Add <code>.RIGNAME</code> to the end of your address (or <code>--worker NAME</code> in XMRig/SRBMiner) and each rig shows here separately, with its own hashrate.',
+  p_title:"Daily payouts", p_ends:"day ends in", p_day:"Day", p_payout:"Payout", p_payments:"Payments", p_today:"Today", p_yesterday:"Yesterday",
   not_pool:"This address isn't mining on the pool yet - point the miner at it (command above) to start earning."
 };
 function detect(){const s=localStorage.getItem('lang');return (s==='ru'||s==='en')?s:((navigator.language||'en').toLowerCase().startsWith('ru')?'ru':'en');}
@@ -201,7 +203,7 @@ async function poll(){
   catch(e){ if(!LAST){ const mb=$('minerbox'); if(mb) mb.innerHTML='<div class="empty">'+(LANG==='ru'?'Не удалось загрузить статистику пула, повтор…':'Could not load pool stats, retrying…')+'</div>'; } }
   try{ NET = await (await fetch(NODE+'/status',{cache:'no-store'})).json(); }catch(e){}
   const ca=(($('addr')&&$('addr').value)||'').trim().toLowerCase();
-  if(/^crb1[0-9a-f]{40}$/.test(ca)){ try{ MINER_WORKERS[ca]=await (await fetch(POOL+'/workers?addr='+ca,{cache:'no-store'})).json(); }catch(e){} }
+  if(/^crb1[0-9a-f]{40}$/.test(ca)){ try{ MINER_WORKERS[ca]=await (await fetch(POOL+'/workers?addr='+ca,{cache:'no-store'})).json(); }catch(e){} loadPayouts(ca,false); }
   if(LAST){ const lv=$('live'); if(lv) lv.style.display='inline-block'; }
   render();
 }
@@ -288,6 +290,7 @@ function onAddrInput(){
     },350);
   }
   loadWorkers(a);
+  loadPayouts(a,true);
 }
 const WORKERS_PER=20;
 function workerPageNav(d){ workerPage+=d; render(); }
@@ -316,6 +319,57 @@ function renderWorkersTable(wd){
     <button onclick="workerPageNav(1)" ${workerPage>=pages-1?'disabled':''}>›</button></div>` : '';
   return `<div class="wsec"><div class="whead">${esc(t('w_title'))} <span class="muted" style="font-weight:400">(${total} · ${esc(t('w_window'))})</span></div>`
     +`<table><thead><tr><th>${esc(t('w_worker'))}</th><th class="num">${esc(t('c_hr'))}</th><th class="num">${esc(t('w_shares'))}</th><th class="num">${esc(t('w_last'))}</th></tr></thead><tbody>${rows}</tbody></table>${pager}</div>`;
+}
+// Daily payouts: derived from the chain (incoming txns from the pool wallet),
+// grouped by LOCAL calendar day, last 7 days, with a live countdown to midnight.
+let MINER_PAYOUTS={}, cdTimer=null;
+async function loadPayouts(a,force){
+  if(!/^crb1[0-9a-f]{40}$/.test(a)) return;
+  const pd=MINER_PAYOUTS[a];
+  if(!force && pd && (Date.now()-pd.at)<30000) return; // throttle background refresh
+  const pool=((LAST&&LAST.pool_address)||'').toLowerCase();
+  if(!pool) return; // need the pool address to identify payouts
+  const cutoff=Math.floor(Date.now()/1000)-8*86400;
+  let offset=0,page=0,items=[],stop=false;
+  try{
+    while(page<6&&!stop){
+      const batch=await (await fetch(NODE+'/history?addr='+a+'&limit=200&offset='+offset,{cache:'no-store'})).json();
+      if(!Array.isArray(batch)||!batch.length) break;
+      items=items.concat(batch);
+      const oldest=+batch[batch.length-1].time||0;
+      if(batch.length<200||oldest<cutoff) stop=true;
+      offset+=200; page++;
+    }
+  }catch(e){ return; }
+  const byDay={};
+  for(const it of items){
+    if(String(it.from||'').toLowerCase()!==pool) continue; // only payouts from the pool
+    if(String(it.to||'').toLowerCase()!==a) continue;
+    const d=new Date((+it.time||0)*1000);
+    const key=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    (byDay[key]=byDay[key]||{total:0,count:0});
+    byDay[key].total+=(+it.amount||0); byDay[key].count++;
+  }
+  MINER_PAYOUTS[a]={byDay,at:Date.now()};
+  render();
+}
+function msToLocalMidnight(){ const n=new Date(); return new Date(n.getFullYear(),n.getMonth(),n.getDate()+1).getTime()-n.getTime(); }
+function fmtHMS(ms){ let s=Math.max(0,Math.floor(ms/1000)); const h=Math.floor(s/3600);s-=h*3600;const m=Math.floor(s/60);s-=m*60; return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0'); }
+function startCountdown(){ if(cdTimer) return; cdTimer=setInterval(()=>{ const el=document.getElementById('pcd'); if(el) el.textContent=fmtHMS(msToLocalMidnight()); },1000); }
+function renderPayouts(me){
+  const pd=MINER_PAYOUTS[me]; if(!pd) return '';
+  const byDay=pd.byDay||{}, now=new Date();
+  let rows='', count7=0;
+  for(let i=0;i<7;i++){
+    const d=new Date(now.getFullYear(),now.getMonth(),now.getDate()-i);
+    const key=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    const e=byDay[key]||{total:0,count:0}; count7+=e.count;
+    const label=i===0?t('p_today'):(i===1?t('p_yesterday'):d.toLocaleDateString(LANG==='ru'?'ru-RU':'en-US',{month:'short',day:'numeric'}));
+    rows+=`<tr${i===0?' class="me"':''}><td>${esc(label)}</td><td class="num">${e.total?fmtCRB(e.total):'—'}</td><td class="num">${e.count||'—'}</td></tr>`;
+  }
+  if(count7===0) return ''; // no payouts in the last 7 days yet — nothing to track
+  return `<div class="wsec"><div class="whead">${esc(t('p_title'))} <span class="muted" style="font-weight:400;font-size:13px">· ${esc(t('p_ends'))} <span id="pcd" style="font-family:ui-monospace,Consolas,monospace">${fmtHMS(msToLocalMidnight())}</span></span></div>`
+    +`<table><thead><tr><th>${esc(t('p_day'))}</th><th class="num">${esc(t('p_payout'))}</th><th class="num">${esc(t('p_payments'))}</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 // All info on the miner whose wallet was entered, in an appearing panel of fields.
 function renderMinerInfo(s){
@@ -353,6 +407,7 @@ function renderMinerInfo(s){
   let body=tiles.length?`<div class="mgrid">`+tiles.map(([k,v])=>`<div class="stat sm"><div class="k">${esc(t(k))}</div><div class="v">${v}</div></div>`).join('')+`</div>`:'';
   if(!mine) body+=`<div class="muted" style="margin-top:10px;font-size:13.5px">${esc(t('not_pool'))}</div>`;
   body += renderWorkersTable(MINER_WORKERS[me]); // per-worker (rig) breakdown, paginated
+  body += renderPayouts(me); // daily payout history + countdown
   const anim=(me!==lastInfoAddr)?' anim':'';
   box.innerHTML=`<div class="minfo${anim}">${head}${body}</div>`;
   lastInfoAddr=me;
@@ -360,6 +415,7 @@ function renderMinerInfo(s){
 applyLang(LANG);
 poll();
 setInterval(poll,10000);
+startCountdown();
 </script>
 </body>
 </html>
