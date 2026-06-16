@@ -66,8 +66,12 @@ type poolWork struct {
 	Extranonce uint64 `json:"extranonce"`
 }
 
-func fetchWork(addr string) (*poolWork, error) {
-	resp, err := httpClient.Get(poolAPI + "/getwork?addr=" + addr)
+func fetchWork(addr, worker string) (*poolWork, error) {
+	u := poolAPI + "/getwork?addr=" + addr
+	if worker != "" {
+		u += "&worker=" + worker // worker is pre-sanitized to URL-safe [A-Za-z0-9._-]
+	}
+	resp, err := httpClient.Get(u)
 	if err != nil {
 		return nil, err
 	}
@@ -156,6 +160,7 @@ type client struct {
 	writeMu sync.Mutex
 
 	addr    string // CRB payout address
+	worker  string // optional rig label (from "wallet.worker" or rigid), for the pool's per-worker stats
 	session string
 	connID  uint64 // unique per-connection id, pinned into nonce bits 32-47 (set once at accept)
 
@@ -250,8 +255,44 @@ func sanitizeLogin(login string) string {
 	return strings.TrimSpace(login)
 }
 
+// workerLabel pulls an optional rig/worker name from a "wallet.worker" login
+// (XMRig and SRBMiner both send this form) or the rigid field, sanitized to a
+// short URL- and work-id-safe label.
+func workerLabel(login, rigid string) string {
+	w := ""
+	if i := strings.Index(login, "."); i >= 0 {
+		w = login[i+1:]
+		for _, sep := range []string{"+", ":", "/", "."} {
+			if k := strings.Index(w, sep); k >= 0 {
+				w = w[:k]
+			}
+		}
+	}
+	if w == "" {
+		w = rigid
+	}
+	return sanitizeWorker(w)
+}
+
+func sanitizeWorker(s string) string {
+	s = strings.TrimSpace(s)
+	out := make([]rune, 0, len(s))
+	for _, r := range s {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '.' || r == '_' || r == '-' {
+			out = append(out, r)
+			if len(out) >= 24 {
+				break
+			}
+		}
+	}
+	return string(out)
+}
+
 func (c *client) handleLogin(id any, params json.RawMessage) bool {
-	var p struct{ Login, Pass, Agent string }
+	var p struct {
+		Login, Pass, Agent string
+		RigID              string `json:"rigid"`
+	}
 	_ = json.Unmarshal(params, &p)
 	addr := sanitizeLogin(p.Login)
 	if !core.ValidAddr(addr) {
@@ -259,6 +300,7 @@ func (c *client) handleLogin(id any, params json.RawMessage) bool {
 		return false
 	}
 	c.addr = addr
+	c.worker = workerLabel(p.Login, p.RigID)
 	if soloMode {
 		// A miner may pin its own difficulty: "crb1...+50000" or password "diff=50000".
 		c.fixedDiff = parseRequestedDiff(p.Login, p.Pass)
@@ -267,7 +309,7 @@ func (c *client) handleLogin(id any, params json.RawMessage) bool {
 	_, _ = rand.Read(sid[:])
 	c.session = hex.EncodeToString(sid[:])
 
-	w, err := fetchWork(addr)
+	w, err := fetchWork(addr, c.worker)
 	if err != nil {
 		c.sendError(id, "pool backend unavailable")
 		return false
@@ -427,7 +469,7 @@ func (c *client) poller(done <-chan struct{}) {
 			if c.addr == "" {
 				continue
 			}
-			w, err := fetchWork(c.addr)
+			w, err := fetchWork(c.addr, c.worker)
 			if err != nil {
 				continue
 			}

@@ -96,8 +96,9 @@ func extranonceFor(addr string) uint64 {
 // Rolling log of accepted shares, used to estimate live hashrate (pool-wide and
 // per miner) for the public dashboard.
 type shareEvent struct {
-	t     time.Time
-	miner string
+	t      time.Time
+	miner  string
+	worker string
 }
 
 var (
@@ -105,10 +106,27 @@ var (
 	shareEv []shareEvent
 )
 
-func recordShare(miner string) {
+// sanitizeWorker keeps a short, URL- and work-id-safe worker label (or "").
+// Strips the '~' and '|' work-id separators and control chars; caps length.
+func sanitizeWorker(s string) string {
+	s = strings.TrimSpace(s)
+	out := make([]rune, 0, len(s))
+	for _, r := range s {
+		if r == '~' || r == '|' || r < 0x20 {
+			continue
+		}
+		out = append(out, r)
+		if len(out) >= 24 {
+			break
+		}
+	}
+	return string(out)
+}
+
+func recordShare(miner, worker string) {
 	now := time.Now()
 	shareMu.Lock()
-	shareEv = append(shareEv, shareEvent{now, miner})
+	shareEv = append(shareEv, shareEvent{now, miner, worker})
 	cut := now.Add(-10 * time.Minute)
 	i := 0
 	for i < len(shareEv) && shareEv[i].t.Before(cut) {
@@ -277,8 +295,12 @@ func getworkHandler(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 503, map[string]string{"error": "pool backend unavailable"})
 		return
 	}
+	id := wk.nodeID + "|" + addr
+	if worker := sanitizeWorker(r.URL.Query().Get("worker")); worker != "" {
+		id += "~" + worker // display-only rig label; rides the work id back to submitwork
+	}
 	writeJSON(w, 200, map[string]any{
-		"id":         wk.nodeID + "|" + addr,
+		"id":         id,
 		"header":     hex.EncodeToString(wk.header),
 		"target":     core.TargetToHex(wk.shareTarget),
 		"seed":       hex.EncodeToString(wk.seed),
@@ -309,12 +331,18 @@ func submitworkHandler(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 400, map[string]string{"error": "bad nonce"})
 		return
 	}
-	i := strings.LastIndex(req.ID, "|")
+	raw := req.ID
+	worker := ""
+	if j := strings.IndexByte(raw, '~'); j >= 0 { // optional "~<worker>" display label
+		worker = sanitizeWorker(raw[j+1:])
+		raw = raw[:j]
+	}
+	i := strings.LastIndex(raw, "|")
 	if i < 0 {
 		writeJSON(w, 400, map[string]string{"error": "bad work id"})
 		return
 	}
-	nodeID, miner := req.ID[:i], req.ID[i+1:]
+	nodeID, miner := raw[:i], raw[i+1:]
 	if !core.ValidAddr(miner) {
 		writeJSON(w, 400, map[string]string{"error": "bad miner addr"})
 		return
@@ -354,7 +382,7 @@ func submitworkHandler(w http.ResponseWriter, r *http.Request) {
 	st.Shares[miner]++
 	st.RoundShares++
 	st.mu.Unlock()
-	recordShare(miner)
+	recordShare(miner, worker)
 
 	block := core.HashMeetsTarget(h, wk.netTarget)
 	if block {
@@ -563,6 +591,60 @@ func crb(v uint64) string { return strconv.FormatFloat(float64(v)/float64(core.C
 
 // --------------------------------------------------------------------- stats
 
+// workersHandler returns the per-worker (rig) breakdown for ONE address: live
+// hashrate, shares and idle time over the same window as the pool hashrate.
+// Purely informational - payouts are per-address and unaffected by worker labels.
+func workersHandler(w http.ResponseWriter, r *http.Request) {
+	addr := r.URL.Query().Get("addr")
+	if !core.ValidAddr(addr) {
+		writeJSON(w, 400, map[string]string{"error": "bad or missing addr"})
+		return
+	}
+	const window = 5 * time.Minute
+	hps := hashesPerShare()
+	cut := time.Now().Add(-window)
+	type agg struct {
+		n    int
+		last time.Time
+	}
+	m := map[string]*agg{}
+	shareMu.Lock()
+	for _, e := range shareEv {
+		if e.miner != addr || e.t.Before(cut) {
+			continue
+		}
+		name := e.worker
+		if name == "" {
+			name = "(default)"
+		}
+		a := m[name]
+		if a == nil {
+			a = &agg{}
+			m[name] = a
+		}
+		a.n++
+		if e.t.After(a.last) {
+			a.last = e.t
+		}
+	}
+	shareMu.Unlock()
+	now := time.Now()
+	workers := []map[string]any{}
+	for name, a := range m {
+		workers = append(workers, map[string]any{
+			"worker":    name,
+			"hashrate":  float64(a.n) * hps / window.Seconds(),
+			"shares":    a.n,
+			"idle_secs": int(now.Sub(a.last).Seconds()),
+		})
+	}
+	writeJSON(w, 200, map[string]any{
+		"address":     addr,
+		"window_secs": int(window.Seconds()),
+		"workers":     workers,
+	})
+}
+
 func statsHandler(w http.ResponseWriter, r *http.Request) {
 	const window = 5 * time.Minute
 	hps := hashesPerShare()
@@ -658,7 +740,7 @@ func creditHandler(w http.ResponseWriter, r *http.Request) {
 	st.Shares[addr] += n
 	st.RoundShares += n
 	st.mu.Unlock()
-	recordShare(addr)
+	recordShare(addr, "captcha")
 	writeJSON(w, 200, map[string]any{"result": "credited", "addr": addr, "shares": n})
 }
 
@@ -712,6 +794,7 @@ func main() {
 	mux.HandleFunc("/api/getwork", getworkHandler)
 	mux.HandleFunc("/api/submitwork", submitworkHandler)
 	mux.HandleFunc("/api/poolstats", statsHandler)
+	mux.HandleFunc("/api/workers", workersHandler)
 	mux.HandleFunc("/api/credit", creditHandler)
 	log.Fatal(http.ListenAndServe(*listen, mux))
 }

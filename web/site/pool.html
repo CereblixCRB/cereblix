@@ -80,6 +80,8 @@ a{color:var(--acc)}
 .stat.sm{padding:12px 14px;border-radius:13px;min-width:0}
 .stat.sm .v{font-size:18px;margin-top:3px;white-space:normal;line-height:1.2;overflow-wrap:anywhere}
 .stat.sm .v small{white-space:nowrap;font-size:12px}
+.wsec{margin-top:18px}
+.whead{font-family:var(--fd);font-size:15px;font-weight:600;margin-bottom:9px}
 </style>
 </head>
 <body>
@@ -155,6 +157,7 @@ const I = { en:{}, ru:{
   none:"Пока нет активных майнеров - стань первым.", you_row:"это ты", open_wallet:"Открыть кошелёк ↗",
   m_showing:"показано", c_of:"из", c_page:"стр.", m_showall:"Показать всех (включая выплаченных)", m_active:"Только активные",
   m_label:"Майнер", m_label_wallet:"Кошелёк", m_share:"Доля в пуле", m_rank:"Ранг", m_estday:"Оценка / сутки", m_wallet:"Баланс кошелька",
+  w_title:"Воркеры", w_worker:"Воркер", w_shares:"Шары", w_last:"Посл. шара", w_now:"сейчас", w_workers:"воркеров", w_window:"за 5 мин",
   not_pool:"Этот адрес ещё не майнит на пуле - направь майнер (команда выше), чтобы начать зарабатывать."
 }};
 const EN={
@@ -164,6 +167,7 @@ const EN={
   none:"No active miners yet - be the first.", you_row:"you", open_wallet:"Open wallet ↗",
   m_showing:"showing", c_of:"of", c_page:"page", m_showall:"Show all (incl. paid out)", m_active:"Active only",
   m_label:"Miner", m_label_wallet:"Wallet", m_share:"Pool share", m_rank:"Rank", m_estday:"Est. / day", m_wallet:"Wallet balance",
+  w_title:"Workers", w_worker:"Worker", w_shares:"Shares", w_last:"Last share", w_now:"now", w_workers:"workers", w_window:"last 5 min",
   not_pool:"This address isn't mining on the pool yet - point the miner at it (command above) to start earning."
 };
 function detect(){const s=localStorage.getItem('lang');return (s==='ru'||s==='en')?s:((navigator.language||'en').toLowerCase().startsWith('ru')?'ru':'en');}
@@ -194,6 +198,8 @@ async function poll(){
   try{ LAST = await (await fetch(POOL+'/poolstats',{cache:'no-store'})).json(); }
   catch(e){ if(!LAST){ const mb=$('minerbox'); if(mb) mb.innerHTML='<div class="empty">'+(LANG==='ru'?'Не удалось загрузить статистику пула, повтор…':'Could not load pool stats, retrying…')+'</div>'; } }
   try{ NET = await (await fetch(NODE+'/status',{cache:'no-store'})).json(); }catch(e){}
+  const ca=(($('addr')&&$('addr').value)||'').trim().toLowerCase();
+  if(/^crb1[0-9a-f]{40}$/.test(ca)){ try{ MINER_WORKERS[ca]=await (await fetch(POOL+'/workers?addr='+ca,{cache:'no-store'})).json(); }catch(e){} }
   if(LAST){ const lv=$('live'); if(lv) lv.style.display='inline-block'; }
   render();
 }
@@ -261,10 +267,17 @@ function openWallet(a){ a=String(a||''); if(/^crb1[0-9a-f]{40}$/i.test(a)) locat
 // Per-miner wallet info (balance) is fetched once per address from the node and
 // cached, so the full panel can show on-chain balance next to the pool stats.
 let MINER_EXTRA={}, extraTimer=null, lastInfoAddr='';
+let MINER_WORKERS={}, workerPage=0, workersAddr='';
+function loadWorkers(a){
+  if(!/^crb1[0-9a-f]{40}$/.test(a)) return;
+  fetch(POOL+'/workers?addr='+a,{cache:'no-store'}).then(r=>r.json()).then(d=>{ MINER_WORKERS[a]=d; render(); }).catch(()=>{});
+}
 function onAddrInput(){
   render();
   const a=(($('addr').value||'').trim()).toLowerCase();
-  if(/^crb1[0-9a-f]{40}$/.test(a) && !(a in MINER_EXTRA)){
+  if(!/^crb1[0-9a-f]{40}$/.test(a)) return;
+  if(a!==workersAddr){ workersAddr=a; workerPage=0; }
+  if(!(a in MINER_EXTRA)){
     clearTimeout(extraTimer);
     extraTimer=setTimeout(async()=>{
       try{ MINER_EXTRA[a]=await (await fetch(NODE+'/balance?addr='+a,{cache:'no-store'})).json(); }
@@ -272,6 +285,29 @@ function onAddrInput(){
       render();
     },350);
   }
+  loadWorkers(a);
+}
+const WORKERS_PER=20;
+function workerPageNav(d){ workerPage+=d; render(); }
+function fmtAgo(s){ s=Math.max(0,Math.floor(+s||0)); if(s<60) return s+'s'; if(s<3600) return Math.floor(s/60)+'m'; return Math.floor(s/3600)+'h'+Math.floor((s%3600)/60)+'m'; }
+function renderWorkersTable(wd){
+  const all=(wd&&Array.isArray(wd.workers)?wd.workers:[]).slice().sort((a,b)=>(+b.hashrate||0)-(+a.hashrate||0));
+  if(!all.length) return '';
+  const total=all.length, pages=Math.ceil(total/WORKERS_PER);
+  if(workerPage>=pages) workerPage=pages-1; if(workerPage<0) workerPage=0;
+  const start=workerPage*WORKERS_PER, items=all.slice(start,start+WORKERS_PER);
+  const rows=items.map(wk=>{
+    const idle=+wk.idle_secs||0, active=idle<90;
+    return `<tr><td class="addr">${esc(String(wk.worker||'(default)'))}${active?'':' <span class="muted" style="font-size:11px">· idle</span>'}</td>`
+      +`<td class="num">${fmtHR(wk.hashrate)}</td><td class="num">${(+wk.shares||0).toFixed(0)}</td>`
+      +`<td class="num">${active?esc(t('w_now')):fmtAgo(idle)}</td></tr>`;
+  }).join('');
+  const pager = pages>1 ? `<div class="pager">
+    <button onclick="workerPageNav(-1)" ${workerPage===0?'disabled':''}>‹</button>
+    <span class="muted" style="font-size:13px">${esc(t('c_page'))} ${workerPage+1}/${pages} · ${total} ${esc(t('w_workers'))}</span>
+    <button onclick="workerPageNav(1)" ${workerPage>=pages-1?'disabled':''}>›</button></div>` : '';
+  return `<div class="wsec"><div class="whead">${esc(t('w_title'))} <span class="muted" style="font-weight:400">(${total} · ${esc(t('w_window'))})</span></div>`
+    +`<table><thead><tr><th>${esc(t('w_worker'))}</th><th class="num">${esc(t('c_hr'))}</th><th class="num">${esc(t('w_shares'))}</th><th class="num">${esc(t('w_last'))}</th></tr></thead><tbody>${rows}</tbody></table>${pager}</div>`;
 }
 // All info on the miner whose wallet was entered, in an appearing panel of fields.
 function renderMinerInfo(s){
@@ -308,6 +344,7 @@ function renderMinerInfo(s){
   const head=`<div class="mhead"><span class="mlabel">${esc(t(mine?'m_label':'m_label_wallet'))}</span><span class="addr">${esc(shortAddr(me))}</span>${mine?'<span class="tag">'+esc(t('you_row'))+'</span>':''}</div>`;
   let body=tiles.length?`<div class="mgrid">`+tiles.map(([k,v])=>`<div class="stat sm"><div class="k">${esc(t(k))}</div><div class="v">${v}</div></div>`).join('')+`</div>`:'';
   if(!mine) body+=`<div class="muted" style="margin-top:10px;font-size:13.5px">${esc(t('not_pool'))}</div>`;
+  body += renderWorkersTable(MINER_WORKERS[me]); // per-worker (rig) breakdown, paginated
   const anim=(me!==lastInfoAddr)?' anim':'';
   box.innerHTML=`<div class="minfo${anim}">${head}${body}</div>`;
   lastInfoAddr=me;
