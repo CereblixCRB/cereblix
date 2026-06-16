@@ -43,6 +43,9 @@ var fallbackSeeds = []string{
 	"http://seed.cereblix.com:18750",
 	"http://188.34.181.191:18750", // main (seed IP literal, survives DNS failure)
 	"http://186.246.11.2:18750",   // relay
+	"http://13.140.141.180:18750", // mining-fleet node-5 (also a seed.cereblix.com A-record)
+	"http://13.140.141.179:18750", // mining-fleet node-6
+	"http://13.140.142.95:18750",  // mining-fleet node-7
 }
 
 type Node struct {
@@ -873,7 +876,13 @@ func (n *Node) RPCHandler() http.Handler {
 			}
 			perBlock := new(big.Float).Quo(new(big.Float).SetInt(work), big.NewFloat(float64(w0)))
 			spacing := float64(core.BlockTargetSpacing)
-			if sinceTip := float64(now) - float64(tip.Time); sinceTip > spacing*5 {
+			// Only a genuine outage drags the displayed rate down. A single block
+			// running long is routine Poisson variance on a 60s PoW chain (gaps of
+			// several minutes are statistically normal), so ignore those and switch
+			// to the real elapsed time only past 10x the target spacing - aligned
+			// with the LWMA solvetime clamp (10*T). This stops the dashboard from
+			// nose-diving on ordinary luck while still reflecting a true stall.
+			if sinceTip := float64(now) - float64(tip.Time); sinceTip > spacing*10 {
 				spacing = sinceTip // genuine stall: a real outage pulls the rate down
 			}
 			if spacing < 1 {
