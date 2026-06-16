@@ -49,3 +49,6 @@ web/site/p2p*.png
 otc/
 nacl.min.js
 wallet/nacl.min.js
+
+# Forum announcement (ANN) drafts + banner - marketing, kept local-only
+ann/
