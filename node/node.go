@@ -851,20 +851,21 @@ func (n *Node) RPCHandler() http.Handler {
 		tip := n.Chain.Tip()
 		tgt, _ := tip.TargetInt()
 		diff := core.WorkOf(tgt)
-		// Network hashrate from the current DIFFICULTY and the TARGET block time,
-		// not from noisy recent intervals. Difficulty is tuned so that, at the real
-		// network hashrate, blocks take BlockTargetSpacing on average; so
-		// work-per-block / target spacing estimates the rate miners actually run,
-		// the same quantity the pool measures from shares, but derived purely from
-		// on-chain data (a node never sees off-chain shares). This is stable: it does
-		// not wobble with per-block luck. We average the last few targets to ride
-		// smoothly across a difficulty step, and a genuine multi-minute stall still
-		// pulls it down (the real gap replaces the target spacing below).
+		// Network hashrate = the work actually done over a recent window divided by
+		// that window's REAL elapsed time (realized rate) - the same quantity a pool
+		// or explorer reports, derived purely from on-chain data (a node never sees
+		// off-chain shares). Dividing by the REAL time (not the 60s target) makes it
+		// track the true rate immediately instead of lagging behind LWMA's difficulty
+		// retarget (the old `work/target` form read low whenever hashrate had just
+		// risen, even while blocks were coming fast). A ~30-block window smooths
+		// single-block Poisson luck; a genuine multi-minute stall still pulls it down.
+		// DISPLAY-ONLY: difficulty (LWMA) + all consensus are computed elsewhere and
+		// are completely unaffected by this number.
 		var hashrate float64
 		hgt := n.Chain.Height()
 		now := uint64(time.Now().Unix())
 		if hgt >= 1 {
-			const win = 12
+			const win = 30
 			w0 := uint64(win)
 			if hgt < w0 {
 				w0 = hgt
@@ -874,22 +875,19 @@ func (n *Node) RPCHandler() http.Handler {
 				t, _ := n.Chain.BlockAt(i).TargetInt()
 				work.Add(work, core.WorkOf(t))
 			}
-			perBlock := new(big.Float).Quo(new(big.Float).SetInt(work), big.NewFloat(float64(w0)))
-			spacing := float64(core.BlockTargetSpacing)
-			// Only a genuine outage drags the displayed rate down. A single block
-			// running long is routine Poisson variance on a 60s PoW chain (gaps of
-			// several minutes are statistically normal), so ignore those and switch
-			// to the real elapsed time only past 10x the target spacing - aligned
-			// with the LWMA solvetime clamp (10*T). This stops the dashboard from
-			// nose-diving on ordinary luck while still reflecting a true stall.
-			if sinceTip := float64(now) - float64(tip.Time); sinceTip > spacing*10 {
-				spacing = sinceTip // genuine stall: a real outage pulls the rate down
+			// Real time to mine those w0 blocks = tip.Time - (parent of the first).Time.
+			elapsed := float64(tip.Time) - float64(n.Chain.BlockAt(hgt-w0).Time)
+			// A genuine ongoing outage (current gap > 10x target) extends the window to
+			// 'now' so the rate visibly drops during a real stall, not only on the next
+			// block - aligned with the LWMA solvetime clamp (10*T).
+			if sinceTip := float64(now) - float64(tip.Time); sinceTip > float64(core.BlockTargetSpacing)*10 {
+				elapsed += sinceTip
 			}
-			if spacing < 1 {
-				spacing = 1
+			if elapsed < 1 {
+				elapsed = 1
 			}
-			pb, _ := perBlock.Float64()
-			hashrate = pb / spacing
+			workF, _ := new(big.Float).SetInt(work).Float64()
+			hashrate = workF / elapsed
 		}
 		blockAge := int64(now) - int64(tip.Time)
 		if blockAge < 0 {
