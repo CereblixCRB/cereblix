@@ -282,7 +282,12 @@ function onAddrInput(){
   // remember the wallet across browser sessions until the user clears the field
   try{ if(raw) localStorage.setItem('crb_addr',raw); else localStorage.removeItem('crb_addr'); }catch(e){}
   const a=raw.toLowerCase();
-  if(!/^crb1[0-9a-f]{40}$/.test(a)) return;
+  if(!/^crb1[0-9a-f]{40}$/.test(a)){
+    try{ if(!raw && location.search) history.replaceState(null,'',location.pathname); }catch(e){} // empty -> clean URL
+    return;
+  }
+  // valid wallet -> put it in the URL (?addr=) so the page can be bookmarked for quick access
+  try{ history.replaceState(null,'','?addr='+a); }catch(e){}
   if(a!==workersAddr){ workersAddr=a; workerPage=0; }
   if(!(a in MINER_EXTRA)){
     clearTimeout(extraTimer);
@@ -412,7 +417,8 @@ function renderMinerInfo(s){
   lastInfoAddr=me;
 }
 applyLang(LANG);
-try{ const sv=localStorage.getItem('crb_addr'); if(sv && $('addr')) $('addr').value=sv; }catch(e){} // restore saved wallet
+// restore the wallet from the URL (?addr=, for bookmarks) first, else from the saved one
+try{ const u=new URLSearchParams(location.search).get('addr'); const sv=localStorage.getItem('crb_addr'); const init=((u||sv)||'').trim(); if(init && $('addr')) $('addr').value=init; }catch(e){}
 poll();
 setInterval(poll,10000);
 startCountdown();
