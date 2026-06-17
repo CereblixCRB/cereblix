@@ -352,6 +352,16 @@ steady payouts) and **solo** (`:3334` → node API, the full block reward). The
 official **fee-free `xmrig-cereblix`** build (developer donation removed, GPLv3
 source) is distributed alongside the bridge; on big multi-core CPUs - especially
 **AMD (Ryzen / EPYC)** - it is much faster than the native `cereblix-miner`.
+Closed-source **SRBMiner-Multi** (algo `neuromorph`, 3% fee) also connects and is
+often the fastest.
+
+- **Per-worker (rig) labels (bridge v1.1).** `handleLogin` extracts an optional
+  worker name from the login (`wallet.worker`, as XMRig/SRBMiner send, or the
+  `rigid` field) and passes it to the pool getwork as `&worker=`; the pool threads
+  it through the work id (`nodeID|addr~worker`, backward compatible) and exposes a
+  per-worker breakdown at `GET /api/workers?addr=` (hashrate / shares / idle over
+  the hashrate window). Display-only - payouts stay per-address. The pool page
+  renders it as a paginated **Workers** table.
 
 - **Nonce layout (8 LE bytes at `core.NonceOffset`):** bits 0-31 = the miner's
   search space; bits 32-47 = a unique **per-connection id** the bridge assigns (so

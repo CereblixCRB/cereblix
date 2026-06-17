@@ -119,6 +119,15 @@ at an easier target), not full blocks; your real reward arrives as automatic poo
 payouts to your address. Each share is cryptographically bound to your address
 (per-miner extranonce), so no one can claim your work.
 
+Track everything on the live **pool dashboard** at
+[cereblix.com/pool.html](https://cereblix.com/pool.html): enter your address to
+see your hashrate, shares, earnings, a **per-worker (rig) breakdown** and a
+**daily-payout history with an end-of-day countdown**. The page remembers your
+wallet and the URL becomes `?addr=<wallet>`, so you can bookmark it for one-click
+access. To see each rig as its own row, give it a name - append `.RIGNAME` to your
+address (e.g. `crb1….livingroom`) or pass `--worker NAME` in XMRig/SRBMiner;
+unnamed rigs are grouped into one `(default)` row.
+
 **🇷🇺 RU / CIS:** if `cereblix.com` is slow or blocked for you (Cloudflare
 throttling), mine through our Moscow relay node instead - same chain, same pool,
 same payouts, just a direct route with no Cloudflare in the way:
@@ -183,6 +192,18 @@ used; to limit cores there, put `"max-threads-hint": 50` (JSON, not `-t`).
 > release). Any other "xmrig-cereblix" you find elsewhere is **not ours** — don't
 > run it. To mine with XMRig against *your own* node, see
 > [Mine to your own node with XMRig](#mine-to-your-own-node-with-xmrig) below.
+
+### Mine with SRBMiner-Multi (often fastest on big CPUs)
+
+[**SRBMiner-Multi**](https://github.com/doktor83/SRBMiner-Multi) (v3.3.9+) added
+native CRB support as the **`neuromorph`** algorithm and is frequently the fastest
+option on large CPUs. It is closed-source with a **3% dev fee** (kept by the
+SRBMiner team, not us), but the hashrate gain usually more than makes up for it:
+
+```sh
+SRBMiner-MULTI --algorithm neuromorph --pool stratum.cereblix.com:3333 --wallet crb1YOURADDRESS --password x
+# solo: port :3334   ·   RU/CIS: --pool ru.cereblix.com:3333   ·   name a rig: --worker RIGNAME
+```
 
 ### Run a farm through a proxy (xmrig-cereblix-proxy)
 
