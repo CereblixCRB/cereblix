@@ -188,6 +188,24 @@ starts on fewer threads than your CPU has, set the count yourself: add
 config arguments* empty - the algorithm is already `nm/1` and all cores are
 used; to limit cores there, put `"max-threads-hint": 50` (JSON, not `-t`).
 
+**Squeeze out more hashrate.** Three levers, biggest first:
+
+1. **Huge pages** - often **+20-70%**, the single biggest win. XMRig enables them
+   automatically, but you must let the OS hand them over:
+   - **Windows:** `secpol.msc` → Local Policies → User Rights Assignment →
+     *Lock pages in memory* → add your user, log out/in, then run XMRig **as Administrator**.
+   - **Linux:** reserve them once with `sudo sysctl -w vm.nr_hugepages=1280`.
+   - The startup log should then read `huge pages 100%`.
+2. **Thread count** - "all cores" is not always fastest. NeuroMorph is memory-bound,
+   so on **hybrid Intel** (12th-gen+, P+E cores) the P-core count can beat all threads -
+   try `-t N` and keep whatever gives more H/s.
+3. **Big EPYC / Threadripper** (several CCDs / NUMA nodes) - run **one instance per
+   CCD/NUMA node**, each pinned with `--cpu-affinity`, and sum the hashrate; one
+   process alone can lag on remote-node memory reads.
+
+With huge pages and the right thread count this fee-free build lands roughly on par
+with SRBMiner after its 3% fee. The same huge-pages and per-CCD tips help **SRBMiner** too.
+
 > The **only** official `xmrig-cereblix` is this one (cereblix.com or the `xmrig`
 > release). Any other "xmrig-cereblix" you find elsewhere is **not ours** — don't
 > run it. To mine with XMRig against *your own* node, see
