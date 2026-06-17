@@ -278,7 +278,10 @@ function loadWorkers(a){
 }
 function onAddrInput(){
   render();
-  const a=(($('addr').value||'').trim()).toLowerCase();
+  const raw=($('addr').value||'').trim();
+  // remember the wallet across browser sessions until the user clears the field
+  try{ if(raw) localStorage.setItem('crb_addr',raw); else localStorage.removeItem('crb_addr'); }catch(e){}
+  const a=raw.toLowerCase();
   if(!/^crb1[0-9a-f]{40}$/.test(a)) return;
   if(a!==workersAddr){ workersAddr=a; workerPage=0; }
   if(!(a in MINER_EXTRA)){
@@ -409,9 +412,11 @@ function renderMinerInfo(s){
   lastInfoAddr=me;
 }
 applyLang(LANG);
+try{ const sv=localStorage.getItem('crb_addr'); if(sv && $('addr')) $('addr').value=sv; }catch(e){} // restore saved wallet
 poll();
 setInterval(poll,10000);
 startCountdown();
+if($('addr') && ($('addr').value||'').trim()) onAddrInput(); // populate panel for the restored wallet
 </script>
 </body>
 </html>
