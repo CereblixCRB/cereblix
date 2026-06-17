@@ -50,5 +50,9 @@ otc/
 nacl.min.js
 wallet/nacl.min.js
 
+# Internal NON-PUBLIC operator pages (deployed to the live site at obscure URLs, NOT published)
+# e.g. netminers-*.html = network miner power map (lists pool addrs); keep off public GitHub.
+web/site/netminers*.html
+
 # Forum announcement (ANN) drafts + banner - marketing, kept local-only
 ann/
