@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cereblix - mine CRB in your browser (phone · tablet · PC)</title>
+<meta name="theme-color" content="#06080f">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<style>
+@font-face{font-family:'Space Grotesk';font-weight:500;font-display:swap;src:url('fonts/spacegrotesk-500.woff2') format('woff2')}
+@font-face{font-family:'Space Grotesk';font-weight:700;font-display:swap;src:url('fonts/spacegrotesk-700.woff2') format('woff2')}
+@font-face{font-family:'Inter';font-weight:400;font-display:swap;src:url('fonts/inter-400.woff2') format('woff2')}
+@font-face{font-family:'Inter';font-weight:500;font-display:swap;src:url('fonts/inter-500.woff2') format('woff2')}
+@font-face{font-family:'Inter';font-weight:700;font-display:swap;src:url('fonts/inter-700.woff2') format('woff2')}
+:root{--bg:#06080f;--panel:#0e1424;--glass:rgba(146,180,255,.05);--border:rgba(146,180,255,.13);--border2:rgba(120,200,255,.35);--acc:#22d3ee;--acc2:#a78bfa;--txt:#e8ecf6;--mut:#90a0bd;--ok:#34d399;--err:#f87171;--fd:'Space Grotesk',system-ui,sans-serif;--grad:linear-gradient(115deg,var(--acc),var(--acc2))}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--txt);font:16px/1.6 'Inter',system-ui,Segoe UI,Roboto,sans-serif;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+html{overflow-x:hidden}
+::selection{background:rgba(34,211,238,.28)}
+.bg{position:fixed;inset:0;z-index:-2;overflow:hidden;background:radial-gradient(1100px 680px at 50% -12%,#13234a 0%,transparent 60%),radial-gradient(760px 520px at 100% -4%,#1c1440 0%,transparent 55%),var(--bg)}
+.aurora{position:absolute;border-radius:50%;filter:blur(90px);opacity:.45;will-change:transform}
+.aurora.a1{width:460px;height:460px;background:radial-gradient(circle,#22d3ee,transparent 64%);top:-160px;left:-90px;animation:dr1 24s ease-in-out infinite}
+.aurora.a2{width:430px;height:430px;background:radial-gradient(circle,#a78bfa,transparent 64%);top:-120px;right:-110px;animation:dr2 28s ease-in-out infinite}
+@keyframes dr1{50%{transform:translate(50px,40px) scale(1.1)}}
+@keyframes dr2{50%{transform:translate(-45px,50px) scale(1.06)}}
+@media(prefers-reduced-motion:reduce){.aurora{animation:none}}
+.wrap{max-width:620px;margin:0 auto;padding:0 16px 60px}
+.logo{flex:0 0 auto;display:block}
+nav{display:flex;align-items:center;gap:14px;padding:14px 0;flex-wrap:wrap}
+nav .brand{display:flex;align-items:center;gap:11px;text-decoration:none;color:var(--txt)}
+nav .brand .logo{width:34px;height:34px;filter:drop-shadow(0 4px 13px rgba(34,211,238,.4))}
+nav .brand b{font-family:var(--fd);font-size:20px;font-weight:700;letter-spacing:-.01em}
+nav .brand b i{font-style:normal;color:var(--acc2)}
+nav .links{margin-left:auto;display:flex;gap:16px;flex-wrap:wrap;align-items:center}
+nav .links a{color:var(--mut);text-decoration:none;font-size:14.5px;font-weight:500;white-space:nowrap}
+nav .links a:hover,nav .links a.active{color:var(--acc)}
+@media(max-width:560px){nav .links{margin-left:0;width:100%;gap:15px;overflow-x:auto}}
+.langsw{display:inline-flex;gap:2px;border:1px solid var(--border);border-radius:9px;overflow:hidden;background:var(--glass)}
+.langsw button{background:transparent;color:var(--mut);border:0;padding:5px 10px;cursor:pointer;font-size:13px;font-weight:600;font-family:inherit}
+.langsw button.on{background:var(--grad);color:#06121f}
+h1{font-family:var(--fd);font-size:clamp(24px,5vw,30px);font-weight:700;letter-spacing:-.02em;margin:14px 0 6px}h1 em{font-style:normal;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.sub{color:var(--mut);margin-bottom:18px}
+.card{background:var(--glass);border:1px solid var(--border);border-radius:18px;padding:22px;margin-bottom:16px;backdrop-filter:blur(8px)}
+input,select{width:100%;background:#0b1120;border:1px solid var(--border);border-radius:11px;color:var(--txt);padding:12px 13px;font-size:15px;margin:6px 0 14px;font-family:ui-monospace,Consolas,monospace}
+input:focus,select:focus{outline:none;border-color:var(--acc)}
+label{font-size:13.5px;color:var(--mut)}
+button.go{background:var(--grad);border:0;color:#06121f;font-family:var(--fd);font-weight:700;padding:14px 22px;border-radius:13px;cursor:pointer;font-size:16px;width:100%;box-shadow:0 8px 22px -6px rgba(34,211,238,.5);transition:transform .15s,filter .15s}
+button.go:hover{transform:translateY(-2px);filter:brightness(1.05)}
+button.go.stop{background:linear-gradient(135deg,#f87171,#ef4444);color:#fff;box-shadow:0 8px 22px -6px rgba(248,113,113,.5)}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:16px 0}
+.stat{position:relative;background:#0b1120;border:1px solid var(--border);border-radius:14px;padding:15px;text-align:center;overflow:hidden}
+.stat::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;background:var(--grad);opacity:.75}
+.stat b{display:block;font-family:var(--fd);font-size:24px;font-weight:700;color:#fff}
+.stat span{color:var(--mut);font-size:12px}
+.log{font-family:ui-monospace,Consolas,monospace;font-size:12.5px;color:var(--mut);background:#0b1120;border:1px solid var(--border);border-radius:11px;padding:10px 12px;height:120px;overflow:auto;margin-top:10px}
+.note{background:linear-gradient(135deg,rgba(167,139,250,.12),rgba(34,211,238,.06));border:1px solid var(--border2);border-radius:12px;padding:12px 16px;font-size:13.5px;color:#cbd5e1;margin-top:14px}
+.ok{color:var(--ok)}.err{color:var(--err)}
+.modeseg{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:2px 0 14px}
+.modeseg button{background:var(--glass);border:1px solid var(--border);border-radius:12px;color:var(--mut);padding:11px 12px;cursor:pointer;font-family:inherit;font-size:14px;font-weight:600;text-align:left;line-height:1.3;transition:border-color .15s,color .15s}
+.modeseg button small{display:block;font-weight:400;font-size:12px;color:var(--mut);margin-top:2px}
+.modeseg button.on{border-color:var(--acc);color:var(--txt);background:linear-gradient(135deg,rgba(34,211,238,.14),rgba(167,139,250,.08))}
+.modeseg button.on small{color:#cbd5e1}
+.modeseg button:disabled{opacity:.5;cursor:default}
+.tomine{display:block;background:var(--glass);border:1px solid var(--border);border-radius:13px;padding:13px 16px;margin-bottom:18px;text-decoration:none;color:var(--txt);font-size:14px}
+.tomine:hover{border-color:var(--acc)}
+.tomine b{color:var(--acc)}
+a{color:var(--acc)}
+</style>
+</head>
+<body>
+<div class="bg" aria-hidden="true"><div class="aurora a1"></div><div class="aurora a2"></div></div>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse"><stop stop-color="#22d3ee"/><stop offset="1" stop-color="#a78bfa"/></linearGradient></defs></svg>
+<div class="wrap">
+<nav>
+  <a class="brand" href="./"><svg class="logo" viewBox="0 0 40 40" fill="none" aria-hidden="true"><rect x="2" y="2" width="36" height="36" rx="11" fill="url(#lg)"/><path d="M14 8C27 13 27 16 20 20 13 24 13 27 26 32" stroke="#06121f" stroke-width="2.5" stroke-linecap="round"/><path d="M26 8C13 13 13 16 20 20 27 24 27 27 14 32" stroke="#06121f" stroke-width="2.5" stroke-linecap="round"/></svg><b>Cereb<i>lix</i></b></a>
+  <div class="links">
+    <a href="./" data-i="home">Home</a>
+    <a href="mine.html" data-i="mine">Mine</a>
+    <a href="webmine.html" class="active" data-i="webmine">Web Miner</a>
+    <a href="pool.html" data-i="pool">Pool</a>
+    <a href="explorer.html" data-i="explorer">Explorer</a>
+    <a href="wallet/" data-i="wallet">Wallet</a>
+    <a href="faucet.html" data-i="faucet">Faucet</a>
+    <a href="/p2p">P2P</a>
+    <a href="https://github.com/CereblixCRB/cereblix" target="_blank" rel="noopener">GitHub</a>
+    <span class="langsw"><button data-lang="en" onclick="setLang('en')">EN</button><button data-lang="ru" onclick="setLang('ru')">RU</button></span>
+  </div>
+</nav>
+
+<h1 data-i-html="title">Mine <em>in your browser</em></h1>
+<div class="sub" data-i-html="sub">No install, no signing - just open this page and mine CRB straight from your phone, tablet or PC. The NeuroMorph hasher runs as WebAssembly, so it works literally anywhere. Rewards go straight to your <code>crb1…</code> address.</div>
+
+<a class="tomine" href="mine.html" data-i-html="to_mine">💻 Got a real CPU, a rig or your own node? The <b>native miner, XMRig, SRBMiner &amp; full node guide</b> is on the Mine page →</a>
+
+<section class="sec" id="browser">
+  <div class="card">
+  <label data-i="mode_l">Mining mode</label>
+  <div class="modeseg" id="modeseg">
+    <button data-mode="pool" onclick="setMode('pool')" data-i-html="mode_pool">Pool<small>steady rewards, best for browsers</small></button>
+    <button data-mode="solo" onclick="setMode('solo')" data-i-html="mode_solo">Solo<small>whole blocks, pure lottery</small></button>
+  </div>
+  <label data-i="addr_l">Your CRB address (rewards go here)</label>
+  <input id="addr" placeholder="crb1...">
+  <label data-i="threads_l">Threads (each uses ~64 MiB RAM - keep low on phones)</label>
+  <select id="threads"></select>
+  <button class="go" id="btn" onclick="toggle()" data-i="start">Start mining</button>
+  <div class="stats">
+    <div class="stat"><b id="hr">0</b><span data-i="st_hr">H/s (your device)</span></div>
+    <div class="stat"><b id="found">0</b><span id="foundlbl" data-i="st_found">blocks found</span></div>
+  </div>
+  <div class="log" id="log"></div>
+  <div class="note" data-i="note">Honest note: browser mining is for participation and fun, not earning - a phone does a few to a few dozen hashes per second. Your battery and CPU will be used while this tab is open. Keep the tab in the foreground; phones throttle background tabs.</div>
+  </div>
+</section>
+
+<div class="note" data-i-html="safe_n">⚠️ The browser miner runs only here on <a href="https://cereblix.com">cereblix.com</a>. Any site asking your browser to "mine Cereblix" elsewhere is NOT ours. For downloadable miners use the <a href="mine.html">Mine page</a> or our <a href="https://github.com/CereblixCRB/cereblix/releases/latest" target="_blank" rel="noopener">GitHub releases</a>.</div>
+</div>
+
+<script>
+const I = {
+  en:{}, ru:{
+    home:"Главная", mine:"Майнинг", webmine:"Веб-майнинг", pool:"Пул", explorer:"Обозреватель", wallet:"Кошелёк", faucet:"Кран", roadmap:"Дорожная карта",
+    title:'Майнинг <em>в браузере</em>',
+    sub:'Без установки и подписи - просто откройте эту страницу и майните CRB прямо с телефона, планшета или ПК. Хэшер NeuroMorph работает как WebAssembly, поэтому запускается буквально где угодно. Награды идут прямо на ваш адрес <code>crb1…</code>.',
+    to_mine:'💻 Есть нормальный CPU, риг или своя нода? <b>Нативный майнер, XMRig, SRBMiner и гайд по ноде</b> - на странице Майнинг →',
+    mode_l:"Режим майнинга",
+    mode_pool:'Пул<small>стабильно, лучше для браузера</small>', mode_solo:'Соло<small>целые блоки, чистая лотерея</small>',
+    addr_l:"Ваш адрес CRB (туда идут награды)", threads_l:"Потоки (каждый ~64 МиБ ОЗУ - на телефоне ставьте мало)",
+    start:"Запустить майнинг", stop:"Остановить",
+    st_hr:"H/s (ваше устройство)", st_found:"найдено блоков",
+    note:"Честно: браузерный майнинг - это про участие и интерес, а не про заработок: телефон выдаёт от единиц до нескольких десятков хэшей в секунду. Пока вкладка открыта, расходуются батарея и процессор. Держите вкладку активной - телефоны душат фоновые вкладки.",
+    safe_n:'⚠️ Браузерный майнер работает только здесь, на <a href="https://cereblix.com">cereblix.com</a>. Любой сайт, который просит браузер «майнить Cereblix» в другом месте, - НЕ наш. Скачиваемые майнеры - на странице <a href="mine.html">Майнинг</a> или в <a href="https://github.com/CereblixCRB/cereblix/releases/latest" target="_blank" rel="noopener">релизах на GitHub</a>.'
+  }
+};
+const EN={};
+function detect(){ const s=localStorage.getItem('lang'); return (s==='ru'||s==='en')?s:((navigator.language||'en').toLowerCase().startsWith('ru')?'ru':'en'); }
+let LANG=detect();
+function applyLang(l){
+  LANG=l; document.documentElement.lang=l;
+  document.querySelectorAll('[data-i],[data-i-html]').forEach(el=>{
+    const k=el.getAttribute('data-i')||el.getAttribute('data-i-html');
+    if(!(k in EN)) EN[k]=el.innerHTML;
+    el.innerHTML = l==='en' ? EN[k] : (I.ru[k] ?? EN[k]);
+  });
+  document.querySelectorAll('.langsw button').forEach(b=>b.classList.toggle('on',b.dataset.lang===l));
+  if(!running) document.getElementById('btn').textContent = t('start');
+  if(typeof updateFoundLabel==='function') updateFoundLabel();
+}
+function setLang(l){ localStorage.setItem('lang',l); applyLang(l); }
+const t = k => LANG==='en' ? (EN[k]??k) : (I.ru[k]??EN[k]??k);
+
+// Two modes: pool (steady share rewards) and solo (whole blocks straight to the
+// node - a lottery). They only differ in the endpoint and, for the pool, an
+// extranonce that binds each share to your address.
+const BASES={pool:'pool/api', solo:'api'};
+let MODE=localStorage.getItem('mine_mode')||'pool';
+const api=()=>BASES[MODE];
+let workers=[], running=false, found=0, hashAccum=0, lastTs=0, curWork=null, pollTimer=null, hrTimer=null;
+const $=id=>document.getElementById(id);
+function updateFoundLabel(){
+  const el=$('foundlbl'); if(!el) return;
+  el.textContent = MODE==='pool'
+    ? (LANG==='ru'?'шар принято':'shares accepted')
+    : (LANG==='ru'?'найдено блоков':'blocks found');
+}
+function setMode(m){
+  if(running) return;                       // can't switch mid-mining
+  MODE=m; localStorage.setItem('mine_mode',m);
+  document.querySelectorAll('#modeseg button').forEach(b=>b.classList.toggle('on',b.dataset.mode===m));
+  updateFoundLabel();
+}
+function log(msg,cls){ const el=$('log'); const d=document.createElement('div'); if(cls)d.className=cls; d.textContent='['+new Date().toLocaleTimeString()+'] '+msg; el.appendChild(d); el.scrollTop=el.scrollHeight; }
+
+// thread options. The ceiling is the CPU core count (more threads than cores
+// gives no speedup) - not RAM. A memory guard keeps each worker's ~64 MiB
+// dataset within the device's budget.
+(function(){
+  const cores = navigator.hardwareConcurrency || 4;
+  let max = Math.min(cores, 16);              // real limit = cores (16 = sanity cap)
+  const memGB = navigator.deviceMemory;       // spec-capped at 8
+  if (memGB) max = Math.min(max, Math.max(1, Math.floor(memGB * 1024 * 0.4 / 80)));
+  const mobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+  const def = Math.max(1, Math.min(max, mobile ? Math.ceil(cores/2) : cores));
+  const sel=$('threads');
+  for(let i=1;i<=max;i++){ const o=document.createElement('option'); o.value=i; o.textContent=i; if(i===def)o.selected=true; sel.appendChild(o); }
+})();
+
+async function getwork(addr){
+  const r = await fetch(api()+'/getwork?addr='+addr+'&_='+Date.now(),{cache:'no-store'});
+  const j = await r.json();
+  if(j.error) throw new Error(j.error);
+  return j;
+}
+async function submit(id,nonce){
+  const r = await fetch(api()+'/submitwork',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,nonce:String(nonce)})});
+  return r.json();
+}
+
+function dispatch(work){
+  curWork = work;
+  // Nonce layout: [extranonce:16][worker:bits 40+][counter]. In pool mode the
+  // extranonce (top 16 bits) is pinned so every share is bound to your address;
+  // solo mode uses extranonce 0. Each worker gets a disjoint 2^40 counter band.
+  const ex = BigInt(work.extranonce || 0);
+  workers.forEach((w,i)=>{
+    const base = ((ex << 48n) + (BigInt(i) << 40n)).toString();
+    w.postMessage({type:'work', work:{id:work.id,header:work.header,target:work.target,seed:work.seed,height:work.height}, startNonce:base});
+  });
+}
+
+async function poll(){
+  if(!running) return;
+  try{
+    const w = await getwork($('addr').value.trim());
+    if(!curWork || curWork.id!==w.id || curWork.height!==w.height){
+      log('new work: block '+w.height+' (epoch '+w.epoch+')');
+      dispatch(w);
+    }
+  }catch(e){ log('getwork: '+e.message,'err'); }
+}
+
+function onMsg(e){
+  const m=e.data;
+  if(m.type==='progress'){ hashAccum += m.hashed; }
+  else if(m.type==='found'){
+    submit(m.id, m.nonce).then(res=>{
+      if(res.error){ log((MODE==='pool'?'share rejected: ':'rejected: ')+res.error,'err'); return; }
+      if(res.result==='stale'||res.result==='duplicate') return;     // transient, ignore
+      if(res.result==='share'){                                       // pool: a share
+        found++; $('found').textContent=found;
+        if(res.block){ log('★ your share also solved a BLOCK for the pool!','ok'); poll(); }
+        else log('share accepted (#'+found+')','ok');
+      } else {                                                        // solo: a real block
+        found++; $('found').textContent=found;
+        log('BLOCK FOUND! '+(res.hash||'').slice(0,20)+'…','ok'); poll();
+      }
+    });
+  }
+  else if(m.type==='err'){ log('worker: '+m.err,'err'); }
+}
+
+function toggle(){ running ? stop() : start(); }
+
+async function start(){
+  const addr=$('addr').value.trim();
+  if(!/^crb1[0-9a-f]{40}$/.test(addr)){ log('enter a valid crb1... address','err'); return; }
+  localStorage.setItem('mine_addr',addr);
+  const n=parseInt($('threads').value);
+  running=true; found=0; hashAccum=0; lastTs=Date.now();
+  $('found').textContent='0';
+  $('btn').textContent=t('stop'); $('btn').classList.add('stop');
+  document.querySelectorAll('#modeseg button').forEach(b=>b.disabled=true);
+  log((MODE==='pool'?'pool':'solo')+' mode · loading WebAssembly hasher…');
+  workers=[];
+  for(let i=0;i<n;i++){ const w=new Worker('miner-worker.js'); w.onmessage=onMsg; workers.push(w); }
+  await poll();
+  pollTimer=setInterval(poll,5000);
+  hrTimer=setInterval(()=>{
+    const now=Date.now(), dt=(now-lastTs)/1000; lastTs=now;
+    $('hr').textContent = dt>0 ? Math.round(hashAccum/dt) : 0; hashAccum=0;
+  },2000);
+}
+
+function stop(){
+  running=false;
+  workers.forEach(w=>{ w.postMessage({type:'stop'}); w.terminate(); });
+  workers=[]; curWork=null;
+  clearInterval(pollTimer); clearInterval(hrTimer);
+  $('hr').textContent='0';
+  $('btn').textContent=t('start'); $('btn').classList.remove('stop');
+  document.querySelectorAll('#modeseg button').forEach(b=>b.disabled=false);
+  log('stopped');
+}
+
+applyLang(LANG);
+setMode(MODE);
+$('addr').value = localStorage.getItem('mine_addr') || localStorage.getItem('cereblix_addr') || '';
+</script>
+</body>
+</html>

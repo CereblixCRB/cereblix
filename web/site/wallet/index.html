@@ -76,7 +76,8 @@ th{color:var(--mut);font-weight:600}
   <a class="brand" href="../"><svg class="logo" viewBox="0 0 40 40" fill="none" aria-hidden="true"><rect x="2" y="2" width="36" height="36" rx="11" fill="url(#lg)"/><path d="M14 8C27 13 27 16 20 20 13 24 13 27 26 32" stroke="#06121f" stroke-width="2.5" stroke-linecap="round"/><path d="M26 8C13 13 13 16 20 20 27 24 27 27 14 32" stroke="#06121f" stroke-width="2.5" stroke-linecap="round"/></svg><b>Cereb<i>lix</i></b></a>
   <div class="links">
     <a href="../" data-i="nav_home">Home</a>
-    <a href="../#mine" data-i="nav_mine">Mine</a>
+    <a href="../mine.html" data-i="nav_mine">Mine</a>
+    <a href="../webmine.html" data-i="nav_webmine">Web Miner</a>
     <a href="../pool.html" data-i="nav_pool">Pool</a>
     <a href="../explorer.html" data-i="nav_explorer">Explorer</a>
     <a href="./" class="active" data-i="nav_wallet">Wallet</a>
@@ -161,7 +162,7 @@ const unhex = s => { const m = (s||'').match(/.{2}/g); return m ? new Uint8Array
 const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
 
 const L = {
-  en:{nav_home:"Home",nav_mine:"Mine",nav_pool:"Pool",nav_explorer:"Explorer",nav_wallet:"Wallet",nav_faucet:"Faucet",nav_roadmap:"Roadmap",about:"about",wallet:"Wallet",setup_p:"Keys are created and stored <b>only in your browser</b>. The server never sees your private key - transactions are signed locally (ed25519).",
+  en:{nav_home:"Home",nav_mine:"Mine",nav_webmine:"Web Miner",nav_pool:"Pool",nav_explorer:"Explorer",nav_wallet:"Wallet",nav_faucet:"Faucet",nav_roadmap:"Roadmap",about:"about",wallet:"Wallet",setup_p:"Keys are created and stored <b>only in your browser</b>. The server never sees your private key - transactions are signed locally (ed25519).",
     create:"Create new wallet",import:"Import key",import_ph:"Private key: 64-char seed or 128-char key",import_btn:"Import",
     newkey_warn:"⚠️ Save your private key somewhere safe. It is the <b>only</b> way to recover your wallet. Lose the key - lose the coins.",
     saved_btn:"I saved the key - continue",balance:"Balance",your_addr:"Your address (click to copy):",show_key:"show private key",logout:"log out",
@@ -185,7 +186,7 @@ const L = {
     sped_up:(id)=>`Speed-up sent (TX ${id}…) - higher fee, same nonce`,
     canceled:(id)=>`Cancel sent (TX ${id}…) - the original is voided once this confirms`,
     sent:(id)=>`Sent! TX ${id}… - will be in the next block`},
-  ru:{nav_home:"Главная",nav_mine:"Майнинг",nav_pool:"Пул",nav_explorer:"Обозреватель",nav_wallet:"Кошелёк",nav_faucet:"Кран",nav_roadmap:"Дорожная карта",about:"о проекте",wallet:"Кошелёк",setup_p:"Ключи создаются и хранятся <b>только в вашем браузере</b>. Сервер никогда не видит приватный ключ - подпись транзакций происходит локально (ed25519).",
+  ru:{nav_home:"Главная",nav_mine:"Майнинг",nav_webmine:"Веб-майнинг",nav_pool:"Пул",nav_explorer:"Обозреватель",nav_wallet:"Кошелёк",nav_faucet:"Кран",nav_roadmap:"Дорожная карта",about:"о проекте",wallet:"Кошелёк",setup_p:"Ключи создаются и хранятся <b>только в вашем браузере</b>. Сервер никогда не видит приватный ключ - подпись транзакций происходит локально (ed25519).",
     create:"Создать новый кошелёк",import:"Импортировать ключ",import_ph:"Приватный ключ: 64-симв. seed или 128-симв. ключ",import_btn:"Импортировать",
     newkey_warn:"⚠️ Сохраните приватный ключ в надёжном месте. Это <b>единственный</b> способ восстановить кошелёк. Потеряете ключ - потеряете монеты.",
     saved_btn:"Я сохранил ключ - продолжить",balance:"Баланс",your_addr:"Ваш адрес (нажмите, чтобы скопировать):",show_key:"показать приватный ключ",logout:"выйти",

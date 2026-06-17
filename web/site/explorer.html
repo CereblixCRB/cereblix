@@ -89,7 +89,8 @@ tr:last-child td{border-bottom:0}
   <a class="brand" onclick="showHome()"><svg class="logo" viewBox="0 0 40 40" fill="none" aria-hidden="true"><rect x="2" y="2" width="36" height="36" rx="11" fill="url(#lg)"/><path d="M14 8C27 13 27 16 20 20 13 24 13 27 26 32" stroke="#06121f" stroke-width="2.5" stroke-linecap="round"/><path d="M26 8C13 13 13 16 20 20 27 24 27 27 14 32" stroke="#06121f" stroke-width="2.5" stroke-linecap="round"/></svg><b>Cereb<i>lix</i></b></a>
   <div class="links">
     <a href="./" data-t="home">Home</a>
-    <a href="./#mine" data-t="mine">Mine</a>
+    <a href="mine.html" data-t="mine">Mine</a>
+    <a href="webmine.html" data-t="webmine">Web Miner</a>
     <a href="pool.html" data-t="pool">Pool</a>
     <a onclick="showHome()" class="active" data-t="explorer">Explorer</a>
     <a href="wallet/" data-t="wallet">Wallet</a>
@@ -117,7 +118,7 @@ tr:last-child td{border-bottom:0}
 
 <script>
 const T = {
-  en:{home:"Home",mine:"Mine",pool:"Pool",about:"About",explorer:"Explorer",rich:"Rich list",mempool:"Mempool",wallet:"Wallet",faucet:"Faucet",roadmap:"Roadmap",find:"Search",
+  en:{home:"Home",mine:"Mine",webmine:"Web Miner",pool:"Pool",about:"About",explorer:"Explorer",rich:"Rich list",mempool:"Mempool",wallet:"Wallet",faucet:"Faucet",roadmap:"Roadmap",find:"Search",
     ph:"Search: height / block hash / txid / crb1 address…",
     st_height:"height",st_hr:"MH/s network",st_supply:"CRB supply",st_reward:"reward",st_epoch:"epoch",st_age:"last block",st_mp:"mempool",
     node_down:"node unavailable",latest:"Latest blocks",auto10:"refresh every 10s",
@@ -129,7 +130,7 @@ const T = {
     notx:"no transactions",send:"send",recv:"receive",mining:"mining",page:"page",of:"of",newer:"← newer",older:"older →",loadmore:"Load more",loadolder:"Load older blocks ↓",showing:"showing",
     rich_t:"Richest addresses",share:"share",you:"you",mp_t:"Mempool (unconfirmed)",mp_empty:"mempool is empty - all transactions confirmed",
     notfound:"Nothing found",copy:"copy"},
-  ru:{home:"Главная",mine:"Майнинг",pool:"Пул",about:"О проекте",explorer:"Обозреватель",rich:"Богатейшие",mempool:"Мемпул",wallet:"Кошелёк",faucet:"Кран",roadmap:"Дорожная карта",find:"Найти",
+  ru:{home:"Главная",mine:"Майнинг",webmine:"Веб-майнинг",pool:"Пул",about:"О проекте",explorer:"Обозреватель",rich:"Богатейшие",mempool:"Мемпул",wallet:"Кошелёк",faucet:"Кран",roadmap:"Дорожная карта",find:"Найти",
     ph:"Поиск: высота / хэш блока / txid / адрес crb1…",
     st_height:"высота",st_hr:"MH/s сети",st_supply:"CRB эмиссия",st_reward:"награда",st_epoch:"эпоха",st_age:"посл. блок",st_mp:"мемпул",
     node_down:"нода недоступна",latest:"Последние блоки",auto10:"обновление каждые 10 с",

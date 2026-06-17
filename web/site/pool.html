@@ -92,7 +92,8 @@ a{color:var(--acc)}
   <a class="brand" href="./"><svg class="logo" viewBox="0 0 40 40" fill="none" aria-hidden="true"><rect x="2" y="2" width="36" height="36" rx="11" fill="url(#lg)"/><path d="M14 8C27 13 27 16 20 20 13 24 13 27 26 32" stroke="#06121f" stroke-width="2.3" stroke-linecap="round"/><path d="M26 8C13 13 13 16 20 20 27 24 27 27 14 32" stroke="#06121f" stroke-width="2.3" stroke-linecap="round"/></svg><b>Cereb<i>lix</i></b></a>
   <div class="links">
     <a href="./" data-i="home">Home</a>
-    <a href="./#mine" data-i="mine">Mine</a>
+    <a href="mine.html" data-i="mine">Mine</a>
+    <a href="webmine.html" data-i="webmine">Web Miner</a>
     <a href="pool.html" class="active" data-i="pool">Pool</a>
     <a href="explorer.html" data-i="explorer">Explorer</a>
     <a href="wallet/" data-i="wallet">Wallet</a>
@@ -111,6 +112,7 @@ a{color:var(--acc)}
 
 <div class="card">
   <h2 data-i="how_t">Mine on the pool</h2>
+  <div class="note" data-i-html="guide_n">📖 Full setup for every miner - native, <b>XMRig</b>, <b>SRBMiner</b> and your own node - is on the <a href="mine.html">Mine page</a>. Just trying it out? <a href="webmine.html">Mine right in your browser</a>. Below is the quick way with the native miner.</div>
   <pre id="cmd">cereblix-miner -addr crb1YOURADDRESS -node https://cereblix.com/pool/api</pre>
   <div class="note" data-i-html="ru_note">🇷🇺 <b>RU / CIS</b> - if cereblix.com is slow or blocked, mine through our Moscow relay (same pool, no Cloudflare): <code>cereblix-miner -addr crb1YOURADDRESS -node https://ru.cereblix.com/pool/api</code></div>
   <div class="note" data-i-html="how_n">Your miner logs <b>"share accepted"</b> - those are shares (proofs of work at an easier target), not full blocks. Rewards arrive automatically as pool payouts once your balance crosses the minimum. Each share is <b>cryptographically bound to your address</b> (per-miner extranonce), so no one can claim your work.</div>
@@ -138,7 +140,8 @@ a{color:var(--acc)}
 
 <script>
 const I = { en:{}, ru:{
-  home:"Главная", mine:"Майнинг", pool:"Пул", explorer:"Обозреватель", wallet:"Кошелёк", faucet:"Кран", roadmap:"Дорожная карта",
+  home:"Главная", mine:"Майнинг", webmine:"Веб-майнинг", pool:"Пул", explorer:"Обозреватель", wallet:"Кошелёк", faucet:"Кран", roadmap:"Дорожная карта",
+  guide_n:'📖 Полная настройка любого майнера - нативный, <b>XMRig</b>, <b>SRBMiner</b> и своя нода - на странице <a href="mine.html">Майнинг</a>. Просто попробовать? <a href="webmine.html">Майньте в браузере</a>. Ниже - быстрый способ через нативный майнер.',
   title:'Майнинг-<em>пул</em>',
   sub:"Стабильные выплаты с низкой дисперсией: пул платит пропорционально присланной работе, даже когда сложность сети высокая. Просто направь обычный майнер на него - ничего ставить не нужно.",
   how_t:"Майнить на пуле",
