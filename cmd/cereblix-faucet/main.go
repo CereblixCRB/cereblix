@@ -31,10 +31,16 @@ import (
 
 const cooldown = 3 * time.Hour
 
+// amtTier maps a minimum lifetime captcha-solve count to a payout amount.
+type amtTier struct {
+	min int    // minimum prior solves (faucet payouts already received) to qualify
+	amt uint64 // payout in base units
+}
+
 var (
-	nodeAPI                     string
-	amtBase, amtMiner, amtWhale uint64
-	priv                        ed25519.PrivateKey
+	nodeAPI string
+	tiers   []amtTier // payout tiers by solves, ascending by min
+	priv    ed25519.PrivateKey
 	from                        string // payout wallet (treasury), signs faucet payouts
 	captchaAddr                 string // the captcha share mines to THIS wallet (separate)
 	shareTarget                 *big.Int // fixed, easy target for the captcha share
@@ -49,14 +55,15 @@ var (
 // ----------------------------------------------------------- rate-limit store
 
 type limitStore struct {
-	mu   sync.Mutex
-	path string
-	Addr map[string]int64 `json:"addr"`
-	IP   map[string]int64 `json:"ip"`
+	mu     sync.Mutex
+	path   string
+	Addr   map[string]int64 `json:"addr"`
+	IP     map[string]int64 `json:"ip"`
+	Solves map[string]int   `json:"solves"` // lifetime captcha-solve count per address (= payouts sent to it); NEVER pruned
 }
 
 func loadStore(path string) *limitStore {
-	s := &limitStore{path: path, Addr: map[string]int64{}, IP: map[string]int64{}}
+	s := &limitStore{path: path, Addr: map[string]int64{}, IP: map[string]int64{}, Solves: map[string]int{}}
 	if raw, err := os.ReadFile(path); err == nil {
 		_ = json.Unmarshal(raw, s)
 	}
@@ -66,7 +73,27 @@ func loadStore(path string) *limitStore {
 	if s.IP == nil {
 		s.IP = map[string]int64{}
 	}
+	if s.Solves == nil {
+		s.Solves = map[string]int{}
+	}
 	return s
+}
+
+// getSolves returns how many times this address has solved the captcha (= faucet
+// payouts it has received from the treasury). incSolves records one more after a
+// successful payout. The counter is the faucet's own payout ledger - exactly the
+// count of treasury->address transactions, reliable past the node's 200-row
+// /history cap and queried only AFTER the share is verified.
+func (s *limitStore) getSolves(addr string) int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.Solves[addr]
+}
+func (s *limitStore) incSolves(addr string) {
+	s.mu.Lock()
+	s.Solves[addr]++
+	s.mu.Unlock()
+	s.save()
 }
 
 func (s *limitStore) save() {
@@ -249,19 +276,17 @@ func hashFor(fw *fwork, nonce uint64) [32]byte {
 
 // ------------------------------------------------------------------ payout
 
+// amountFor picks the payout tier from how many times the address has already
+// solved the captcha (its prior faucet payouts). Returns (amount, prior solves).
 func amountFor(addr string) (uint64, int) {
-	var r struct {
-		Blocks int `json:"blocks"`
+	n := store.getSolves(addr)
+	amt := tiers[0].amt
+	for _, t := range tiers {
+		if n >= t.min {
+			amt = t.amt
+		}
 	}
-	_ = nodeGet("/mined?addr="+addr, &r)
-	switch {
-	case r.Blocks > 100:
-		return amtWhale, r.Blocks
-	case r.Blocks >= 1:
-		return amtMiner, r.Blocks
-	default:
-		return amtBase, r.Blocks
-	}
+	return amt, n
 }
 
 func sendCRB(to string, amount uint64) (string, error) {
@@ -319,9 +344,19 @@ func sendCRB(to string, amount uint64) (string, error) {
 // ------------------------------------------------------------------- handlers
 
 func clientIP(r *http.Request) string {
+	// Behind Cloudflare -> Caddy, the only trustworthy client IP is the one Cloudflare
+	// stamps in CF-Connecting-IP. X-Forwarded-For's LAST hop is the Cloudflare/Caddy edge
+	// (NOT the visitor), so keying cooldowns on it bucketed every user by edge IP: strangers
+	// sharing an edge got a spurious "already claimed", and a free reclaim whenever the edge
+	// rotated. CF-Connecting-IP is set by Cloudflare itself and cannot be spoofed by the client.
+	if ip := strings.TrimSpace(r.Header.Get("CF-Connecting-IP")); ip != "" {
+		return ip
+	}
+	// No Cloudflare (direct/local): the FIRST X-Forwarded-For entry is the original client
+	// recorded by the first proxy; each later hop is appended after it.
 	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
 		parts := strings.Split(xff, ",")
-		return strings.TrimSpace(parts[len(parts)-1]) // last hop = added by our Apache
+		return strings.TrimSpace(parts[0])
 	}
 	host := r.RemoteAddr
 	if i := strings.LastIndex(host, ":"); i >= 0 {
@@ -355,9 +390,11 @@ func main() {
 	listen := flag.String("listen", "127.0.0.1:18753", "listen address")
 	flag.StringVar(&nodeAPI, "node", "http://127.0.0.1:18751/api", "node API base")
 	keyfile := flag.String("keyfile", "/opt/cerebra/faucet-wallet.txt", "treasury wallet file with PRIVATE KEY line")
-	base := flag.Float64("base", 0.001, "CRB for addresses that mined 0 blocks")
-	miner := flag.Float64("miner", 0.01, "CRB for addresses that mined >=1 block")
-	whale := flag.Float64("whale", 0.1, "CRB for addresses that mined >100 blocks")
+	t0 := flag.Float64("t0", 0.001, "CRB for a newcomer (0 captcha solves)")
+	t100 := flag.Float64("t100", 0.003, "CRB at >=100 solves")
+	t250 := flag.Float64("t250", 0.005, "CRB at >=250 solves")
+	t500 := flag.Float64("t500", 0.007, "CRB at >=500 solves")
+	t750 := flag.Float64("t750", 0.01, "CRB at >=750 solves (max)")
 	work := flag.Uint64("work", 800, "captcha share difficulty in expected hashes (browser NeuroMorph)")
 	captcha := flag.String("captcha-addr", "", "address the captcha share mines to (defaults to payout wallet)")
 	datadir := flag.String("datadir", "/var/lib/cerebra", "where to store rate-limit state")
@@ -374,9 +411,8 @@ func main() {
 		}
 	}
 
-	amtBase = uint64(*base * float64(core.CoinUnit))
-	amtMiner = uint64(*miner * float64(core.CoinUnit))
-	amtWhale = uint64(*whale * float64(core.CoinUnit))
+	toBase := func(v float64) uint64 { return uint64(v * float64(core.CoinUnit)) }
+	tiers = []amtTier{{0, toBase(*t0)}, {100, toBase(*t100)}, {250, toBase(*t250)}, {500, toBase(*t500)}, {750, toBase(*t750)}}
 	// shareTarget = 2^256 / work  (an easy target so a browser finds one share
 	// in a handful of seconds, independent of network difficulty).
 	if *work < 1 {
@@ -406,13 +442,16 @@ func main() {
 		captchaAddr = from
 	}
 	store = loadStore(*datadir + "/faucet.json")
-	log.Printf("faucet: payout %s, captcha mines to %s, tiers %d/%d/%d, 3h cooldown, work=%d, listen %s",
-		from, captchaAddr, amtBase, amtMiner, amtWhale, *work, *listen)
+	log.Printf("faucet: payout %s, captcha mines to %s, tiers(solves 0/100/250/500/750) = %d/%d/%d/%d/%d base, 3h cooldown, work=%d, listen %s",
+		from, captchaAddr, tiers[0].amt, tiers[1].amt, tiers[2].amt, tiers[3].amt, tiers[4].amt, *work, *listen)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/faucet/info", func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, 200, map[string]any{"from": from, "cooldown_h": 3,
-			"base": amtBase, "miner": amtMiner, "whale": amtWhale})
+		ts := make([]map[string]any, len(tiers))
+		for i, t := range tiers {
+			ts[i] = map[string]any{"min": t.min, "amount": float64(t.amt) / float64(core.CoinUnit)}
+		}
+		writeJSON(w, 200, map[string]any{"from": from, "cooldown_h": 3, "tiers": ts})
 	})
 	// /faucet/challenge?addr=... : checks cooldown, then hands out a real mining
 	// job (paying the treasury) for the browser to solve as the captcha.
@@ -502,15 +541,16 @@ func main() {
 			writeJSON(w, 429, map[string]string{"error": fmt.Sprintf("already claimed - try again in %dh %dm", int(left.Hours()), int(left.Minutes())%60)})
 			return
 		}
-		amt, mined := amountFor(req.Addr)
+		amt, solves := amountFor(req.Addr)
 		txid, err := sendCRB(req.Addr, amt)
 		if err != nil {
 			store.release(req.Addr, ip)
 			writeJSON(w, 400, map[string]string{"error": err.Error()})
 			return
 		}
+		store.incSolves(req.Addr) // this successful claim counts toward the next tier
 		writeJSON(w, 200, map[string]any{"result": "sent", "txid": txid,
-			"amount": float64(amt) / float64(core.CoinUnit), "mined": mined})
+			"amount": float64(amt) / float64(core.CoinUnit), "solves": solves + 1})
 	})
 
 	log.Fatal(http.ListenAndServe(*listen, mux))
