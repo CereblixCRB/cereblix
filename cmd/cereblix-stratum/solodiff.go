@@ -1,8 +1,12 @@
 package main
 
-// Solo share-difficulty + variable difficulty (vardiff), used ONLY when the
-// bridge runs with -solo (Stratum in front of a NODE getwork, i.e. trustless
-// solo mining). Pool mode never touches any of this.
+// Share-difficulty + variable difficulty (vardiff). Originally solo-only; now used in
+// BOTH modes — the bridge serves each miner an eased per-connection share target so even
+// weak miners (and strict ones like SRBMiner, which drop the connection if no share is
+// accepted for ~60-90s) get steady accepted shares. In solo the backend is a NODE; in
+// pool the backend is the pool, which still credits ONLY nonces meeting its real share
+// target (a sub-target nonce is surfaced to the miner as a keepalive feedback share).
+// The NODE/POOL remains the sole authority on real blocks / credited shares.
 //
 // Why it exists: in solo the node hands out work at the FULL network target.
 // A normal CPU almost never meets it, so XMRig shows zero shares and looks
@@ -34,7 +38,8 @@ import (
 	"cereblix/core"
 )
 
-// soloMode is set by the -solo flag; false = plain pool passthrough (unchanged).
+// soloMode is set by the -solo flag. It selects the BACKEND (node vs pool) and how a
+// submit is classified; per-miner vardiff (below) now runs in BOTH modes.
 var soloMode bool
 
 const (
@@ -144,13 +149,13 @@ func parseDiffNum(s string) *big.Int {
 // the pinned fixed diff, or the vardiff-managed curDiff, clamped to the bounds of
 // the current network target. Never returns a target harder than the network's.
 func (c *client) shareTargetHex(netTarget *big.Int) string {
-	lo, hi, def := diffBounds(netTarget)
+	lo, hi, _ := diffBounds(netTarget)
 	c.sdMu.Lock()
 	switch {
 	case c.fixedDiff != nil:
 		c.curDiff = clampDiff(c.fixedDiff, lo, hi)
 	case c.curDiff == nil:
-		c.curDiff = def
+		c.curDiff = lo // start at the EASIEST diff so the first share lands within seconds; vardiff then ramps up. Fixes SRBMiner's no-accepted-share watchdog and gives weak miners a fast first share.
 	default:
 		c.curDiff = clampDiff(c.curDiff, lo, hi)
 	}

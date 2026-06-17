@@ -191,12 +191,8 @@ func (c *client) setJob(jobID, poolID string, extranonce uint64, targetHex strin
 	c.lastTgtHex = targetHex
 }
 
-// curDiffStr returns the connection's current share difficulty as a short string
-// for logs (or "net" in pool mode where the pool owns the difficulty).
+// curDiffStr returns the connection's current vardiff share difficulty as a short string.
 func (c *client) curDiffStr() string {
-	if !soloMode {
-		return "pool"
-	}
 	c.sdMu.Lock()
 	defer c.sdMu.Unlock()
 	if c.curDiff == nil {
@@ -301,10 +297,8 @@ func (c *client) handleLogin(id any, params json.RawMessage) bool {
 	}
 	c.addr = addr
 	c.worker = workerLabel(p.Login, p.RigID)
-	if soloMode {
-		// A miner may pin its own difficulty: "crb1...+50000" or password "diff=50000".
-		c.fixedDiff = parseRequestedDiff(p.Login, p.Pass)
-	}
+	// A miner may pin its own difficulty: "crb1...+50000" or password "diff=50000" (both modes).
+	c.fixedDiff = parseRequestedDiff(p.Login, p.Pass)
 	var sid [8]byte
 	_, _ = rand.Read(sid[:])
 	c.session = hex.EncodeToString(sid[:])
@@ -319,20 +313,22 @@ func (c *client) handleLogin(id any, params json.RawMessage) bool {
 		c.sendError(id, "bad template from pool")
 		return false
 	}
-	tgtHex := w.Target
-	if soloMode {
-		tgtHex = c.shareTargetHex(parseTarget(w.Target))
-		job["target"] = tgtHex
-	}
+	// Per-miner vardiff in BOTH modes: serve an eased share target so every miner gets
+	// steady accepted shares (keeps strict miners like SRBMiner connected). parseTarget(w.Target)
+	// is the hardest creditable target (the pool's share target, or the network target in solo);
+	// vardiff eases down from it. Real crediting / blocks are still decided by the backend.
+	tgtHex := c.shareTargetHex(parseTarget(w.Target))
+	job["target"] = tgtHex
 	c.setJob(jobID, poolID, w.Extranonce, tgtHex)
 	c.sendResult(id, map[string]any{"id": c.session, "job": job, "status": "OK",
 		"extensions": []string{"algo", "keepalive"}})
 	mode := "pool"
 	if soloMode {
-		mode = "solo diff=" + c.curDiffStr()
-		if c.fixedDiff != nil {
-			mode += " (fixed)"
-		}
+		mode = "solo"
+	}
+	mode += " diff=" + c.curDiffStr()
+	if c.fixedDiff != nil {
+		mode += " (fixed)"
 	}
 	log.Printf("stratum: login %s… agent=%q [%s] -> job %s", addr[:12], p.Agent, mode, jobID)
 	return true
@@ -367,20 +363,39 @@ func (c *client) handleSubmit(id any, params json.RawMessage) {
 	t0 := time.Now()
 	if soloMode {
 		c.handleSubmitSolo(id, poolID, full, t0)
-		return
+	} else {
+		c.handleSubmitPool(id, poolID, full, t0)
 	}
+}
+
+// handleSubmitPool is the pool-mode submit path. As in solo, the bridge serves a per-miner
+// vardiff target (eased from the pool's real share target), forwards EVERY submit to the
+// pool, and surfaces a sub-share-target nonce ("low difficulty share") as an ACCEPTED
+// feedback share so strict miners (SRBMiner) stay connected. Crediting is unchanged: the
+// pool still counts only nonces that meet its real share target, so pool accounting and
+// payouts are untouched.
+func (c *client) handleSubmitPool(id any, poolID string, full uint64, t0 time.Time) {
 	accepted, msg := submitToPool(poolID, full)
 	rtt := time.Since(t0).Milliseconds()
-	if accepted {
+	switch {
+	case accepted && msg == "BLOCK":
+		c.onSoloShare(time.Now())
 		c.sendResult(id, map[string]any{"status": "OK"})
-		if msg == "BLOCK" {
-			log.Printf("stratum: ★ BLOCK found by %s…", c.short())
-		} else {
-			vlog("✓ share %s… diff=pool %dms", c.short(), rtt)
-		}
-	} else {
-		vlog("✗ share %s… %s %dms", c.short(), msg, rtt)
+		log.Printf("stratum: ★ BLOCK found by %s…", c.short())
+	case accepted: // real pool share (credited)
+		c.onSoloShare(time.Now())
+		c.sendResult(id, map[string]any{"status": "OK"})
+		vlog("✓ share %s… diff=%s %dms", c.short(), c.curDiffStr(), rtt)
+	case msg == "low difficulty share": // met the vardiff target, not the pool's: keepalive feedback
+		c.onSoloShare(time.Now())
+		c.sendResult(id, map[string]any{"status": "OK"})
+		vlog("· feedback %s… diff=%s %dms", c.short(), c.curDiffStr(), rtt)
+	case msg == "stale" || msg == "duplicate": // template rolled over / resend: soft-ack, next job follows
+		c.sendResult(id, map[string]any{"status": "OK"})
+		vlog("· %s %s… %dms", msg, c.short(), rtt)
+	default:
 		c.sendError(id, msg)
+		vlog("✗ share %s… %s %dms", c.short(), msg, rtt)
 	}
 }
 
@@ -477,13 +492,10 @@ func (c *client) poller(done <-chan struct{}) {
 			if err != nil {
 				continue
 			}
-			tgtHex := w.Target
-			if soloMode {
-				tgtHex = c.shareTargetHex(parseTarget(w.Target))
-				job["target"] = tgtHex
-			}
+			tgtHex := c.shareTargetHex(parseTarget(w.Target)) // vardiff in both modes
+			job["target"] = tgtHex
 			c.jobMu.Lock()
-			changed := jobID != c.curJobID || (soloMode && tgtHex != c.lastTgtHex)
+			changed := jobID != c.curJobID || tgtHex != c.lastTgtHex
 			c.jobMu.Unlock()
 			c.setJob(jobID, poolID, w.Extranonce, tgtHex)
 			if changed {
