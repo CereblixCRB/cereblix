@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Cereblix - mine CRB (CPU miner · XMRig · SRBMiner · your own node)</title>
+<title>Cereblix - how to mine CRB</title>
 <meta name="theme-color" content="#06080f">
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <style>
@@ -12,7 +12,7 @@
 @font-face{font-family:'Inter';font-weight:400;font-display:swap;src:url('fonts/inter-400.woff2') format('woff2')}
 @font-face{font-family:'Inter';font-weight:500;font-display:swap;src:url('fonts/inter-500.woff2') format('woff2')}
 @font-face{font-family:'Inter';font-weight:700;font-display:swap;src:url('fonts/inter-700.woff2') format('woff2')}
-:root{--bg:#06080f;--panel:#0e1424;--glass:rgba(146,180,255,.05);--border:rgba(146,180,255,.13);--border2:rgba(120,200,255,.35);--acc:#22d3ee;--acc2:#a78bfa;--txt:#e8ecf6;--mut:#90a0bd;--ok:#34d399;--err:#f87171;--fd:'Space Grotesk',system-ui,sans-serif;--grad:linear-gradient(115deg,var(--acc),var(--acc2))}
+:root{--bg:#06080f;--panel:#0e1424;--glass:rgba(146,180,255,.05);--border:rgba(146,180,255,.13);--border2:rgba(120,200,255,.35);--acc:#22d3ee;--acc2:#a78bfa;--gold:#ffce5a;--txt:#e8ecf6;--mut:#90a0bd;--ok:#34d399;--err:#f87171;--fd:'Space Grotesk',system-ui,sans-serif;--grad:linear-gradient(115deg,var(--acc),var(--acc2))}
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--bg);color:var(--txt);font:16px/1.6 'Inter',system-ui,Segoe UI,Roboto,sans-serif;overflow-x:hidden;-webkit-font-smoothing:antialiased}
 html{overflow-x:hidden}
@@ -24,46 +24,42 @@ html{overflow-x:hidden}
 @keyframes dr1{50%{transform:translate(50px,40px) scale(1.1)}}
 @keyframes dr2{50%{transform:translate(-45px,50px) scale(1.06)}}
 @media(prefers-reduced-motion:reduce){.aurora{animation:none}}
-.wrap{max-width:620px;margin:0 auto;padding:0 16px 60px}
+.wrap{max-width:840px;margin:0 auto;padding:0 16px 60px}
 .logo{flex:0 0 auto;display:block}
 nav{display:flex;align-items:center;gap:14px;padding:14px 0;flex-wrap:wrap}
 nav .brand{display:flex;align-items:center;gap:11px;text-decoration:none;color:var(--txt)}
 nav .brand .logo{width:34px;height:34px;filter:drop-shadow(0 4px 13px rgba(34,211,238,.4))}
 nav .brand b{font-family:var(--fd);font-size:20px;font-weight:700;letter-spacing:-.01em}
 nav .brand b i{font-style:normal;color:var(--acc2)}
-nav .links{margin-left:auto;display:flex;gap:16px;flex-wrap:wrap;align-items:center}
+nav .links{margin-left:auto;display:flex;gap:14px;flex-wrap:wrap;align-items:center}
 nav .links a{color:var(--mut);text-decoration:none;font-size:14.5px;font-weight:500;white-space:nowrap}
 nav .links a:hover,nav .links a.active{color:var(--acc)}
-@media(max-width:560px){nav .links{margin-left:0;width:100%;gap:15px;overflow-x:auto}}
+nav .links .navsep{width:1px;height:18px;background:var(--border);margin:0 3px;flex:0 0 auto}
+nav .links a.minecta{color:var(--gold);font-weight:700;border:1px solid rgba(255,206,90,.45);background:rgba(255,206,90,.09);border-radius:999px;padding:5px 12px;text-shadow:0 0 11px rgba(255,206,90,.5)}
+nav .links a.minecta:hover,nav .links a.minecta.active{color:#ffe2a3;border-color:rgba(255,206,90,.85);box-shadow:0 0 16px rgba(255,206,90,.28)}
+@media(max-width:560px){nav .links{margin-left:0;width:100%;gap:13px;overflow-x:auto}}
+@media(max-width:620px){.hubgrid{grid-template-columns:1fr}}
 .langsw{display:inline-flex;gap:2px;border:1px solid var(--border);border-radius:9px;overflow:hidden;background:var(--glass)}
 .langsw button{background:transparent;color:var(--mut);border:0;padding:5px 10px;cursor:pointer;font-size:13px;font-weight:600;font-family:inherit}
 .langsw button.on{background:var(--grad);color:#06121f}
 h1{font-family:var(--fd);font-size:clamp(24px,5vw,30px);font-weight:700;letter-spacing:-.02em;margin:14px 0 6px}h1 em{font-style:normal;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
 .sub{color:var(--mut);margin-bottom:18px}
-.card{background:var(--glass);border:1px solid var(--border);border-radius:18px;padding:22px;margin-bottom:16px;backdrop-filter:blur(8px)}
-input,select{width:100%;background:#0b1120;border:1px solid var(--border);border-radius:11px;color:var(--txt);padding:12px 13px;font-size:15px;margin:6px 0 14px;font-family:ui-monospace,Consolas,monospace}
-input:focus,select:focus{outline:none;border-color:var(--acc)}
-label{font-size:13.5px;color:var(--mut)}
+.recbanner{background:linear-gradient(135deg,rgba(255,206,90,.14),rgba(34,211,238,.05));border:1px solid rgba(255,206,90,.42);border-radius:14px;padding:14px 17px;font-size:14.5px;color:#ffe2a3;margin-bottom:18px}
+.recbanner a{color:var(--gold);font-weight:700}
+.hubgrid{display:grid;grid-template-columns:1fr 1fr;gap:13px;margin:4px 0 22px;align-items:stretch}
+.hubcard{height:100%}
+.hubcard{position:relative;display:flex;gap:16px;align-items:flex-start;background:var(--glass);border:1px solid var(--border);border-radius:16px;padding:18px 20px;text-decoration:none;color:var(--txt);transition:border-color .15s,transform .15s,box-shadow .2s}
+.hubcard:hover{border-color:var(--acc);transform:translateY(-2px)}
+.hubcard .hic{flex:0 0 auto;font-size:28px;line-height:1;width:54px;height:54px;border-radius:14px;background:#0b1120;border:1px solid var(--border);display:grid;place-items:center}
+.hubcard h3{font-family:var(--fd);font-size:18px;margin:0 0 3px;display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.hubcard p{color:var(--mut);font-size:13.5px;margin:0}
+.hubcard .go{color:var(--acc);font-size:13px;font-weight:600;margin-top:9px;display:inline-block}
+.hubcard.rec{border-color:rgba(255,206,90,.5);background:linear-gradient(135deg,rgba(255,206,90,.1),var(--glass))}
+.hubcard.rec:hover{border-color:rgba(255,206,90,.85);box-shadow:0 12px 32px -14px rgba(255,206,90,.45)}
+.hubcard.rec .hic{border-color:rgba(255,206,90,.5)}
+.hubcard.rec .go{color:var(--gold)}
+.rectag{font-family:var(--fd);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#06121f;background:var(--gold);border-radius:999px;padding:3px 9px}
 .note{background:linear-gradient(135deg,rgba(167,139,250,.12),rgba(34,211,238,.06));border:1px solid var(--border2);border-radius:12px;padding:12px 16px;font-size:13.5px;color:#cbd5e1;margin-top:14px}
-.ok{color:var(--ok)}.err{color:var(--err)}
-.dls{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 0 6px}
-.dl{display:flex;flex-direction:column;gap:2px;background:#0b1120;border:1px solid var(--border);border-radius:12px;padding:12px 14px;text-decoration:none;transition:border-color .15s,transform .15s}
-.dl:hover{border-color:var(--acc);transform:translateY(-2px)}
-.dl b{font-family:var(--fd);font-size:14.5px;font-weight:700;color:var(--txt)}
-.dl span{font-size:12px;color:var(--mut)}
-@media(max-width:480px){.dls{grid-template-columns:1fr}}
-.tomine{display:block;background:var(--glass);border:1px solid var(--border);border-radius:13px;padding:13px 16px;margin-bottom:18px;text-decoration:none;color:var(--txt);font-size:14px}
-.tomine:hover{border-color:var(--acc)}
-.tomine b{color:var(--acc)}
-.qnav{display:flex;gap:8px;flex-wrap:wrap;margin:2px 0 26px}
-.qnav a{font-size:13px;font-weight:600;color:var(--mut);text-decoration:none;background:var(--glass);border:1px solid var(--border);border-radius:999px;padding:7px 14px;transition:border-color .15s,color .15s}
-.qnav a:hover{border-color:var(--acc);color:var(--txt)}
-.sec{margin:0 0 34px;scroll-margin-top:14px}
-.sec h2{font-family:var(--fd);font-size:20px;font-weight:700;letter-spacing:-.01em;margin:0 0 6px}
-.sec h3{font-family:var(--fd);font-size:16px;font-weight:700;margin:22px 0 4px;color:var(--txt)}
-.lead{color:var(--mut);font-size:14.5px;margin:0 0 14px}
-.cmd{display:block;white-space:pre;overflow-x:auto;background:#0b1120;border:1px solid var(--border);border-radius:11px;padding:12px 14px;margin:12px 0 4px;font-family:ui-monospace,Consolas,monospace;font-size:12.5px;color:#cbd5e1;line-height:1.7}
-.muted{font-size:12.5px;color:var(--mut);margin-top:7px}
 a{color:var(--acc)}
 </style>
 </head>
@@ -75,166 +71,76 @@ a{color:var(--acc)}
   <a class="brand" href="./"><svg class="logo" viewBox="0 0 40 40" fill="none" aria-hidden="true"><rect x="2" y="2" width="36" height="36" rx="11" fill="url(#lg)"/><path d="M14 8C27 13 27 16 20 20 13 24 13 27 26 32" stroke="#06121f" stroke-width="2.5" stroke-linecap="round"/><path d="M26 8C13 13 13 16 20 20 27 24 27 27 14 32" stroke="#06121f" stroke-width="2.5" stroke-linecap="round"/></svg><b>Cereb<i>lix</i></b></a>
   <div class="links">
     <a href="./" data-i="home">Home</a>
-    <a href="mine.html" class="active" data-i="mine">Mine</a>
-    <a href="webmine.html" data-i="webmine">Web Miner</a>
+    <a href="./#roadmap" data-i="roadmap">Roadmap</a>
+    <span class="navsep" aria-hidden="true"></span>
+    <a href="mine.html" class="minecta active" data-i="mine">⛏️ How to mine?</a>
+    <span class="navsep" aria-hidden="true"></span>
     <a href="pool.html" data-i="pool">Pool</a>
     <a href="explorer.html" data-i="explorer">Explorer</a>
     <a href="wallet/" data-i="wallet">Wallet</a>
     <a href="faucet.html" data-i="faucet">Faucet</a>
     <a href="/p2p">P2P</a>
-    <a href="https://github.com/CereblixCRB/cereblix" target="_blank" rel="noopener">GitHub</a>
     <span class="langsw"><button data-lang="en" onclick="setLang('en')">EN</button><button data-lang="ru" onclick="setLang('ru')">RU</button></span>
   </div>
 </nav>
 
-<h1 data-i-html="title">Mine <em>Cereblix</em></h1>
-<div class="sub" data-i-html="sub">Mine CRB on real hardware - the native CPU miner, XMRig or SRBMiner, or your own full node. All you need is your <code>crb1…</code> address, and rewards go straight to it.</div>
+<h1 data-i-html="title">How to <em>mine</em> CRB</h1>
+<div class="sub" data-i-html="sub">CRB is CPU-only - mine it on any machine. Pick a path below; rewards go straight to your <code>crb1…</code> address.</div>
 
-<a class="tomine" href="webmine.html" data-i-html="to_web">📱 On a phone or just trying it out? <b>Mine right in your browser</b> - no install, no download →</a>
+<div class="recbanner" data-i-html="rec">⭐ <b>Recommended right now: <a href="mine-srbminer.html">SRBMiner</a>.</b> It's the most up-to-date and gives the most hashrate on almost any machine.</div>
 
-<div class="qnav">
-  <a href="#native" data-i="q_native">💻 Native app</a>
-  <a href="#xmrig" data-i="q_xmrig">⚡ XMRig</a>
-  <a href="#srbminer" data-i="q_srb">🔥 SRBMiner</a>
-  <a href="#proxy" data-i="q_proxy">🚜 Farm proxy</a>
-  <a href="#node" data-i="q_node">🖧 Your own node</a>
+<div class="hubgrid">
+  <a class="hubcard rec" href="mine-srbminer.html">
+    <div class="hic">🔥</div>
+    <div>
+      <h3><span data-i="c1_t">SRBMiner</span> <span class="rectag" data-i="c1_tag">Best</span></h3>
+      <p data-i="c1_p">The most up-to-date miner and the highest hashrate on almost any machine. One line to start; works great on Hive OS too. (3% SRBMiner dev fee.)</p>
+      <span class="go" data-i="c1_go">SRBMiner guide, config &amp; our nodes →</span>
+    </div>
+  </a>
+  <a class="hubcard" href="mine-cpu.html">
+    <div class="hic">⚡</div>
+    <div>
+      <h3 data-i="c2_t">XMRig &amp; native miner</h3>
+      <p data-i="c2_p">Open-source, fee-free CPU miners. Usually a bit less hashrate than SRBMiner - pick them for open-source, or to mine to your own node.</p>
+      <span class="go" data-i="c2_go">XMRig &amp; native setup →</span>
+    </div>
+  </a>
+  <a class="hubcard" href="webmine.html">
+    <div class="hic">📱</div>
+    <div>
+      <h3 data-i="c3_t">Web miner</h3>
+      <p data-i="c3_p">Mine right in your browser - phone, tablet or PC. No install, no download. Slower, but the easiest way to try it.</p>
+      <span class="go" data-i="c3_go">Open the browser miner →</span>
+    </div>
+  </a>
+  <a class="hubcard" href="node.html">
+    <div class="hic">🖧</div>
+    <div>
+      <h3 data-i="c4_t">Run your own node</h3>
+      <p data-i="c4_p">Full node + stratum node for trustless solo mining, and the farm proxy to run many rigs behind one connection.</p>
+      <span class="go" data-i="c4_go">Node, stratum node &amp; proxy →</span>
+    </div>
+  </a>
 </div>
 
-<section class="sec" id="native">
-  <h2 data-i-html="s_native_h">💻 1 · Native CPU miner</h2>
-  <p class="lead" data-i-html="s_native_p">The official one-file miner - many times faster than the browser, and the simplest "real" option. Download, run with your address; it finds the public node on its own.</p>
-  <div class="dls">
-    <a class="dl" href="https://github.com/CereblixCRB/cereblix/releases/latest/download/cereblix-miner-windows-amd64.exe"><b>🪟 Windows x64</b><span>cereblix-miner</span></a>
-    <a class="dl" href="https://github.com/CereblixCRB/cereblix/releases/latest/download/cereblix-miner-linux-amd64"><b>🐧 Linux x64</b><span>cereblix-miner</span></a>
-  </div>
-  <div class="cmd"># pool - steady payouts (best for laptops &amp; normal CPUs)
-cereblix-miner -addr crb1YOUR_ADDRESS -node https://cereblix.com/pool/api
-# solo - whole 50 CRB blocks, a lottery (better on big rigs)
-cereblix-miner -addr crb1YOUR_ADDRESS</div>
-  <div class="note" data-i-html="s_native_hive">🐝 <b>Hive OS rig?</b> Flight Sheet → Custom miner, Installation URL <code>https://github.com/CereblixCRB/cereblix/releases/latest/download/cereblix-hiveos.tar.gz</code>, Pool URL <code>https://cereblix.com/pool/api</code>, your <code>crb1…</code> wallet.</div>
-  <div class="muted" data-i-html="s_native_ru">🇷🇺 <b>RU / CIS</b> and cereblix.com is slow or blocked? Mine via the Moscow relay (no Cloudflare): <code>-node https://ru.cereblix.com/pool/api</code> (solo <code>https://ru.cereblix.com/api</code>).</div>
-</section>
-
-<section class="sec" id="xmrig">
-  <h2 data-i-html="s_xmrig_h">⚡ 2 · XMRig - for big multi-core CPUs</h2>
-  <p class="lead" data-i-html="s_xmrig_p">Our official <b>fee-free</b> XMRig (developer donation removed, GPL source). On large CPUs it scales better than the native miner. It speaks Stratum - point it at ours, pool or solo.</p>
-  <div class="dls">
-    <a class="dl" href="https://cereblix.com/xmrig-cereblix-windows-x64.exe"><b>🪟 Windows x64</b><span>.exe · 9.9 MB</span></a>
-    <a class="dl" href="https://cereblix.com/xmrig-cereblix-linux-x64"><b>🐧 Linux x64</b><span>binary · 4.3 MB</span></a>
-    <a class="dl" href="https://cereblix.com/xmrig-cereblix-hive.tar.gz"><b>🐝 Hive OS</b><span>.tar.gz · 1.7 MB</span></a>
-    <a class="dl" href="https://cereblix.com/xmrig-cereblix-macos-arm64.tar.gz"><b>🍎 macOS · Apple Silicon</b><span>.tar.gz · 3.0 MB</span></a>
-  </div>
-  <div class="muted" data-i-html="s_xmrig_src">GPL source: <a href="https://cereblix.com/xmrig-cereblix-src.tar.gz">xmrig-cereblix-src.tar.gz</a> · mirror on the <a href="https://github.com/CereblixCRB/cereblix/releases/tag/xmrig" target="_blank" rel="noopener">GitHub xmrig release</a>. Intel Macs build from source (the binary is native arm64).</div>
-  <div class="cmd"># pool - steady payouts
-xmrig-cereblix -o stratum.cereblix.com:3333 -a nm/1 -u crb1YOUR_ADDRESS -p x
-# solo - whole 50 CRB blocks (now shows steady feedback shares too; -p diff=N to pick difficulty)
-xmrig-cereblix -o stratum.cereblix.com:3334 -a nm/1 -u crb1YOUR_ADDRESS -p x</div>
-  <div class="muted" data-i-html="s_xmrig_solo">💡 Solo (<code>:3334</code>) now serves an easy <b>auto-vardiff</b> share target, so XMRig shows steady <b>"accepted"</b> shares + live hashrate just like the pool - while real blocks still pay the full 50 CRB. Choose your own difficulty with <code>-p diff=N</code>.</div>
-  <div class="muted" data-i-html="s_xmrig_cores">🧮 <b>CPU cores.</b> This build uses <b>all your CPU cores by default</b>. If it ever runs on fewer threads than your CPU has, set the count yourself: add <code>-t N</code> (N = number of threads) or <code>--cpu-max-threads-hint=50</code> (percent of cores). On <b>Hive OS</b> leave <i>Extra config arguments</i> empty (algo <code>nm/1</code> and all cores are automatic); to limit cores there add <code>"max-threads-hint": 50</code> (JSON, not <code>-t</code>).</div>
-  <div class="muted" data-i-html="s_xmrig_perf">🚀 <b>More hashrate.</b> Three levers, biggest first. <b>(1) Huge pages</b> - often <b>+20-70%</b>, the single biggest win. XMRig uses them automatically, but on <b>Windows</b> grant the privilege once: <code>secpol.msc</code> → Local Policies → User Rights Assignment → <i>Lock pages in memory</i> → add your user, log out/in, then run XMRig <b>as Administrator</b>. On <b>Linux</b> reserve them: <code>sudo sysctl -w vm.nr_hugepages=1280</code>. The startup log should read <code>huge pages 100%</code>. <b>(2) Thread count</b> - "all cores" isn't always fastest: NeuroMorph is memory-bound, so on <b>hybrid Intel</b> (P+E) also try the P-core count (<code>-t N</code>) and keep whatever gives more H/s. <b>(3) Big EPYC / Threadripper</b> (several CCDs / NUMA) - run <b>one instance per CCD / NUMA node</b>, each pinned with <code>--cpu-affinity</code>, and sum the hashrate; a single process can lag across nodes. With huge pages and the right thread count our fee-free build lands roughly on par with SRBMiner after its 3% fee.</div>
-  <div class="muted" data-i-html="s_xmrig_ru">🇷🇺 <b>RU / CIS.</b> If shares drop out or the connection keeps timing out, use the Moscow relay (local route, no Cloudflare, same Stratum): pool <code>-o ru.cereblix.com:3333</code> or solo <code>-o ru.cereblix.com:3334</code> - everything else stays the same.</div>
-</section>
-
-<section class="sec" id="srbminer">
-  <h2 data-i-html="s_srb_h">🔥 3 · SRBMiner-Multi - often the fastest</h2>
-  <p class="lead" data-i-html="s_srb_p">The popular <b>SRBMiner-Multi</b> (v3.3.9+) mines CRB natively as the <code>neuromorph</code> algorithm and is frequently the fastest on big CPUs. It is closed-source with a <b>3% dev fee</b> (kept by the SRBMiner team, not us) - but the speed usually more than makes up for it.</p>
-  <div class="dls">
-    <a class="dl" href="https://github.com/doktor83/SRBMiner-Multi/releases/latest" target="_blank" rel="noopener"><b>⬇️ SRBMiner-Multi</b><span>official releases (win / linux / hive)</span></a>
-  </div>
-  <div class="cmd"># pool - steady payouts
-SRBMiner-MULTI --algorithm neuromorph --pool stratum.cereblix.com:3333 --wallet crb1YOUR_ADDRESS --password x
-# solo - whole 50 CRB blocks: use port :3334   ·   name a rig: --worker RIGNAME</div>
-  <div class="muted" data-i-html="s_srb_ru">🇷🇺 <b>RU / CIS</b>: use the Moscow relay - <code>--pool ru.cereblix.com:3333</code>. 🧮 All CPU cores are used by default. Track each rig on the <a href="pool.html">pool dashboard</a> - name them with <code>--worker NAME</code> to see them separately.</div>
-  <div class="muted" data-i-html="s_srb_perf">🚀 <b>Large pages here too.</b> SRBMiner gains a lot from huge / large pages - grant the same <b>Windows</b> privilege (or reserve <b>Linux</b> hugepages) as in the XMRig tip above; it enables them automatically once the OS allows it. The "one instance per CCD / NUMA node" trick also applies on very large CPUs.</div>
-</section>
-
-<section class="sec" id="proxy">
-  <h2 data-i-html="s_proxy_h">🚜 Running a farm? Aggregate rigs with the proxy</h2>
-  <p class="lead" data-i-html="s_proxy_p">Our fee-free <b>xmrig-cereblix-proxy</b> (Stratum proxy) lets a whole farm share one connection and one config: point the proxy at the pool, then point every rig at the proxy.</p>
-  <div class="dls">
-    <a class="dl" href="https://github.com/CereblixCRB/cereblix/releases/download/xmrig/xmrig-cereblix-proxy-windows-x64.exe"><b>🪟 Windows x64</b><span>xmrig-cereblix-proxy</span></a>
-    <a class="dl" href="https://github.com/CereblixCRB/cereblix/releases/download/xmrig/xmrig-cereblix-proxy-linux-x64"><b>🐧 Linux x64</b><span>xmrig-cereblix-proxy</span></a>
-  </div>
-  <div class="muted" data-i-html="s_proxy_src">GPL source: <a href="https://github.com/CereblixCRB/cereblix/releases/download/xmrig/xmrig-cereblix-proxy-src.tar.gz">xmrig-cereblix-proxy-src.tar.gz</a>.</div>
-  <div class="cmd"># 1. config.json - "simple" works with any miner version; big farms can use "nicehash"
-#    ("nicehash" = ONE pool connection for ALL rigs - needs miner v1.1+ AND proxy v1.2+)
-{ "mode": "simple", "pools": [ { "algo": "nm/1", "url": "stratum.cereblix.com:3333", "user": "crb1YOUR_ADDRESS", "pass": "x", "keepalive": true } ], "bind": [ "0.0.0.0:3333" ] }
-# 2. run the proxy
-xmrig-cereblix-proxy -c config.json
-# 3. point every rig at the proxy (not the pool):
-xmrig-cereblix -a nm/1 -o PROXY_IP:3333 -u crb1YOUR_ADDRESS -p x</div>
-  <div class="muted" data-i-html="s_proxy_n">⚠️ Upstream must be the <b>pool</b> (<code>stratum.cereblix.com:3333</code>, or <b>RU/CIS</b> <code>ru.cereblix.com:3333</code>). Earnings still track per address on the <a href="pool.html">pool dashboard</a>.</div>
-  <div class="muted" data-i-html="s_proxy_ops">🛠️ Monitoring (built-in HTTP API), per-rig stats, TLS for remote rigs and a <b>systemd</b> service: see the <a href="https://github.com/CereblixCRB/cereblix#run-a-farm-through-a-proxy-xmrig-cereblix-proxy">README</a>. The proxy also prints an update notice when a newer build ships (download only - disable with <code>--no-version-check</code>).</div>
-</section>
-
-<section class="sec" id="node">
-  <h2 data-i-html="s_node_h">🖧 4 · Run your own node</h2>
-  <p class="lead" data-i-html="s_node_p">A full node = independent chain validation and your own vote in the network, with no reliance on our servers. Optional, but it's the trustless way to mine.</p>
-  <div class="dls">
-    <a class="dl" href="https://github.com/CereblixCRB/cereblix/releases/latest/download/cereblixd-windows-amd64.exe"><b>🪟 Windows x64</b><span>cereblixd</span></a>
-    <a class="dl" href="https://github.com/CereblixCRB/cereblix/releases/latest/download/cereblixd-linux-amd64"><b>🐧 Linux x64</b><span>cereblixd</span></a>
-  </div>
-  <div class="cmd"># run the node and let it sync the chain
-cereblixd -datadir ./data
-# the native miner can mine straight to your node:
-cereblix-miner -addr crb1YOUR_ADDRESS -node http://127.0.0.1:18751/api</div>
-
-  <h3 data-i-html="s_node_xm_h">… and mine to your own node with XMRig</h3>
-  <p class="lead" data-i-html="s_node_xm_p">XMRig speaks Stratum, the node speaks HTTP getwork - so a tiny bridge, <code>cereblix-stratum</code>, sits between them. Run it against your node and you mine <b>solo, fully trustless</b>: every block pays 50 CRB straight to you, validated by your own node.</p>
-  <div class="dls">
-    <a class="dl" href="https://github.com/CereblixCRB/cereblix/releases/download/xmrig/cereblix-stratum-windows-amd64.exe"><b>🪟 Windows x64</b><span>cereblix-stratum</span></a>
-    <a class="dl" href="https://github.com/CereblixCRB/cereblix/releases/download/xmrig/cereblix-stratum-linux-amd64"><b>🐧 Linux x64</b><span>cereblix-stratum</span></a>
-    <a class="dl" href="https://github.com/CereblixCRB/cereblix/releases/download/xmrig/cereblix-stratum-darwin-arm64"><b>🍎 macOS arm64</b><span>cereblix-stratum</span></a>
-    <a class="dl" href="https://github.com/CereblixCRB/cereblix/releases/download/xmrig/cereblix-stratum-darwin-amd64"><b>🍎 macOS x64</b><span>cereblix-stratum</span></a>
-  </div>
-  <div class="cmd"># 1. your node (above) is running &amp; synced
-# 2. bridge Stratum -> your node, with steady feedback shares + auto-vardiff
-cereblix-stratum -listen :3334 -pool http://127.0.0.1:18751/api -solo
-# 3. point XMRig at your local bridge
-xmrig-cereblix -o 127.0.0.1:3334 -a nm/1 -u crb1YOUR_ADDRESS -p x
-# pick your own difficulty: -p diff=50000   ·   watch jobs/shares/ms live: add -v to the bridge</div>
-  <div class="muted" data-i-html="s_node_xm_tip"><code>-solo</code> serves an easy feedback-share target with auto-vardiff (so XMRig shows steady "accepted" shares + live hashrate), tuned to your CPU and the network; real blocks still go to your node. Default difficulty = the pool's; set your own with <code>-p diff=N</code>. The <code>-pool</code> flag is just the getwork API to mine against - your node (<code>…:18751/api</code>) for trustless solo.</div>
-</section>
-
-<div class="note" data-i-html="explain">💡 <b>Solo vs pool?</b> Solo keeps the whole 50 CRB per block but is a lottery (better on big multi-core rigs). Pool pays a steady trickle proportional to your work, auto-paid to your address at 0.05 CRB (1% fee) - far less variance, better for laptops. On the pool your log shows <b>"share accepted"</b> (proofs at an easier target); the real reward lands as automatic payouts. Track it all on the <a href="pool.html">pool dashboard</a>.</div>
-<div class="note" data-i-html="safe_n">⚠️ Download only from this page, <a href="https://cereblix.com">cereblix.com</a>, or our <a href="https://github.com/CereblixCRB/cereblix/releases/latest" target="_blank" rel="noopener">GitHub releases</a> (SRBMiner from its <a href="https://github.com/doktor83/SRBMiner-Multi" target="_blank" rel="noopener">official repo</a>). Any "xmrig-cereblix" or "cereblix" build from elsewhere is NOT ours - don't run it. Full written guide in the <a href="https://github.com/CereblixCRB/cereblix#mine" target="_blank" rel="noopener">README</a>.</div>
+<div class="note" data-i-html="explain">💡 <b>Solo vs pool?</b> Pool pays a steady trickle proportional to your work (auto-paid at 0.05 CRB, 1% fee) - best for laptops and normal CPUs. Solo keeps the whole 50 CRB per block but is a lottery - better on big rigs. Track everything on the <a href="pool.html">pool dashboard</a>.</div>
+<div class="note" data-i-html="safe_n">⚠️ Download miners only from this site, our <a href="https://github.com/CereblixCRB/cereblix/releases/latest" target="_blank" rel="noopener">GitHub releases</a>, or SRBMiner's <a href="https://github.com/doktor83/SRBMiner-Multi" target="_blank" rel="noopener">official repo</a>. Any "cereblix" build from elsewhere is NOT ours.</div>
 </div>
 
 <script>
 const I = {
   en:{}, ru:{
-    home:"Главная", mine:"Майнинг", webmine:"Веб-майнинг", pool:"Пул", explorer:"Обозреватель", wallet:"Кошелёк", faucet:"Кран", roadmap:"Дорожная карта",
-    title:'Майнинг <em>Cereblix</em>',
-    sub:'Майнинг CRB на реальном железе - нативный CPU-майнер, XMRig или SRBMiner, либо собственная полная нода. Нужен только ваш адрес <code>crb1…</code>, награды идут прямо на него.',
-    to_web:'📱 С телефона или просто попробовать? <b>Майньте прямо в браузере</b> - без установки и скачивания →',
-    q_native:"💻 Приложение", q_xmrig:"⚡ XMRig", q_srb:"🔥 SRBMiner", q_proxy:"🚜 Ферма (прокси)", q_node:"🖧 Своя нода",
-    s_native_h:"💻 1 · Нативный CPU-майнер",
-    s_native_p:"Официальный майнер одним файлом - кратно быстрее браузера и самый простой «настоящий» вариант. Скачайте, запустите со своим адресом; публичную ноду найдёт сам.",
-    s_native_hive:'🐝 <b>Риг на Hive OS?</b> Flight Sheet → Custom miner, Installation URL <code>https://github.com/CereblixCRB/cereblix/releases/latest/download/cereblix-hiveos.tar.gz</code>, Pool URL <code>https://cereblix.com/pool/api</code>, кошелёк <code>crb1…</code>.',
-    s_native_ru:'🇷🇺 <b>RU / СНГ</b> и cereblix.com тормозит или заблокирован? Майньте через московский релей (без Cloudflare): <code>-node https://ru.cereblix.com/pool/api</code> (соло <code>https://ru.cereblix.com/api</code>).',
-    s_xmrig_h:"⚡ 2 · XMRig - для мощных многоядерных CPU",
-    s_xmrig_p:"Наша официальная сборка XMRig <b>без комиссии</b> (донат разработчику убран, исходники под GPL). На больших CPU масштабируется лучше нативного майнера. Говорит по Stratum - подключайте к нашему, пул или соло.",
-    s_xmrig_src:'Исходники (GPL): <a href="https://cereblix.com/xmrig-cereblix-src.tar.gz">xmrig-cereblix-src.tar.gz</a> · зеркало в <a href="https://github.com/CereblixCRB/cereblix/releases/tag/xmrig" target="_blank" rel="noopener">релизе xmrig на GitHub</a>. Intel Mac - соберите из исходников (бинарник нативный arm64).',
-    s_xmrig_solo:'💡 Соло (<code>:3334</code>) теперь отдаёт лёгкий <b>авто-vardiff</b> share-target, так что XMRig стабильно показывает <b>«accepted»</b> и хешрейт - как на пуле, при этом настоящие блоки по-прежнему дают все 50 CRB. Свою сложность выбирайте через <code>-p diff=N</code>.',
-    s_xmrig_cores:'🧮 <b>Ядра CPU.</b> По умолчанию используются <b>все ядра процессора</b>. Если вдруг задействованы не все потоки - задайте число вручную: добавьте <code>-t N</code> (N - число потоков) или <code>--cpu-max-threads-hint=50</code> (процент ядер). На <b>Hive OS</b> поле <i>Extra config arguments</i> оставьте пустым (algo <code>nm/1</code> и все ядра включаются сами); ограничить ядра там - <code>"max-threads-hint": 50</code> (JSON, не <code>-t</code>).',
-    s_xmrig_perf:'🚀 <b>Больше хешрейта.</b> Три рычага, по убыванию эффекта. <b>(1) Huge pages (большие страницы)</b> - часто <b>+20-70%</b>, самый большой выигрыш. XMRig включает их сам, но на <b>Windows</b> нужно один раз выдать привилегию: <code>secpol.msc</code> → Локальные политики → Назначение прав пользователя → <i>Блокировка страниц в памяти</i> → добавьте своего пользователя, перезайдите в систему, затем запускайте XMRig <b>от администратора</b>. На <b>Linux</b> зарезервируйте их: <code>sudo sysctl -w vm.nr_hugepages=1280</code>. В логе старта должно быть <code>huge pages 100%</code>. <b>(2) Число потоков</b> - «все ядра» не всегда быстрее: NeuroMorph упирается в память, поэтому на <b>гибридных Intel</b> (P+E) попробуйте и число P-ядер (<code>-t N</code>), оставьте то, что даёт больше H/s. <b>(3) Большие EPYC / Threadripper</b> (несколько CCD / NUMA) - запускайте <b>по одному инстансу на CCD / NUMA-узел</b>, каждый с привязкой <code>--cpu-affinity</code>, и суммируйте хешрейт; один процесс на всё может проседать между узлами. С huge pages и верным числом потоков наша сборка без комиссии идёт примерно вровень с SRBMiner после его 3% fee.',
-    s_xmrig_ru:'🇷🇺 <b>RU / СНГ.</b> Если шары пропадают или соединение постоянно отваливается по таймауту - подключайтесь через московский релей (локальный маршрут, без Cloudflare, тот же Stratum): пул <code>-o ru.cereblix.com:3333</code> или соло <code>-o ru.cereblix.com:3334</code> - всё остальное без изменений.',
-    s_srb_h:"🔥 3 · SRBMiner-Multi - часто самый быстрый",
-    s_srb_p:'Популярный <b>SRBMiner-Multi</b> (v3.3.9+) майнит CRB нативно как алгоритм <code>neuromorph</code> и часто оказывается самым быстрым на больших CPU. Закрытый исходник с <b>комиссией 3%</b> (её забирает команда SRBMiner, не мы) - но прирост скорости обычно с лихвой это окупает.',
-    s_srb_ru:'🇷🇺 <b>RU / СНГ</b>: московский релей - <code>--pool ru.cereblix.com:3333</code>. 🧮 По умолчанию используются все ядра. Следите за каждым ригом на <a href="pool.html">дашборде пула</a> - называйте их через <code>--worker ИМЯ</code>, чтобы видеть по отдельности.',
-    s_srb_perf:'🚀 <b>Большие страницы и здесь.</b> SRBMiner сильно выигрывает от huge / large pages - выдайте ту же привилегию на <b>Windows</b> (или зарезервируйте hugepages на <b>Linux</b>), что и в подсказке по XMRig выше; он включит их сам, как только ОС разрешит. Приём «по инстансу на CCD / NUMA-узел» для очень больших CPU работает и тут.',
-    s_proxy_h:'🚜 Большая ферма? Агрегируйте риги через прокси',
-    s_proxy_p:'Наш бесплатный <b>xmrig-cereblix-proxy</b> (Stratum-прокси) позволяет всей ферме работать через одно соединение и один конфиг: наводите прокси на пул, а каждый риг - на прокси.',
-    s_proxy_src:'Исходники (GPL): <a href="https://github.com/CereblixCRB/cereblix/releases/download/xmrig/xmrig-cereblix-proxy-src.tar.gz">xmrig-cereblix-proxy-src.tar.gz</a>.',
-    s_proxy_n:'⚠️ Апстрим - только <b>пул</b> (<code>stratum.cereblix.com:3333</code>, или <b>RU/СНГ</b> <code>ru.cereblix.com:3333</code>). Заработок по-прежнему виден по адресу на <a href="pool.html">дашборде пула</a>.',
-    s_proxy_ops:'🛠️ Мониторинг (встроенный HTTP API), статистика по ригам, TLS для удалённых ригов и <b>systemd</b>-сервис - в <a href="https://github.com/CereblixCRB/cereblix#run-a-farm-through-a-proxy-xmrig-cereblix-proxy">README</a>. Прокси также печатает уведомление о новой версии (только ссылка - отключить <code>--no-version-check</code>).',
-    s_node_h:"🖧 4 · Своя нода",
-    s_node_p:"Полная нода = независимая валидация цепочки и ваш голос в сети, без зависимости от наших серверов. Необязательно, но это по-настоящему доверительный (trustless) майнинг.",
-    s_node_xm_h:"… и майнинг на свою ноду через XMRig",
-    s_node_xm_p:"XMRig говорит по Stratum, нода - по HTTP getwork, поэтому между ними ставится крошечный мост <code>cereblix-stratum</code>. Запустите его на свою ноду - и майните <b>соло, полностью trustless</b>: каждый блок даёт 50 CRB прямо вам, проверено вашей нодой.",
-    s_node_xm_tip:'<code>-solo</code> включает лёгкий feedback-target с авто-vardiff (XMRig стабильно показывает «accepted» и хешрейт), подстраиваясь под ваш CPU и сеть; настоящие блоки всё равно уходят на вашу ноду. Сложность по умолчанию — как у пула; своя — через <code>-p diff=N</code>. Флаг <code>-pool</code> — это просто getwork-API, на который майнить (ваша нода <code>…:18751/api</code> для trustless-соло).',
-    explain:'💡 <b>Соло или пул?</b> Соло отдаёт все 50 CRB за блок, но это лотерея (лучше на мощных многоядерных ригах). Пул платит стабильно, пропорционально вашей работе, автовыплата на адрес при 0.05 CRB (комиссия 1%) - меньше разброс, лучше для ноутбуков. В пуле лог пишет <b>«share accepted»</b> (доказательства на упрощённой сложности); реальная награда приходит автовыплатами. Следите за всем на <a href="pool.html">дашборде пула</a>.',
-    safe_n:'⚠️ Скачивайте только с этой страницы, с <a href="https://cereblix.com">cereblix.com</a> или из наших <a href="https://github.com/CereblixCRB/cereblix/releases/latest" target="_blank" rel="noopener">релизов на GitHub</a> (SRBMiner - из его <a href="https://github.com/doktor83/SRBMiner-Multi" target="_blank" rel="noopener">официального репозитория</a>). Любой «xmrig-cereblix» или «cereblix» из других мест НЕ наш - не запускайте. Полное руководство - в <a href="https://github.com/CereblixCRB/cereblix#mine" target="_blank" rel="noopener">README</a>.'
+    home:"Главная", roadmap:"Дорожная карта", mine:"⛏️ Как майнить?", pool:"Пул", explorer:"Обозреватель", wallet:"Кошелёк", faucet:"Кран",
+    title:'Как <em>майнить</em> CRB',
+    sub:'CRB майнится только на CPU - на любой машине. Выберите путь ниже; награды идут прямо на ваш адрес <code>crb1…</code>.',
+    rec:'⭐ <b>Сейчас рекомендуем: <a href="mine-srbminer.html">SRBMiner</a>.</b> Самый актуальный и даёт больше всего хешрейта почти на любой машине.',
+    c1_t:"SRBMiner", c1_tag:"Лучший", c1_p:"Самый актуальный майнер и наибольший хешрейт почти на любой машине. Запуск одной строкой; отлично работает и на Hive OS. (Комиссия SRBMiner 3%.)", c1_go:"Гайд по SRBMiner, конфиг и наши ноды →",
+    c2_t:"XMRig и нативный майнер", c2_p:"Открытые, бесплатные CPU-майнеры. Обычно немного меньше хешрейта, чем SRBMiner - берите ради открытого исходника или для майнинга на свою ноду.", c2_go:"Настройка XMRig и нативного →",
+    c3_t:"Веб-майнер", c3_p:"Майните прямо в браузере - телефон, планшет или ПК. Без установки и скачивания. Медленнее, но проще всего попробовать.", c3_go:"Открыть браузерный майнер →",
+    c4_t:"Своя нода", c4_p:"Полная нода + стратум-нода для trustless соло-майнинга и прокси для ферм - много ригов через одно соединение.", c4_go:"Нода, стратум-нода и прокси →",
+    explain:'💡 <b>Соло или пул?</b> Пул платит стабильно, пропорционально вашей работе (автовыплата при 0.05 CRB, комиссия 1%) - лучше для ноутбуков и обычных CPU. Соло отдаёт все 50 CRB за блок, но это лотерея - лучше на мощных ригах. Следите на <a href="pool.html">дашборде пула</a>.',
+    safe_n:'⚠️ Скачивайте майнеры только с этого сайта, из наших <a href="https://github.com/CereblixCRB/cereblix/releases/latest" target="_blank" rel="noopener">релизов на GitHub</a> или из <a href="https://github.com/doktor83/SRBMiner-Multi" target="_blank" rel="noopener">официального репозитория</a> SRBMiner. Любой «cereblix» из других мест НЕ наш.'
   }
 };
 const EN={};
@@ -250,7 +156,6 @@ function applyLang(l){
   document.querySelectorAll('.langsw button').forEach(b=>b.classList.toggle('on',b.dataset.lang===l));
 }
 function setLang(l){ localStorage.setItem('lang',l); applyLang(l); }
-const t = k => LANG==='en' ? (EN[k]??k) : (I.ru[k]??EN[k]??k);
 applyLang(LANG);
 </script>
 </body>

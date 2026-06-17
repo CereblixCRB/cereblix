@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cereblix - mine CRB with SRBMiner (recommended)</title>
+<meta name="theme-color" content="#06080f">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<style>
+@font-face{font-family:'Space Grotesk';font-weight:500;font-display:swap;src:url('fonts/spacegrotesk-500.woff2') format('woff2')}
+@font-face{font-family:'Space Grotesk';font-weight:700;font-display:swap;src:url('fonts/spacegrotesk-700.woff2') format('woff2')}
+@font-face{font-family:'Inter';font-weight:400;font-display:swap;src:url('fonts/inter-400.woff2') format('woff2')}
+@font-face{font-family:'Inter';font-weight:500;font-display:swap;src:url('fonts/inter-500.woff2') format('woff2')}
+@font-face{font-family:'Inter';font-weight:700;font-display:swap;src:url('fonts/inter-700.woff2') format('woff2')}
+:root{--bg:#06080f;--panel:#0e1424;--glass:rgba(146,180,255,.05);--border:rgba(146,180,255,.13);--border2:rgba(120,200,255,.35);--acc:#22d3ee;--acc2:#a78bfa;--gold:#ffce5a;--txt:#e8ecf6;--mut:#90a0bd;--ok:#34d399;--err:#f87171;--fd:'Space Grotesk',system-ui,sans-serif;--grad:linear-gradient(115deg,var(--acc),var(--acc2))}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--txt);font:16px/1.6 'Inter',system-ui,Segoe UI,Roboto,sans-serif;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+html{overflow-x:hidden}
+::selection{background:rgba(34,211,238,.28)}
+.bg{position:fixed;inset:0;z-index:-2;overflow:hidden;background:radial-gradient(1100px 680px at 50% -12%,#13234a 0%,transparent 60%),radial-gradient(760px 520px at 100% -4%,#3a2c12 0%,transparent 55%),var(--bg)}
+.aurora{position:absolute;border-radius:50%;filter:blur(90px);opacity:.4;will-change:transform}
+.aurora.a1{width:460px;height:460px;background:radial-gradient(circle,#22d3ee,transparent 64%);top:-160px;left:-90px;animation:dr1 24s ease-in-out infinite}
+.aurora.a2{width:430px;height:430px;background:radial-gradient(circle,#ffce5a,transparent 64%);top:-120px;right:-110px;animation:dr2 28s ease-in-out infinite}
+@keyframes dr1{50%{transform:translate(50px,40px) scale(1.1)}}
+@keyframes dr2{50%{transform:translate(-45px,50px) scale(1.06)}}
+@media(prefers-reduced-motion:reduce){.aurora{animation:none}}
+.wrap{max-width:620px;margin:0 auto;padding:0 16px 60px}
+.logo{flex:0 0 auto;display:block}
+nav{display:flex;align-items:center;gap:14px;padding:14px 0;flex-wrap:wrap}
+nav .brand{display:flex;align-items:center;gap:11px;text-decoration:none;color:var(--txt)}
+nav .brand .logo{width:34px;height:34px;filter:drop-shadow(0 4px 13px rgba(34,211,238,.4))}
+nav .brand b{font-family:var(--fd);font-size:20px;font-weight:700;letter-spacing:-.01em}
+nav .brand b i{font-style:normal;color:var(--acc2)}
+nav .links{margin-left:auto;display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+nav .links a{color:var(--mut);text-decoration:none;font-size:14.5px;font-weight:500;white-space:nowrap}
+nav .links a:hover,nav .links a.active{color:var(--acc)}
+nav .links .navsep{width:1px;height:18px;background:var(--border);margin:0 3px;flex:0 0 auto}
+nav .links a.minecta{color:var(--gold);font-weight:700;border:1px solid rgba(255,206,90,.45);background:rgba(255,206,90,.09);border-radius:999px;padding:5px 12px;text-shadow:0 0 11px rgba(255,206,90,.5)}
+nav .links a.minecta:hover,nav .links a.minecta.active{color:#ffe2a3;border-color:rgba(255,206,90,.85);box-shadow:0 0 16px rgba(255,206,90,.28)}
+@media(max-width:560px){nav .links{margin-left:0;width:100%;gap:13px;overflow-x:auto}}
+.langsw{display:inline-flex;gap:2px;border:1px solid var(--border);border-radius:9px;overflow:hidden;background:var(--glass)}
+.langsw button{background:transparent;color:var(--mut);border:0;padding:5px 10px;cursor:pointer;font-size:13px;font-weight:600;font-family:inherit}
+.langsw button.on{background:var(--grad);color:#06121f}
+h1{font-family:var(--fd);font-size:clamp(24px,5vw,30px);font-weight:700;letter-spacing:-.02em;margin:14px 0 6px}h1 em{font-style:normal;color:var(--gold)}
+.sub{color:var(--mut);margin-bottom:18px}
+.recbanner{background:linear-gradient(135deg,rgba(255,206,90,.15),rgba(34,211,238,.05));border:1px solid rgba(255,206,90,.45);border-radius:14px;padding:14px 17px;font-size:14.5px;color:#ffe2a3;margin-bottom:18px}
+.tomine{display:block;background:var(--glass);border:1px solid var(--border);border-radius:13px;padding:13px 16px;margin-bottom:18px;text-decoration:none;color:var(--txt);font-size:14px}
+.tomine:hover{border-color:var(--acc)}.tomine b{color:var(--acc)}
+.note{background:linear-gradient(135deg,rgba(167,139,250,.12),rgba(34,211,238,.06));border:1px solid var(--border2);border-radius:12px;padding:12px 16px;font-size:13.5px;color:#cbd5e1;margin-top:14px}
+.dls{display:grid;grid-template-columns:1fr;gap:10px;margin:14px 0 6px}
+.dl{display:flex;flex-direction:column;gap:2px;background:#0b1120;border:1px solid rgba(255,206,90,.35);border-radius:12px;padding:12px 14px;text-decoration:none;transition:border-color .15s,transform .15s}
+.dl:hover{border-color:var(--gold);transform:translateY(-2px)}
+.dl b{font-family:var(--fd);font-size:14.5px;font-weight:700;color:var(--txt)}.dl span{font-size:12px;color:var(--mut)}
+.sec{margin:0 0 32px;scroll-margin-top:14px}
+.sec h2{font-family:var(--fd);font-size:20px;font-weight:700;letter-spacing:-.01em;margin:0 0 6px}
+.sec h3{font-family:var(--fd);font-size:16px;font-weight:700;margin:20px 0 4px;color:var(--txt)}
+.lead{color:var(--mut);font-size:14.5px;margin:0 0 14px}
+.cmd{display:block;white-space:pre;overflow-x:auto;background:#0b1120;border:1px solid var(--border);border-radius:11px;padding:12px 14px;margin:12px 0 4px;font-family:ui-monospace,Consolas,monospace;font-size:12.5px;color:#cbd5e1;line-height:1.7}
+.muted{font-size:12.5px;color:var(--mut);margin-top:7px}
+.ndtable{width:100%;border-collapse:collapse;margin:10px 0 4px;font-size:13px}
+.ndtable th,.ndtable td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--border);vertical-align:top}
+.ndtable th{color:var(--mut);font-weight:600;font-family:var(--fd)}
+.ndtable td code{font-size:12.5px;color:#cbd5e1}
+.qnav{display:flex;gap:8px;flex-wrap:wrap;margin:2px 0 26px}
+.qnav a{font-size:13px;font-weight:600;color:var(--mut);text-decoration:none;background:var(--glass);border:1px solid var(--border);border-radius:999px;padding:7px 14px}
+.qnav a:hover{border-color:var(--acc);color:var(--txt)}
+a{color:var(--acc)}
+</style>
+</head>
+<body>
+<div class="bg" aria-hidden="true"><div class="aurora a1"></div><div class="aurora a2"></div></div>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse"><stop stop-color="#22d3ee"/><stop offset="1" stop-color="#a78bfa"/></linearGradient></defs></svg>
+<div class="wrap">
+<nav>
+  <a class="brand" href="./"><svg class="logo" viewBox="0 0 40 40" fill="none" aria-hidden="true"><rect x="2" y="2" width="36" height="36" rx="11" fill="url(#lg)"/><path d="M14 8C27 13 27 16 20 20 13 24 13 27 26 32" stroke="#06121f" stroke-width="2.5" stroke-linecap="round"/><path d="M26 8C13 13 13 16 20 20 27 24 27 27 14 32" stroke="#06121f" stroke-width="2.5" stroke-linecap="round"/></svg><b>Cereb<i>lix</i></b></a>
+  <div class="links">
+    <a href="./" data-i="home">Home</a>
+    <a href="./#roadmap" data-i="roadmap">Roadmap</a>
+    <span class="navsep" aria-hidden="true"></span>
+    <a href="mine.html" class="minecta" data-i="mine">⛏️ How to mine?</a>
+    <span class="navsep" aria-hidden="true"></span>
+    <a href="pool.html" data-i="pool">Pool</a>
+    <a href="explorer.html" data-i="explorer">Explorer</a>
+    <a href="wallet/" data-i="wallet">Wallet</a>
+    <a href="faucet.html" data-i="faucet">Faucet</a>
+    <a href="/p2p">P2P</a>
+    <span class="langsw"><button data-lang="en" onclick="setLang('en')">EN</button><button data-lang="ru" onclick="setLang('ru')">RU</button></span>
+  </div>
+</nav>
+
+<h1 data-i-html="title">Mine with <em>SRBMiner</em></h1>
+<div class="sub" data-i-html="sub">SRBMiner-Multi is the <b>most up-to-date</b> way to mine CRB and gives the <b>most hashrate on almost any machine</b> - so it's our recommended miner. Closed-source, with a 3% dev fee kept by the SRBMiner team (not us); the speed usually more than covers it.</div>
+
+<div class="recbanner" data-i-html="rec">⭐ <b>Recommended.</b> If you're not sure which miner to use - use this one. It's the fastest for most CPUs and the simplest to keep current.</div>
+
+<a class="tomine" href="mine.html" data-i-html="back">← All mining options</a>
+
+<div class="qnav">
+  <a href="#start" data-i="q_start">🚀 Quick start</a>
+  <a href="#config" data-i="q_config">⚙️ Settings</a>
+  <a href="#nodes" data-i="q_nodes">🌐 Our nodes</a>
+  <a href="#hive" data-i="q_hive">🐝 Hive OS</a>
+  <a href="#perf" data-i="q_perf">📈 More hashrate</a>
+</div>
+
+<section class="sec" id="start">
+  <h2 data-i-html="s_start_h">🚀 Quick start</h2>
+  <p class="lead" data-i-html="s_start_p">Download SRBMiner-Multi from its official repo, then run one line with your <code>crb1…</code> address. CRB mines as the algorithm <code>neuromorph</code>.</p>
+  <div class="dls">
+    <a class="dl" href="https://github.com/doktor83/SRBMiner-Multi/releases/latest" target="_blank" rel="noopener"><b>⬇️ Download SRBMiner-Multi</b><span>official releases · Windows / Linux / Hive OS</span></a>
+  </div>
+  <div class="cmd"># pool - steady payouts (recommended for most miners)
+SRBMiner-MULTI --algorithm neuromorph --pool stratum.cereblix.com:3333 --wallet crb1YOUR_ADDRESS --password x
+# solo - whole 50 CRB blocks (use port :3334)
+SRBMiner-MULTI --algorithm neuromorph --pool stratum.cereblix.com:3334 --wallet crb1YOUR_ADDRESS --password x</div>
+  <div class="muted" data-i-html="s_start_n">🧮 All CPU cores are used by default. Name each rig with <code>--worker RIGNAME</code> so you can see them separately on the <a href="pool.html">pool dashboard</a>.</div>
+</section>
+
+<section class="sec" id="config">
+  <h2 data-i-html="s_cfg_h">⚙️ Settings &amp; config</h2>
+  <p class="lead" data-i-html="s_cfg_p">The key flags. You can pass them on the command line, or put them in SRBMiner's <code>config.txt</code> / a <code>.bat</code> / <code>.sh</code> launcher.</p>
+  <div class="cmd">--algorithm neuromorph          # always this for CRB
+--pool stratum.cereblix.com:3333 # pool (:3334 = solo); pick a node from the list below
+--wallet crb1YOUR_ADDRESS        # your CRB address - rewards go straight here
+--password x                     # any value
+--worker RIGNAME                 # label this rig on the pool dashboard
+--cpu-threads -1                 # -1 = all cores (default); or a number to limit
+--disable-gpu                    # CRB is CPU-only; skip GPU probing</div>
+  <div class="muted" data-i-html="s_cfg_n">💡 A typical <code>start.bat</code> (Windows) is just one line: <code>SRBMiner-MULTI.exe --algorithm neuromorph --pool stratum.cereblix.com:3333 --wallet crb1YOUR_ADDRESS --password x</code> - save it next to the miner and double-click.</div>
+</section>
+
+<section class="sec" id="nodes">
+  <h2 data-i-html="s_nodes_h">🌐 Our nodes - pick one for <code>--pool</code></h2>
+  <p class="lead" data-i-html="s_nodes_p">Choose the endpoint that fits you and put it after <code>--pool</code>. Pool = steady payouts; solo = whole 50 CRB blocks (a lottery). RU/CIS routes go through our Moscow relay (no Cloudflare) - use them if the main host is slow or blocked.</p>
+  <table class="ndtable">
+    <thead><tr><th data-i="th_what">Use</th><th data-i="th_ep">Endpoint (<code>--pool</code>)</th></tr></thead>
+    <tbody>
+      <tr><td data-i="nd_pool">🌍 Pool (recommended)</td><td><code>stratum.cereblix.com:3333</code></td></tr>
+      <tr><td data-i="nd_solo">🌍 Solo (50 CRB blocks)</td><td><code>stratum.cereblix.com:3334</code></td></tr>
+      <tr><td data-i="nd_rupool">🇷🇺 RU/CIS pool</td><td><code>ru.cereblix.com:3333</code></td></tr>
+      <tr><td data-i="nd_rusolo">🇷🇺 RU/CIS solo</td><td><code>ru.cereblix.com:3334</code></td></tr>
+    </tbody>
+  </table>
+  <div class="muted" data-i-html="s_nodes_n">🔒 Running your own node for trustless solo? You can point SRBMiner at your own Stratum bridge - see <a href="node.html">Run your own node &amp; stratum node</a>.</div>
+</section>
+
+<section class="sec" id="hive">
+  <h2 data-i-html="s_hive_h">🐝 Hive OS - flight sheet</h2>
+  <p class="lead" data-i-html="s_hive_p">SRBMiner-Multi ships with Hive OS. Create a Flight Sheet and point the miner at CRB:</p>
+  <div class="cmd">1. Wallet:  add a wallet with your crb1… address (coin: pick any / "custom")
+2. Pool:    Configure in miner → custom →  stratum.cereblix.com:3333   (RU: ru.cereblix.com:3333)
+3. Miner:   SRBMiner-Multi
+4. Miner config → set:
+     Algorithm:  neuromorph
+     Pool:       stratum.cereblix.com:3333
+     Wallet:     crb1YOUR_ADDRESS
+     Password:   x
+5. Apply the flight sheet to your rig(s).</div>
+  <div class="muted" data-i-html="s_hive_n">If your Hive uses the "Setup miner config" text box, the equivalent flags are: <code>--algorithm neuromorph --pool stratum.cereblix.com:3333 --wallet crb1YOUR_ADDRESS --password x</code>. Name rigs with <code>--worker</code> to track them on the <a href="pool.html">pool dashboard</a>. ⚠️ The farm <a href="node.html#proxy">proxy</a> does not support SRBMiner yet (XMRig only) - run SRBMiner directly on each rig.</div>
+</section>
+
+<section class="sec" id="perf">
+  <h2 data-i-html="s_perf_h">📈 Squeeze out more hashrate</h2>
+  <p class="lead" data-i-html="s_perf_p">NeuroMorph is memory-bound, so memory tuning matters most.</p>
+  <div class="note" data-i-html="s_perf_b"><b>Large / huge pages</b> - often the single biggest win (+20-70%). SRBMiner enables them automatically once the OS allows it. On <b>Windows</b>: <code>secpol.msc</code> → Local Policies → User Rights Assignment → <i>Lock pages in memory</i> → add your user, log out/in, then run SRBMiner <b>as Administrator</b>. On <b>Linux</b>: reserve them with <code>sudo sysctl -w vm.nr_hugepages=1280</code>. <br><br><b>Thread count</b> - "all cores" isn't always fastest; on hybrid Intel (P+E) try the P-core count too and keep whatever gives more H/s (<code>--cpu-threads N</code>). <br><br><b>Big EPYC / Threadripper</b> (multiple CCD / NUMA) - one instance per CCD / NUMA node, pinned, then sum the hashrate.</div>
+</section>
+
+<div class="note" data-i-html="safe_n">⚠️ Download SRBMiner-Multi only from its <a href="https://github.com/doktor83/SRBMiner-Multi" target="_blank" rel="noopener">official repository</a>. Prefer open-source / fee-free? Use our <a href="mine-cpu.html">XMRig or native miner</a> instead.</div>
+</div>
+
+<script>
+const I = {
+  en:{}, ru:{
+    home:"Главная", roadmap:"Дорожная карта", mine:"⛏️ Как майнить?", pool:"Пул", explorer:"Обозреватель", wallet:"Кошелёк", faucet:"Кран",
+    title:'Майнинг через <em>SRBMiner</em>',
+    sub:'SRBMiner-Multi - <b>самый актуальный</b> способ майнить CRB и даёт <b>больше всего хешрейта почти на любой машине</b>, поэтому это наш рекомендуемый майнер. Закрытый исходник, комиссия 3% забирается командой SRBMiner (не нами); прирост скорости обычно с лихвой её окупает.',
+    rec:'⭐ <b>Рекомендуем.</b> Не знаете, какой майнер выбрать - берите этот. Он быстрее всего на большинстве CPU и проще всего поддерживать в актуальном виде.',
+    back:'← Все способы майнинга',
+    q_start:"🚀 Быстрый старт", q_config:"⚙️ Настройки", q_nodes:"🌐 Наши ноды", q_hive:"🐝 Hive OS", q_perf:"📈 Больше хешрейта",
+    s_start_h:"🚀 Быстрый старт",
+    s_start_p:'Скачайте SRBMiner-Multi из официального репозитория и запустите одну строку со своим адресом <code>crb1…</code>. CRB майнится как алгоритм <code>neuromorph</code>.',
+    s_start_n:'🧮 По умолчанию используются все ядра. Называйте каждый риг через <code>--worker ИМЯ</code>, чтобы видеть их отдельно на <a href="pool.html">дашборде пула</a>.',
+    s_cfg_h:"⚙️ Настройки и конфиг",
+    s_cfg_p:'Ключевые флаги. Можно передавать в командной строке или положить в <code>config.txt</code> SRBMiner / в <code>.bat</code> / <code>.sh</code>-запускатор.',
+    s_cfg_n:'💡 Типичный <code>start.bat</code> (Windows) - одна строка: <code>SRBMiner-MULTI.exe --algorithm neuromorph --pool stratum.cereblix.com:3333 --wallet crb1ВАШ_АДРЕС --password x</code> - сохраните рядом с майнером и запустите двойным кликом.',
+    s_nodes_h:'🌐 Наши ноды - выберите для <code>--pool</code>',
+    s_nodes_p:'Выберите подходящий адрес и подставьте его после <code>--pool</code>. Пул = стабильные выплаты; соло = целые блоки по 50 CRB (лотерея). Маршруты RU/СНГ идут через московский релей (без Cloudflare) - используйте их, если основной хост тормозит или заблокирован.',
+    th_what:"Назначение", th_ep:'Адрес (<code>--pool</code>)',
+    nd_pool:"🌍 Пул (рекомендуется)", nd_solo:"🌍 Соло (блоки по 50 CRB)", nd_rupool:"🇷🇺 Пул RU/СНГ", nd_rusolo:"🇷🇺 Соло RU/СНГ",
+    s_nodes_n:'🔒 Хотите trustless-соло на своей ноде? SRBMiner можно навести на ваш собственный Stratum-мост - см. <a href="node.html">Своя нода и стратум-нода</a>.',
+    s_hive_h:"🐝 Hive OS - флайт-шит",
+    s_hive_p:'SRBMiner-Multi есть в Hive OS «из коробки». Создайте Flight Sheet и наведите майнер на CRB:',
+    s_hive_n:'Если в Hive используется текстовое поле «Setup miner config», эквивалентные флаги: <code>--algorithm neuromorph --pool stratum.cereblix.com:3333 --wallet crb1ВАШ_АДРЕС --password x</code>. Называйте риги через <code>--worker</code> для отслеживания на <a href="pool.html">дашборде пула</a>. ⚠️ Прокси для ферм пока <b>не поддерживает SRBMiner</b> (только XMRig) - запускайте SRBMiner прямо на каждом риге.',
+    s_perf_h:"📈 Выжать больше хешрейта",
+    s_perf_p:'NeuroMorph упирается в память, поэтому важнее всего настройка памяти.',
+    s_perf_b:'<b>Большие страницы (huge / large pages)</b> - часто самый большой выигрыш (+20-70%). SRBMiner включает их сам, как только разрешит ОС. На <b>Windows</b>: <code>secpol.msc</code> → Локальные политики → Назначение прав пользователя → <i>Блокировка страниц в памяти</i> → добавьте пользователя, перезайдите, запускайте SRBMiner <b>от администратора</b>. На <b>Linux</b>: <code>sudo sysctl -w vm.nr_hugepages=1280</code>.<br><br><b>Число потоков</b> - «все ядра» не всегда быстрее; на гибридных Intel (P+E) попробуйте и число P-ядер, оставьте что даёт больше H/s (<code>--cpu-threads N</code>).<br><br><b>Большие EPYC / Threadripper</b> (несколько CCD / NUMA) - по одному инстансу на CCD / NUMA-узел с привязкой, затем суммируйте хешрейт.',
+    safe_n:'⚠️ Скачивайте SRBMiner-Multi только из его <a href="https://github.com/doktor83/SRBMiner-Multi" target="_blank" rel="noopener">официального репозитория</a>. Нужен открытый исходник / без комиссии? Берите наш <a href="mine-cpu.html">XMRig или нативный майнер</a>.'
+  }
+};
+const EN={};
+function detect(){ const s=localStorage.getItem('lang'); return (s==='ru'||s==='en')?s:((navigator.language||'en').toLowerCase().startsWith('ru')?'ru':'en'); }
+let LANG=detect();
+function applyLang(l){
+  LANG=l; document.documentElement.lang=l;
+  document.querySelectorAll('[data-i],[data-i-html]').forEach(el=>{
+    const k=el.getAttribute('data-i')||el.getAttribute('data-i-html');
+    if(!(k in EN)) EN[k]=el.innerHTML;
+    el.innerHTML = l==='en' ? EN[k] : (I.ru[k] ?? EN[k]);
+  });
+  document.querySelectorAll('.langsw button').forEach(b=>b.classList.toggle('on',b.dataset.lang===l));
+}
+function setLang(l){ localStorage.setItem('lang',l); applyLang(l); }
+applyLang(LANG);
+</script>
+</body>
+</html>

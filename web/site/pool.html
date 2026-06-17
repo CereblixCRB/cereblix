@@ -33,6 +33,26 @@ nav .brand b i{font-style:normal;color:var(--acc2)}
 nav .links{margin-left:auto;display:flex;gap:16px;flex-wrap:wrap;align-items:center}
 nav .links a{color:var(--mut);text-decoration:none;font-size:14.5px;font-weight:500;white-space:nowrap}
 nav .links a:hover,nav .links a.active{color:var(--acc)}
+nav .links .navsep{width:1px;height:18px;background:var(--border);margin:0 3px;flex:0 0 auto}
+nav .links a.minecta{color:#ffce5a;font-weight:700;border:1px solid rgba(255,206,90,.45);background:rgba(255,206,90,.09);border-radius:999px;padding:5px 12px;text-shadow:0 0 11px rgba(255,206,90,.5)}
+nav .links a.minecta:hover{color:#ffe2a3;border-color:rgba(255,206,90,.85);box-shadow:0 0 16px rgba(255,206,90,.28)}
+.lead-big{font-size:16.5px;line-height:1.62;color:var(--txt);margin:2px 0 14px}
+.poollinks{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0 6px}
+@media(max-width:560px){.poollinks{grid-template-columns:1fr}}
+.poollink{display:flex;flex-direction:column;gap:3px;background:#0b1120;border:1px solid var(--border);border-radius:13px;padding:13px 15px;text-decoration:none;transition:border-color .15s,transform .15s,box-shadow .2s}
+.poollink:hover{border-color:var(--acc);transform:translateY(-2px);box-shadow:0 12px 26px -16px rgba(34,211,238,.55)}
+.poollink b{color:var(--txt);font-size:15px}
+.poollink span{color:var(--mut);font-size:12.5px}
+.poolh3{font-size:16px;font-weight:700;margin:20px 0 8px;color:var(--txt)}
+.endp{display:grid;gap:8px;margin:8px 0 12px}
+.endp .erow{display:flex;flex-wrap:wrap;gap:5px 12px;align-items:baseline;padding:11px 13px;background:#0b1120;border:1px solid var(--border);border-radius:11px}
+.endp .who{font-weight:700;font-size:13.5px;flex:1 1 100%}
+.endp code{font-size:13px;color:var(--acc);word-break:break-all}
+.endp .eru{font-size:12px;color:var(--mut);font-weight:400}
+.endp .egrp{font-weight:700;font-size:13px;margin:12px 0 2px;padding:0 2px}
+.endp .egrp:first-child{margin-top:0}
+.endp .egrp.pool{color:var(--ok)}
+.endp .egrp.solo{color:var(--acc2)}
 @media(max-width:620px){nav .links{margin-left:0;width:100%;gap:15px;overflow-x:auto}}
 .langsw{display:inline-flex;gap:2px;border:1px solid var(--border);border-radius:9px;overflow:hidden;background:var(--glass)}
 .langsw button{background:transparent;color:var(--mut);border:0;padding:5px 10px;cursor:pointer;font-size:13px;font-weight:600;font-family:inherit}
@@ -49,7 +69,9 @@ h1{font-family:var(--fd);font-size:clamp(24px,5vw,32px);font-weight:700;letter-s
 pre{background:#0b1120;border:1px solid var(--border);border-radius:11px;padding:13px 15px;overflow-x:auto;font:13.5px ui-monospace,Consolas,monospace;color:#cbd5e1}
 label{font-size:13.5px;color:var(--mut)}
 input{width:100%;background:#0b1120;border:1px solid var(--border);border-radius:11px;color:var(--txt);padding:12px 13px;font-size:15px;margin:6px 0 4px;font-family:ui-monospace,Consolas,monospace}
-input:focus{outline:none;border-color:var(--acc)}
+input:focus,select:focus{outline:none;border-color:var(--acc)}
+select{background:#0b1120;border:1px solid var(--border);border-radius:11px;color:var(--txt);padding:12px 36px 12px 13px;font-size:15px;font-family:inherit;cursor:pointer;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg width='12' height='8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2390a0bd' stroke-width='1.7' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 13px center}
+select option{background:#0e1424;color:var(--txt)}
 table{width:100%;border-collapse:collapse;font-size:14px}
 th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--border)}
 th{color:var(--mut);font-weight:600;font-size:12.5px;text-transform:uppercase;letter-spacing:.03em}
@@ -92,15 +114,15 @@ a{color:var(--acc)}
   <a class="brand" href="./"><svg class="logo" viewBox="0 0 40 40" fill="none" aria-hidden="true"><rect x="2" y="2" width="36" height="36" rx="11" fill="url(#lg)"/><path d="M14 8C27 13 27 16 20 20 13 24 13 27 26 32" stroke="#06121f" stroke-width="2.3" stroke-linecap="round"/><path d="M26 8C13 13 13 16 20 20 27 24 27 27 14 32" stroke="#06121f" stroke-width="2.3" stroke-linecap="round"/></svg><b>Cereb<i>lix</i></b></a>
   <div class="links">
     <a href="./" data-i="home">Home</a>
-    <a href="mine.html" data-i="mine">Mine</a>
-    <a href="webmine.html" data-i="webmine">Web Miner</a>
+    <a href="./#roadmap" data-i="roadmap">Roadmap</a>
+    <span class="navsep" aria-hidden="true"></span>
+    <a href="mine.html" class="minecta" data-i="mine">⛏️ How to mine?</a>
+    <span class="navsep" aria-hidden="true"></span>
     <a href="pool.html" class="active" data-i="pool">Pool</a>
     <a href="explorer.html" data-i="explorer">Explorer</a>
     <a href="wallet/" data-i="wallet">Wallet</a>
     <a href="faucet.html" data-i="faucet">Faucet</a>
     <a href="/p2p">P2P</a>
-    <a href="./#roadmap" data-i="roadmap">Roadmap</a>
-    <a href="https://github.com/CereblixCRB/cereblix" target="_blank" rel="noopener">GitHub</a>
     <span class="langsw"><button data-lang="en" onclick="setLang('en')">EN</button><button data-lang="ru" onclick="setLang('ru')">RU</button></span>
   </div>
 </nav>
@@ -111,16 +133,31 @@ a{color:var(--acc)}
 <div class="grid" id="stats"></div>
 
 <div class="card">
-  <h2 data-i="how_t">Mine on the pool</h2>
-  <div class="note" data-i-html="guide_n">📖 Full setup for every miner - native, <b>XMRig</b>, <b>SRBMiner</b> and your own node - is on the <a href="mine.html">Mine page</a>. Just trying it out? <a href="webmine.html">Mine right in your browser</a>. Below is the quick way with the native miner.</div>
-  <pre id="cmd">cereblix-miner -addr crb1YOURADDRESS -node https://cereblix.com/pool/api</pre>
-  <div class="note" data-i-html="ru_note">🇷🇺 <b>RU / CIS</b> - if cereblix.com is slow or blocked, mine through our Moscow relay (same pool, no Cloudflare): <code>cereblix-miner -addr crb1YOURADDRESS -node https://ru.cereblix.com/pool/api</code></div>
-  <div class="note" data-i-html="how_n">Your miner logs <b>"share accepted"</b> - those are shares (proofs of work at an easier target), not full blocks. Rewards arrive automatically as pool payouts once your balance crosses the minimum. Each share is <b>cryptographically bound to your address</b> (per-miner extranonce), so no one can claim your work.</div>
-  <div class="note" data-i-html="pay_n">⏳ <b>Payouts take ~100 blocks (about 1.5–2 hours) to start.</b> A block reward only becomes spendable after <b>100 confirmations</b> (coinbase maturity) - a standard safeguard so the pool never pays out coins from a block that could still be reversed by a chain reorganization. Your earnings accrue immediately and are paid as soon as they mature and cross the minimum payout.</div>
-  <div class="note" data-i-html="hive_n">🐝 <b>Mining rig on Hive OS?</b> Add a <b>Custom miner</b> in your Flight Sheet: <b>Installation URL</b> <code>https://github.com/CereblixCRB/cereblix/releases/latest/download/cereblix-hiveos.tar.gz</code>, <b>Pool URL</b> <code>https://cereblix.com/pool/api</code>, and your <code>crb1…</code> wallet. Auto-starts, survives reboots, shows hashrate in the dashboard.</div>
-  <div class="note" data-i-html="win_n">🪟 <b>Windows / Linux / macOS?</b> Grab the official <code>cereblix-miner</code> from <a href="https://github.com/CereblixCRB/cereblix/releases/latest" target="_blank" rel="noopener">GitHub Releases</a> and run <code>cereblix-miner -addr crb1YOUR_ADDRESS -node https://cereblix.com/pool/api</code>.</div>
-  <div class="note" data-i-html="xmrig_n">⚡ <b>Big multi-core CPU?</b> Our official <b>fee-free</b> XMRig pools via Stratum: <code>xmrig-cereblix -o stratum.cereblix.com:3333 -a nm/1 -u crb1YOUR_ADDRESS -p x</code>. Prefer solo for the whole block reward? Use <code>:3334</code> - now with steady feedback shares too (auto-vardiff; pick your own with <code>-p diff=N</code>). <b>🇷🇺 RU/CIS</b> (no Cloudflare): swap the host for <code>ru.cereblix.com:3333</code> pool / <code>:3334</code> solo. Uses <b>all cores by default</b> - if not all are used, add <code>-t N</code>. Downloads &amp; full setup (incl. mining to your own node): <a href="mine.html#xmrig">the mining guide</a>.</div>
-  <div class="note" data-i-html="safe_n">⚠️ Download miners only from <a href="mine.html">the mining guide</a>, cereblix.com, or our <a href="https://github.com/CereblixCRB/cereblix/releases/latest" target="_blank" rel="noopener">GitHub releases</a>. Any "xmrig-cereblix" or "cereblix" build from elsewhere is NOT ours - don't run it.</div>
+  <h2 data-i="how_t">How to mine on the pool</h2>
+  <p class="lead-big" data-i-html="pool_intro">Point any miner at a pool endpoint below - that's it, you're earning. Rewards arrive <b>automatically</b> as pool payouts once your balance crosses the minimum; the <b>first payout takes ~100 blocks (~1.5-2h)</b> while block rewards mature (100 confirmations). Your <b>"share accepted"</b> log lines are proofs cryptographically bound to your address - no one can claim your work.</p>
+  <div class="poollinks">
+    <a class="poollink" href="mine.html"><b data-i="t_guide">⛏️ Full mining guide</b><span data-i="t_guide_s">SRBMiner · XMRig · native · Hive OS · your own node</span></a>
+    <a class="poollink" href="webmine.html"><b data-i="t_web">📱 Browser miner</b><span data-i="t_web_s">No install - try it on any device</span></a>
+  </div>
+  <h3 class="poolh3" data-i="endp_t">Connect any miner - endpoints</h3>
+  <div class="endp">
+    <div class="egrp pool" data-i="g_pool">🟢 POOL — steady payouts (recommended)</div>
+    <div class="erow"><span class="who">💻 <span data-i="e_native">Native miner</span> (HTTP)</span><code>-node https://cereblix.com/pool/api</code><span class="eru">🇷🇺 ru.cereblix.com/pool/api</span></div>
+    <div class="erow"><span class="who">⚡ XMRig · 🔥 SRBMiner (Stratum)</span><code>stratum.cereblix.com:3333</code><span class="eru">🇷🇺 ru.cereblix.com:3333</span></div>
+    <div class="egrp solo" data-i="g_solo">🎲 SOLO — whole 50 CRB blocks (a lottery)</div>
+    <div class="erow"><span class="who">💻 <span data-i="e_native">Native miner</span> (HTTP)</span><span class="eru" data-i="e_solo_native">run without -node (solo to the public node), or set -node to your own node</span></div>
+    <div class="erow"><span class="who">⚡ XMRig · 🔥 SRBMiner (Stratum)</span><code>stratum.cereblix.com:3334</code><span class="eru">🇷🇺 ru.cereblix.com:3334</span></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2 data-i="calc_t">Mining calculator</h2>
+  <p class="muted" style="font-size:14px;margin:0 0 10px" data-i="calc_hint">Enter your miner's hashrate to estimate today's earnings at the current network difficulty - pool and solo.</p>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+    <input id="calc_hr" type="number" min="0" step="any" placeholder="e.g. 5000" oninput="calcMining()" style="flex:1;min-width:140px;margin:0">
+    <select id="calc_unit" onchange="calcMining()" style="width:auto;min-width:92px"><option value="1">H/s</option><option value="1000">kH/s</option><option value="1000000">MH/s</option></select>
+  </div>
+  <div id="calc_out" style="margin-top:12px;font-size:15px;line-height:1.7"></div>
 </div>
 
 <div class="card">
@@ -140,18 +177,27 @@ a{color:var(--acc)}
 
 <script>
 const I = { en:{}, ru:{
-  home:"Главная", mine:"Майнинг", webmine:"Веб-майнинг", pool:"Пул", explorer:"Обозреватель", wallet:"Кошелёк", faucet:"Кран", roadmap:"Дорожная карта",
-  guide_n:'📖 Полная настройка любого майнера - нативный, <b>XMRig</b>, <b>SRBMiner</b> и своя нода - на странице <a href="mine.html">Майнинг</a>. Просто попробовать? <a href="webmine.html">Майньте в браузере</a>. Ниже - быстрый способ через нативный майнер.',
+  home:"Главная", mine:"⛏️ Как майнить?", webmine:"Веб-майнинг", pool:"Пул", explorer:"Обозреватель", wallet:"Кошелёк", faucet:"Кран", roadmap:"Дорожная карта",
+  guide_n:'Направьте любой майнер на адрес пула ниже. Полная настройка любого майнера - <b>SRBMiner</b>, <b>XMRig</b>, нативный, Hive OS, своя нода - в <a href="mine.html">руководстве по майнингу</a>, или просто <a href="webmine.html">майньте в браузере</a>.',
   title:'Майнинг-<em>пул</em>',
   sub:"Стабильные выплаты с низкой дисперсией: пул платит пропорционально присланной работе, даже когда сложность сети высокая. Просто направь обычный майнер на него - ничего ставить не нужно.",
-  how_t:"Майнить на пуле",
-  how_n:'Майнер пишет <b>"share accepted"</b> - это шары (доказательства работы на облегчённой цели), а не целые блоки. Выплаты приходят автоматически, когда баланс превысит минимум. Каждая шара <b>криптографически привязана к твоему адресу</b> (extranonce на майнера), поэтому чужой твою работу не присвоит.',
+  how_t:"Как майнить на пуле",
+  pool_intro:'Направьте любой майнер на адрес пула ниже - и всё, вы зарабатываете. Награды приходят <b>автоматически</b> выплатами пула, как только баланс превысит минимум; <b>первая выплата - через ~100 блоков (~1.5-2 ч)</b>, пока награда за блок созревает (100 подтверждений). Строки <b>"share accepted"</b> в логе - это доказательства, криптографически привязанные к вашему адресу: чужой вашу работу не присвоит.',
+  t_guide:"⛏️ Полный гайд по майнингу", t_guide_s:"SRBMiner · XMRig · нативный · Hive OS · своя нода",
+  t_web:"📱 Браузерный майнер", t_web_s:"Без установки - на любом устройстве",
+  endp_t:"Подключение любого майнера - адреса",
+  e_native:"Нативный майнер", e_stratum:"(Stratum)",
+  g_pool:"🟢 ПУЛ — стабильные выплаты (рекомендуется)",
+  g_solo:"🎲 СОЛО — целые блоки по 50 CRB (лотерея)",
+  e_solo_native:"запуск без -node (соло на публичную ноду) или укажите -node на свою ноду",
+  solo_n:'🎲 Нужно соло (целый блок 50 CRB)? Нативный: просто уберите <code>-node</code>; Stratum: используйте порт <code>:3334</code>. 🇷🇺 РФ/СНГ: замените хост на <code>ru.cereblix.com</code>. Прикиньте доход в калькуляторе ниже.',
+  how_n:'Майнер пишет <b>"share accepted"</b> - доказательства на облегчённой цели, каждое криптографически привязано к вашему адресу. Выплаты приходят автоматически, когда баланс превысит минимум. ⏳ Первая выплата - через ~100 блоков (~1.5-2 ч): награда за блок созревает после 100 подтверждений.',
   pay_n:'⏳ <b>Выплаты начинают доходить через ~100 блоков (примерно 1.5–2 часа).</b> Награда за блок становится тратимой только после <b>100 подтверждений</b> (coinbase maturity) - стандартная защита, чтобы пул не выплатил монеты с блока, который ещё может «откатиться» при реорганизации цепи. Твой заработок начисляется сразу, а выплачивается, как только дозреет и превысит минимальную сумму выплаты.',
   hive_n:'🐝 <b>Риг на Hive OS?</b> Добавь <b>Custom miner</b> во Flight Sheet: <b>Installation URL</b> <code>https://github.com/CereblixCRB/cereblix/releases/latest/download/cereblix-hiveos.tar.gz</code>, <b>Pool URL</b> <code>https://cereblix.com/pool/api</code>, кошелёк <code>crb1…</code>. Автостарт, переживает ребут, хешрейт виден в дашборде.',
   win_n:'🪟 <b>Windows / Linux / macOS?</b> Возьми официальный <code>cereblix-miner</code> из <a href="https://github.com/CereblixCRB/cereblix/releases/latest" target="_blank" rel="noopener">GitHub Releases</a> и запусти <code>cereblix-miner -addr crb1ТВОЙ_АДРЕС -node https://cereblix.com/pool/api</code>.',
   xmrig_n:'⚡ <b>Мощный многоядерный CPU?</b> Наша официальная сборка XMRig <b>без комиссии</b> майнит на пул по Stratum: <code>xmrig-cereblix -o stratum.cereblix.com:3333 -a nm/1 -u crb1ВАШ_АДРЕС -p x</code>. Хотите соло ради целого блока? Порт <code>:3334</code> - теперь тоже со стабильными feedback-шарами (авто-vardiff; своя сложность - <code>-p diff=N</code>). <b>🇷🇺 RU/СНГ</b> (без Cloudflare): замените хост на <code>ru.cereblix.com:3333</code> пул / <code>:3334</code> соло. По умолчанию использует <b>все ядра</b> - если не все, добавьте <code>-t N</code>. Загрузки и полная настройка (в т.ч. майнинг на свою ноду): <a href="mine.html#xmrig">руководство по майнингу</a>.',
   safe_n:'⚠️ Скачивайте майнеры только из <a href="mine.html">руководства по майнингу</a>, с cereblix.com или из наших <a href="https://github.com/CereblixCRB/cereblix/releases/latest" target="_blank" rel="noopener">релизов на GitHub</a>. Любой «xmrig-cereblix» или «cereblix» из других мест НЕ наш - не запускайте.',
-  ru_note:'🇷🇺 <b>РФ / СНГ</b> - если cereblix.com медленный или не открывается, майнь через наш московский узел (тот же пул, без Cloudflare): <code>cereblix-miner -addr crb1ВАШ_АДРЕС -node https://ru.cereblix.com/pool/api</code>',
+  ru_note:'🇷🇺 <b>РФ / СНГ</b> - если cereblix.com медленный или не открывается, используйте московский узел: <code>-node https://ru.cereblix.com/pool/api</code>',
   you_t:"Твоя статистика", you_l:"Твой адрес CRB", you_hint:"Введи адрес — здесь появится вся статистика майнера.",
   miners_t:"Майнеры", loading:"Загрузка…",
   foot:'Кошелёк пула: <span id="pooladdr" class="addr"></span> · обновление каждые 10с',
@@ -164,7 +210,9 @@ const I = { en:{}, ru:{
   w_title:"Воркеры", w_worker:"Воркер", w_shares:"Шары", w_last:"Посл. шара", w_now:"сейчас", w_workers:"воркеров", w_window:"за 5 мин",
   w_hint:'Риги без имени сводятся в одну строку <code>(default)</code>. Добавь <code>.ИМЯ</code> после адреса (или <code>--worker ИМЯ</code> в XMRig/SRBMiner), чтобы видеть каждый риг отдельно.',
   p_title:"Выплаты по дням", p_ends:"день закончится через", p_day:"День", p_payout:"Выплата", p_payments:"Выплат", p_today:"Сегодня", p_yesterday:"Вчера",
-  not_pool:"Этот адрес ещё не майнит на пуле - направь майнер (команда выше), чтобы начать зарабатывать."
+  not_pool:"Этот адрес ещё не майнит на пуле - направь майнер (команда выше), чтобы начать зарабатывать.",
+  calc_t:"Калькулятор майнинга",
+  calc_hint:"Введите хешрейт вашего майнера (как его показывает майнер), чтобы прикинуть доход за сутки при текущей сложности сети - в пуле и соло."
 }};
 const EN={
   k_pool_hr:"Pool hashrate", k_net_hr:"Network hashrate", k_blocks:"Blocks found", k_miners:"Active miners",
@@ -176,14 +224,16 @@ const EN={
   w_title:"Workers", w_worker:"Worker", w_shares:"Shares", w_last:"Last share", w_now:"now", w_workers:"workers", w_window:"last 5 min",
   w_hint:'Rigs without a name are grouped into a single <code>(default)</code> row. Add <code>.RIGNAME</code> after your address (or <code>--worker NAME</code> in XMRig/SRBMiner) to track each rig separately.',
   p_title:"Daily payouts", p_ends:"day ends in", p_day:"Day", p_payout:"Payout", p_payments:"Payments", p_today:"Today", p_yesterday:"Yesterday",
-  not_pool:"This address isn't mining on the pool yet - point the miner at it (command above) to start earning."
+  not_pool:"This address isn't mining on the pool yet - point the miner at it (command above) to start earning.",
+  calc_t:"Mining calculator",
+  calc_hint:"Enter your miner's hashrate (as your miner reports it) to estimate today's earnings at the current network difficulty - in the pool and solo."
 };
 function detect(){const s=localStorage.getItem('lang');return (s==='ru'||s==='en')?s:((navigator.language||'en').toLowerCase().startsWith('ru')?'ru':'en');}
 let LANG=detect();
 function applyLang(l){LANG=l;document.documentElement.lang=l;
   document.querySelectorAll('[data-i],[data-i-html]').forEach(el=>{const k=el.getAttribute('data-i')||el.getAttribute('data-i-html');if(!(k in EN))EN[k]=el.innerHTML;el.innerHTML=l==='en'?EN[k]:(I.ru[k]??EN[k]);});
   document.querySelectorAll('.langsw button').forEach(b=>b.classList.toggle('on',b.dataset.lang===l));
-  render();}
+  render();try{calcMining();}catch(e){}}
 function setLang(l){localStorage.setItem('lang',l);applyLang(l);}
 const t=k=>LANG==='en'?(EN[k]??k):(I.ru[k]??EN[k]??k);
 
@@ -198,6 +248,35 @@ function fmtCRB(v){return ((+v||0)/U).toLocaleString(undefined,{maximumFractionD
 function fmtCRBint(v){return Math.floor((+v||0)/U).toLocaleString(undefined,{maximumFractionDigits:0})+' CRB';}
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 function shortAddr(a){return a.slice(0,10)+'…'+a.slice(-6);}
+function plRu(n){n=Math.abs(n)%100;const n1=n%10;if(n>10&&n<20)return 'ов';if(n1>1&&n1<5)return 'а';if(n1===1)return '';return 'ов';}
+function calcMining(){
+  const out=$('calc_out'); if(!out) return;
+  const v=parseFloat(($('calc_hr')&&$('calc_hr').value)||'')||0;
+  const unit=+(($('calc_unit')&&$('calc_unit').value)||1);
+  const hr=v*unit, ru=LANG==='ru';
+  if(hr<=0){ out.innerHTML='<span class="muted">'+(ru?'Введите ваш хешрейт выше.':'Enter your hashrate above.')+'</span>'; return; }
+  const netHR=(NET&&+NET.difficulty)?(+NET.difficulty)/60:((NET&&+NET.hashrate)||0); // difficulty-implied net hashrate (stable)
+  if(netHR<=0){ out.innerHTML='<span class="muted">'+(ru?'Загрузка данных сети…':'Loading network data…')+'</span>'; return; }
+  const reward=(NET&&+NET.reward?+NET.reward:50*U)/U;
+  const fee=(LAST&&+LAST.fee_permil?+LAST.fee_permil:10)/1000;
+  // your share = your hashrate / (current network + you) - you ADD to the network, so it
+  // can never exceed ~100% (caps total at 1440 blocks/day = the whole network emission).
+  const share=hr/(netHR+hr), blocksDay=share*1440, poolDay=blocksDay*reward*(1-fee);
+  const nf=(x,d)=>x.toLocaleString(undefined,{maximumFractionDigits:d});
+  let html='<div style="margin:2px 0"><span class="muted">'+(ru?'🟢 В пуле':'🟢 Pool')+': </span><b>≈ '+nf(poolDay,4)+' CRB</b> '+(ru?'/ сутки':'/ day')+' <span class="muted">('+(ru?'стабильно, −'+nf(fee*100,0)+'% комиссия':'steady, −'+nf(fee*100,0)+'% fee')+')</span></div>';
+  let solo;
+  if(blocksDay>=1){
+    const n=Math.round(blocksDay);
+    solo=ru?('<b>≈ '+n+' блок'+plRu(n)+' / сутки</b> (≈ '+nf(n*reward,0)+' CRB) — с высокой вероятностью, но соло это ещё и про удачу.')
+           :('<b>≈ '+n+' block'+(n===1?'':'s')+' / day</b> (≈ '+nf(n*reward,0)+' CRB) — likely, though solo is also about luck.');
+  } else {
+    const days=1/blocksDay;
+    solo=ru?('<b>≈ '+nf(days,1)+' дн.</b> на 1 блок (≈ '+nf(reward,0)+' CRB) — в среднем; соло это про удачу.')
+           :('<b>≈ '+nf(days,1)+' days</b> to find 1 block (≈ '+nf(reward,0)+' CRB) — on average; solo is about luck.');
+  }
+  html+='<div style="margin:6px 0 0"><span class="muted">'+(ru?'🎲 Соло':'🎲 Solo')+': </span>'+solo+'</div>';
+  out.innerHTML=html;
+}
 
 let LAST=null, NET=null;
 async function poll(){
@@ -210,6 +289,7 @@ async function poll(){
   if(/^crb1[0-9a-f]{40}$/.test(ca)){ try{ MINER_WORKERS[ca]=await (await fetch(POOL+'/workers?addr='+ca,{cache:'no-store'})).json(); }catch(e){} loadPayouts(ca,false); }
   if(LAST){ const lv=$('live'); if(lv) lv.style.display='inline-block'; }
   render();
+  try{calcMining();}catch(e){}
 }
 function render(){
   const s=LAST; if(!s) return;

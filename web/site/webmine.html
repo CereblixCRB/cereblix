@@ -34,6 +34,9 @@ nav .brand b i{font-style:normal;color:var(--acc2)}
 nav .links{margin-left:auto;display:flex;gap:16px;flex-wrap:wrap;align-items:center}
 nav .links a{color:var(--mut);text-decoration:none;font-size:14.5px;font-weight:500;white-space:nowrap}
 nav .links a:hover,nav .links a.active{color:var(--acc)}
+nav .links .navsep{width:1px;height:18px;background:var(--border);margin:0 3px;flex:0 0 auto}
+nav .links a.minecta{color:#ffce5a;font-weight:700;border:1px solid rgba(255,206,90,.45);background:rgba(255,206,90,.09);border-radius:999px;padding:5px 12px;text-shadow:0 0 11px rgba(255,206,90,.5)}
+nav .links a.minecta:hover{color:#ffe2a3;border-color:rgba(255,206,90,.85);box-shadow:0 0 16px rgba(255,206,90,.28)}
 @media(max-width:560px){nav .links{margin-left:0;width:100%;gap:15px;overflow-x:auto}}
 .langsw{display:inline-flex;gap:2px;border:1px solid var(--border);border-radius:9px;overflow:hidden;background:var(--glass)}
 .langsw button{background:transparent;color:var(--mut);border:0;padding:5px 10px;cursor:pointer;font-size:13px;font-weight:600;font-family:inherit}
@@ -75,14 +78,15 @@ a{color:var(--acc)}
   <a class="brand" href="./"><svg class="logo" viewBox="0 0 40 40" fill="none" aria-hidden="true"><rect x="2" y="2" width="36" height="36" rx="11" fill="url(#lg)"/><path d="M14 8C27 13 27 16 20 20 13 24 13 27 26 32" stroke="#06121f" stroke-width="2.5" stroke-linecap="round"/><path d="M26 8C13 13 13 16 20 20 27 24 27 27 14 32" stroke="#06121f" stroke-width="2.5" stroke-linecap="round"/></svg><b>Cereb<i>lix</i></b></a>
   <div class="links">
     <a href="./" data-i="home">Home</a>
-    <a href="mine.html" data-i="mine">Mine</a>
-    <a href="webmine.html" class="active" data-i="webmine">Web Miner</a>
+    <a href="./#roadmap" data-i="roadmap">Roadmap</a>
+    <span class="navsep" aria-hidden="true"></span>
+    <a href="mine.html" class="minecta" data-i="mine">⛏️ How to mine?</a>
+    <span class="navsep" aria-hidden="true"></span>
     <a href="pool.html" data-i="pool">Pool</a>
     <a href="explorer.html" data-i="explorer">Explorer</a>
     <a href="wallet/" data-i="wallet">Wallet</a>
     <a href="faucet.html" data-i="faucet">Faucet</a>
     <a href="/p2p">P2P</a>
-    <a href="https://github.com/CereblixCRB/cereblix" target="_blank" rel="noopener">GitHub</a>
     <span class="langsw"><button data-lang="en" onclick="setLang('en')">EN</button><button data-lang="ru" onclick="setLang('ru')">RU</button></span>
   </div>
 </nav>
@@ -119,7 +123,7 @@ a{color:var(--acc)}
 <script>
 const I = {
   en:{}, ru:{
-    home:"Главная", mine:"Майнинг", webmine:"Веб-майнинг", pool:"Пул", explorer:"Обозреватель", wallet:"Кошелёк", faucet:"Кран", roadmap:"Дорожная карта",
+    home:"Главная", mine:"⛏️ Как майнить?", webmine:"Веб-майнинг", pool:"Пул", explorer:"Обозреватель", wallet:"Кошелёк", faucet:"Кран", roadmap:"Дорожная карта",
     title:'Майнинг <em>в браузере</em>',
     sub:'Без установки и подписи - просто откройте эту страницу и майните CRB прямо с телефона, планшета или ПК. Хэшер NeuroMorph работает как WebAssembly, поэтому запускается буквально где угодно. Награды идут прямо на ваш адрес <code>crb1…</code>.',
     to_mine:'💻 Есть нормальный CPU, риг или своя нода? <b>Нативный майнер, XMRig, SRBMiner и гайд по ноде</b> - на странице Майнинг →',

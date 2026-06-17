@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cereblix - run your own node, stratum node &amp; farm proxy</title>
+<meta name="theme-color" content="#06080f">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<style>
+@font-face{font-family:'Space Grotesk';font-weight:500;font-display:swap;src:url('fonts/spacegrotesk-500.woff2') format('woff2')}
+@font-face{font-family:'Space Grotesk';font-weight:700;font-display:swap;src:url('fonts/spacegrotesk-700.woff2') format('woff2')}
+@font-face{font-family:'Inter';font-weight:400;font-display:swap;src:url('fonts/inter-400.woff2') format('woff2')}
+@font-face{font-family:'Inter';font-weight:500;font-display:swap;src:url('fonts/inter-500.woff2') format('woff2')}
+@font-face{font-family:'Inter';font-weight:700;font-display:swap;src:url('fonts/inter-700.woff2') format('woff2')}
+:root{--bg:#06080f;--panel:#0e1424;--glass:rgba(146,180,255,.05);--border:rgba(146,180,255,.13);--border2:rgba(120,200,255,.35);--acc:#22d3ee;--acc2:#a78bfa;--txt:#e8ecf6;--mut:#90a0bd;--ok:#34d399;--err:#f87171;--fd:'Space Grotesk',system-ui,sans-serif;--grad:linear-gradient(115deg,var(--acc),var(--acc2))}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--txt);font:16px/1.6 'Inter',system-ui,Segoe UI,Roboto,sans-serif;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+html{overflow-x:hidden}
+::selection{background:rgba(34,211,238,.28)}
+.bg{position:fixed;inset:0;z-index:-2;overflow:hidden;background:radial-gradient(1100px 680px at 50% -12%,#13234a 0%,transparent 60%),radial-gradient(760px 520px at 100% -4%,#1c1440 0%,transparent 55%),var(--bg)}
+.aurora{position:absolute;border-radius:50%;filter:blur(90px);opacity:.45;will-change:transform}
+.aurora.a1{width:460px;height:460px;background:radial-gradient(circle,#22d3ee,transparent 64%);top:-160px;left:-90px;animation:dr1 24s ease-in-out infinite}
+.aurora.a2{width:430px;height:430px;background:radial-gradient(circle,#a78bfa,transparent 64%);top:-120px;right:-110px;animation:dr2 28s ease-in-out infinite}
+@keyframes dr1{50%{transform:translate(50px,40px) scale(1.1)}}
+@keyframes dr2{50%{transform:translate(-45px,50px) scale(1.06)}}
+@media(prefers-reduced-motion:reduce){.aurora{animation:none}}
+.wrap{max-width:620px;margin:0 auto;padding:0 16px 60px}
+.logo{flex:0 0 auto;display:block}
+nav{display:flex;align-items:center;gap:14px;padding:14px 0;flex-wrap:wrap}
+nav .brand{display:flex;align-items:center;gap:11px;text-decoration:none;color:var(--txt)}
+nav .brand .logo{width:34px;height:34px;filter:drop-shadow(0 4px 13px rgba(34,211,238,.4))}
+nav .brand b{font-family:var(--fd);font-size:20px;font-weight:700;letter-spacing:-.01em}
+nav .brand b i{font-style:normal;color:var(--acc2)}
+nav .links{margin-left:auto;display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+nav .links a{color:var(--mut);text-decoration:none;font-size:14.5px;font-weight:500;white-space:nowrap}
+nav .links a:hover,nav .links a.active{color:var(--acc)}
+nav .links .navsep{width:1px;height:18px;background:var(--border);margin:0 3px;flex:0 0 auto}
+nav .links a.minecta{color:#ffce5a;font-weight:700;border:1px solid rgba(255,206,90,.45);background:rgba(255,206,90,.09);border-radius:999px;padding:5px 12px;text-shadow:0 0 11px rgba(255,206,90,.5)}
+nav .links a.minecta:hover,nav .links a.minecta.active{color:#ffe2a3;border-color:rgba(255,206,90,.85);box-shadow:0 0 16px rgba(255,206,90,.28)}
+@media(max-width:560px){nav .links{margin-left:0;width:100%;gap:13px;overflow-x:auto}}
+.langsw{display:inline-flex;gap:2px;border:1px solid var(--border);border-radius:9px;overflow:hidden;background:var(--glass)}
+.langsw button{background:transparent;color:var(--mut);border:0;padding:5px 10px;cursor:pointer;font-size:13px;font-weight:600;font-family:inherit}
+.langsw button.on{background:var(--grad);color:#06121f}
+h1{font-family:var(--fd);font-size:clamp(24px,5vw,30px);font-weight:700;letter-spacing:-.02em;margin:14px 0 6px}h1 em{font-style:normal;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.sub{color:var(--mut);margin-bottom:18px}
+.note{background:linear-gradient(135deg,rgba(167,139,250,.12),rgba(34,211,238,.06));border:1px solid var(--border2);border-radius:12px;padding:12px 16px;font-size:13.5px;color:#cbd5e1;margin-top:14px}
+.warn{background:linear-gradient(135deg,rgba(255,206,90,.12),rgba(248,113,113,.05));border:1px solid rgba(255,206,90,.4);border-radius:12px;padding:12px 16px;font-size:13.5px;color:#ffe2a3;margin-top:14px}
+.tomine{display:block;background:var(--glass);border:1px solid var(--border);border-radius:13px;padding:13px 16px;margin-bottom:18px;text-decoration:none;color:var(--txt);font-size:14px}
+.tomine:hover{border-color:var(--acc)}.tomine b{color:var(--acc)}
+.dls{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 0 6px}
+.dl{display:flex;flex-direction:column;gap:2px;background:#0b1120;border:1px solid var(--border);border-radius:12px;padding:12px 14px;text-decoration:none;transition:border-color .15s,transform .15s}
+.dl:hover{border-color:var(--acc);transform:translateY(-2px)}
+.dl b{font-family:var(--fd);font-size:14.5px;font-weight:700;color:var(--txt)}.dl span{font-size:12px;color:var(--mut)}
+@media(max-width:480px){.dls{grid-template-columns:1fr}}
+.sec{margin:0 0 34px;scroll-margin-top:14px}
+.sec h2{font-family:var(--fd);font-size:20px;font-weight:700;letter-spacing:-.01em;margin:0 0 6px}
+.sec h3{font-family:var(--fd);font-size:16px;font-weight:700;margin:22px 0 4px;color:var(--txt)}
+.lead{color:var(--mut);font-size:14.5px;margin:0 0 14px}
+.cmd{display:block;white-space:pre;overflow-x:auto;background:#0b1120;border:1px solid var(--border);border-radius:11px;padding:12px 14px;margin:12px 0 4px;font-family:ui-monospace,Consolas,monospace;font-size:12.5px;color:#cbd5e1;line-height:1.7}
+.muted{font-size:12.5px;color:var(--mut);margin-top:7px}
+a{color:var(--acc)}
+</style>
+</head>
+<body>
+<div class="bg" aria-hidden="true"><div class="aurora a1"></div><div class="aurora a2"></div></div>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse"><stop stop-color="#22d3ee"/><stop offset="1" stop-color="#a78bfa"/></linearGradient></defs></svg>
+<div class="wrap">
+<nav>
+  <a class="brand" href="./"><svg class="logo" viewBox="0 0 40 40" fill="none" aria-hidden="true"><rect x="2" y="2" width="36" height="36" rx="11" fill="url(#lg)"/><path d="M14 8C27 13 27 16 20 20 13 24 13 27 26 32" stroke="#06121f" stroke-width="2.5" stroke-linecap="round"/><path d="M26 8C13 13 13 16 20 20 27 24 27 27 14 32" stroke="#06121f" stroke-width="2.5" stroke-linecap="round"/></svg><b>Cereb<i>lix</i></b></a>
+  <div class="links">
+    <a href="./" data-i="home">Home</a>
+    <a href="./#roadmap" data-i="roadmap">Roadmap</a>
+    <span class="navsep" aria-hidden="true"></span>
+    <a href="mine.html" class="minecta" data-i="mine">⛏️ How to mine?</a>
+    <span class="navsep" aria-hidden="true"></span>
+    <a href="pool.html" data-i="pool">Pool</a>
+    <a href="explorer.html" data-i="explorer">Explorer</a>
+    <a href="wallet/" data-i="wallet">Wallet</a>
+    <a href="faucet.html" data-i="faucet">Faucet</a>
+    <a href="/p2p">P2P</a>
+    <span class="langsw"><button data-lang="en" onclick="setLang('en')">EN</button><button data-lang="ru" onclick="setLang('ru')">RU</button></span>
+  </div>
+</nav>
+
+<h1 data-i-html="title">Your own <em>node</em>, stratum node &amp; farm proxy</h1>
+<div class="sub" data-i-html="sub">For trustless solo mining and for farms. Run a full node, bridge it to Stratum for XMRig, and aggregate many rigs behind one proxy.</div>
+
+<a class="tomine" href="mine.html" data-i-html="back">← All mining options</a>
+
+<section class="sec" id="node">
+  <h2 data-i-html="s_node_h">🖧 Run your own node</h2>
+  <p class="lead" data-i-html="s_node_p">A full node = independent chain validation and your own vote in the network, with no reliance on our servers. Optional, but it's the trustless way to mine.</p>
+  <div class="dls">
+    <a class="dl" href="https://github.com/CereblixCRB/cereblix/releases/latest/download/cereblixd-windows-amd64.exe"><b>🪟 Windows x64</b><span>cereblixd</span></a>
+    <a class="dl" href="https://github.com/CereblixCRB/cereblix/releases/latest/download/cereblixd-linux-amd64"><b>🐧 Linux x64</b><span>cereblixd</span></a>
+  </div>
+  <div class="cmd"># run the node and let it sync the chain
+cereblixd -datadir ./data
+# the native miner can mine straight to your node:
+cereblix-miner -addr crb1YOUR_ADDRESS -node http://127.0.0.1:18751/api</div>
+  <div class="muted" data-i-html="s_node_seed">🌱 The node finds peers via the seed <code>seed.cereblix.com:18750</code> and built-in fallback seeds. Explorer / status API: <code>https://cereblix.com/api/status</code>.</div>
+</section>
+
+<section class="sec" id="stratum">
+  <h2 data-i-html="s_strat_h">🔌 Stratum node - mine to your node with XMRig</h2>
+  <p class="lead" data-i-html="s_strat_p">XMRig speaks Stratum, the node speaks HTTP getwork - so a tiny bridge, <code>cereblix-stratum</code>, sits between them. Run it against your node and you mine <b>solo, fully trustless</b>: every block pays 50 CRB straight to you, validated by your own node.</p>
+  <div class="dls">
+    <a class="dl" href="https://github.com/CereblixCRB/cereblix/releases/download/xmrig/cereblix-stratum-windows-amd64.exe"><b>🪟 Windows x64</b><span>cereblix-stratum</span></a>
+    <a class="dl" href="https://github.com/CereblixCRB/cereblix/releases/download/xmrig/cereblix-stratum-linux-amd64"><b>🐧 Linux x64</b><span>cereblix-stratum</span></a>
+    <a class="dl" href="https://github.com/CereblixCRB/cereblix/releases/download/xmrig/cereblix-stratum-darwin-arm64"><b>🍎 macOS arm64</b><span>cereblix-stratum</span></a>
+    <a class="dl" href="https://github.com/CereblixCRB/cereblix/releases/download/xmrig/cereblix-stratum-darwin-amd64"><b>🍎 macOS x64</b><span>cereblix-stratum</span></a>
+  </div>
+  <div class="cmd"># 1. your node (above) is running &amp; synced
+# 2. bridge Stratum -> your node, with steady feedback shares + auto-vardiff
+cereblix-stratum -listen :3334 -pool http://127.0.0.1:18751/api -solo
+# 3. point XMRig at your local bridge
+xmrig-cereblix -o 127.0.0.1:3334 -a nm/1 -u crb1YOUR_ADDRESS -p x
+# pick your own difficulty: -p diff=50000   ·   watch jobs/shares/ms live: add -v to the bridge</div>
+  <div class="muted" data-i-html="s_strat_tip"><code>-solo</code> serves an easy feedback-share target with auto-vardiff (so XMRig shows steady "accepted" shares + live hashrate), tuned to your CPU and the network; real blocks still go to your node. Default difficulty = the pool's; set your own with <code>-p diff=N</code>. The <code>-pool</code> flag is just the getwork API to mine against - your node (<code>…:18751/api</code>) for trustless solo.</div>
+</section>
+
+<section class="sec" id="proxy">
+  <h2 data-i-html="s_proxy_h">🚜 Running a farm? Aggregate rigs with the proxy</h2>
+  <p class="lead" data-i-html="s_proxy_p">Our fee-free <b>xmrig-cereblix-proxy</b> (Stratum proxy) lets a whole farm share one connection and one config: point the proxy at the pool, then point every rig at the proxy.</p>
+  <div class="warn" data-i-html="s_proxy_srb">⚠️ The proxy currently works with <b>XMRig only</b> - not with SRBMiner yet. Farms that want to run behind the proxy should use our fee-free <a href="mine-cpu.html#xmrig">XMRig</a> on the rigs for now.</div>
+  <div class="dls">
+    <a class="dl" href="https://github.com/CereblixCRB/cereblix/releases/download/xmrig/xmrig-cereblix-proxy-windows-x64.exe"><b>🪟 Windows x64</b><span>xmrig-cereblix-proxy</span></a>
+    <a class="dl" href="https://github.com/CereblixCRB/cereblix/releases/download/xmrig/xmrig-cereblix-proxy-linux-x64"><b>🐧 Linux x64</b><span>xmrig-cereblix-proxy</span></a>
+  </div>
+  <div class="muted" data-i-html="s_proxy_src">GPL source: <a href="https://github.com/CereblixCRB/cereblix/releases/download/xmrig/xmrig-cereblix-proxy-src.tar.gz">xmrig-cereblix-proxy-src.tar.gz</a>.</div>
+  <div class="cmd"># 1. config.json - "simple" works with any miner version; big farms can use "nicehash"
+#    ("nicehash" = ONE pool connection for ALL rigs - needs miner v1.1+ AND proxy v1.2+)
+{ "mode": "simple", "pools": [ { "algo": "nm/1", "url": "stratum.cereblix.com:3333", "user": "crb1YOUR_ADDRESS", "pass": "x", "keepalive": true } ], "bind": [ "0.0.0.0:3333" ] }
+# 2. run the proxy
+xmrig-cereblix-proxy -c config.json
+# 3. point every rig at the proxy (not the pool):
+xmrig-cereblix -a nm/1 -o PROXY_IP:3333 -u crb1YOUR_ADDRESS -p x</div>
+  <div class="muted" data-i-html="s_proxy_n">⚠️ Upstream must be the <b>pool</b> (<code>stratum.cereblix.com:3333</code>, or <b>RU/CIS</b> <code>ru.cereblix.com:3333</code>). Earnings still track per address on the <a href="pool.html">pool dashboard</a>.</div>
+  <div class="muted" data-i-html="s_proxy_ops">🛠️ Monitoring (built-in HTTP API), per-rig stats, TLS for remote rigs and a <b>systemd</b> service: see the <a href="https://github.com/CereblixCRB/cereblix#run-a-farm-through-a-proxy-xmrig-cereblix-proxy">README</a>. The proxy also prints an update notice when a newer build ships (download only - disable with <code>--no-version-check</code>).</div>
+</section>
+
+<div class="note" data-i-html="safe_n">⚠️ Download only from this page, <a href="https://cereblix.com">cereblix.com</a>, or our <a href="https://github.com/CereblixCRB/cereblix/releases/latest" target="_blank" rel="noopener">GitHub releases</a>. Any "cereblix" build from elsewhere is NOT ours - don't run it. Full written guide in the <a href="https://github.com/CereblixCRB/cereblix#mine" target="_blank" rel="noopener">README</a>.</div>
+</div>
+
+<script>
+const I = {
+  en:{}, ru:{
+    home:"Главная", roadmap:"Дорожная карта", mine:"⛏️ Как майнить?", pool:"Пул", explorer:"Обозреватель", wallet:"Кошелёк", faucet:"Кран",
+    title:'Своя <em>нода</em>, стратум-нода и прокси для ферм',
+    sub:'Для trustless соло-майнинга и для ферм. Поднимите полную ноду, подключите к ней Stratum-мост для XMRig и агрегируйте много ригов через один прокси.',
+    back:'← Все способы майнинга',
+    s_node_h:"🖧 Своя нода",
+    s_node_p:"Полная нода = независимая валидация цепочки и ваш голос в сети, без зависимости от наших серверов. Необязательно, но это по-настоящему доверительный (trustless) майнинг.",
+    s_node_seed:'🌱 Пиров нода находит через сид <code>seed.cereblix.com:18750</code> и встроенные fallback-сиды. Explorer / status API: <code>https://cereblix.com/api/status</code>.',
+    s_strat_h:"🔌 Стратум-нода - майнинг на свою ноду через XMRig",
+    s_strat_p:"XMRig говорит по Stratum, нода - по HTTP getwork, поэтому между ними ставится крошечный мост <code>cereblix-stratum</code>. Запустите его на свою ноду - и майните <b>соло, полностью trustless</b>: каждый блок даёт 50 CRB прямо вам, проверено вашей нодой.",
+    s_strat_tip:'<code>-solo</code> включает лёгкий feedback-target с авто-vardiff (XMRig стабильно показывает «accepted» и хешрейт), подстраиваясь под ваш CPU и сеть; настоящие блоки всё равно уходят на вашу ноду. Сложность по умолчанию — как у пула; своя — через <code>-p diff=N</code>. Флаг <code>-pool</code> — это просто getwork-API, на который майнить (ваша нода <code>…:18751/api</code> для trustless-соло).',
+    s_proxy_h:'🚜 Большая ферма? Агрегируйте риги через прокси',
+    s_proxy_p:'Наш бесплатный <b>xmrig-cereblix-proxy</b> (Stratum-прокси) позволяет всей ферме работать через одно соединение и один конфиг: наводите прокси на пул, а каждый риг - на прокси.',
+    s_proxy_srb:'⚠️ Прокси сейчас работает <b>только с XMRig</b> - с SRBMiner пока нет. Фермам, которые хотят работать через прокси, пока используйте на ригах нашу бесплатную <a href="mine-cpu.html#xmrig">сборку XMRig</a>.',
+    s_proxy_src:'Исходники (GPL): <a href="https://github.com/CereblixCRB/cereblix/releases/download/xmrig/xmrig-cereblix-proxy-src.tar.gz">xmrig-cereblix-proxy-src.tar.gz</a>.',
+    s_proxy_n:'⚠️ Апстрим - только <b>пул</b> (<code>stratum.cereblix.com:3333</code>, или <b>RU/СНГ</b> <code>ru.cereblix.com:3333</code>). Заработок по-прежнему виден по адресу на <a href="pool.html">дашборде пула</a>.',
+    s_proxy_ops:'🛠️ Мониторинг (встроенный HTTP API), статистика по ригам, TLS для удалённых ригов и <b>systemd</b>-сервис - в <a href="https://github.com/CereblixCRB/cereblix#run-a-farm-through-a-proxy-xmrig-cereblix-proxy">README</a>. Прокси также печатает уведомление о новой версии (только ссылка - отключить <code>--no-version-check</code>).',
+    safe_n:'⚠️ Скачивайте только с этой страницы, с <a href="https://cereblix.com">cereblix.com</a> или из наших <a href="https://github.com/CereblixCRB/cereblix/releases/latest" target="_blank" rel="noopener">релизов на GitHub</a>. Любой «cereblix» из других мест НЕ наш - не запускайте. Полное руководство - в <a href="https://github.com/CereblixCRB/cereblix#mine" target="_blank" rel="noopener">README</a>.'
+  }
+};
+const EN={};
+function detect(){ const s=localStorage.getItem('lang'); return (s==='ru'||s==='en')?s:((navigator.language||'en').toLowerCase().startsWith('ru')?'ru':'en'); }
+let LANG=detect();
+function applyLang(l){
+  LANG=l; document.documentElement.lang=l;
+  document.querySelectorAll('[data-i],[data-i-html]').forEach(el=>{
+    const k=el.getAttribute('data-i')||el.getAttribute('data-i-html');
+    if(!(k in EN)) EN[k]=el.innerHTML;
+    el.innerHTML = l==='en' ? EN[k] : (I.ru[k] ?? EN[k]);
+  });
+  document.querySelectorAll('.langsw button').forEach(b=>b.classList.toggle('on',b.dataset.lang===l));
+}
+function setLang(l){ localStorage.setItem('lang',l); applyLang(l); }
+applyLang(LANG);
+</script>
+</body>
+</html>

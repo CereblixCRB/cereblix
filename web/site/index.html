@@ -61,6 +61,9 @@ nav .links{margin-left:auto;display:flex;align-items:center;gap:16px;flex-wrap:w
 nav .links a{color:var(--mut);text-decoration:none;font-size:14.5px;font-weight:500;white-space:nowrap;transition:color .15s}
 nav .links a:hover,nav .links a.active{color:var(--txt)}
 nav .links a.active{color:var(--acc)}
+nav .links .navsep{width:1px;height:18px;background:var(--border);margin:0 5px;flex:0 0 auto}
+nav .links a.minecta{color:#ffce5a;font-weight:700;border:1px solid rgba(255,206,90,.45);background:rgba(255,206,90,.09);border-radius:999px;padding:5px 12px;text-shadow:0 0 11px rgba(255,206,90,.5)}
+nav .links a.minecta:hover{color:#ffe2a3;border-color:rgba(255,206,90,.85);box-shadow:0 0 16px rgba(255,206,90,.28)}
 @media(max-width:560px){nav .links{margin-left:0;width:100%;gap:15px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px}}
 .langsw{display:inline-flex;gap:2px;border:1px solid var(--border);border-radius:9px;overflow:hidden;background:var(--glass)}
 .langsw button{background:transparent;color:var(--mut);border:0;padding:5px 10px;cursor:pointer;font-size:13px;font-weight:600;font-family:inherit}
@@ -226,15 +229,15 @@ footer .foot-sub{margin:0 auto;max-width:640px;line-height:1.6;opacity:.75}
   </a>
   <div class="links">
     <a href="./" class="active" data-i="nav_home">Home</a>
-    <a href="#mine" data-i="nav_mine">Mine</a>
-    <a href="webmine.html" data-i="nav_webmine">Web Miner</a>
+    <a href="#roadmap" data-i="nav_roadmap">Roadmap</a>
+    <span class="navsep" aria-hidden="true"></span>
+    <a href="mine.html" class="minecta" data-i="nav_mine">⛏️ How to mine?</a>
+    <span class="navsep" aria-hidden="true"></span>
     <a href="pool.html" data-i="nav_pool">Pool</a>
     <a href="explorer.html" data-i="nav_explorer">Explorer</a>
     <a href="wallet/" data-i="nav_wallet">Wallet</a>
     <a href="faucet.html" data-i="nav_faucet">Faucet</a>
     <a href="/p2p" data-i="nav_p2p">P2P</a>
-    <a href="#roadmap" data-i="nav_roadmap">Roadmap</a>
-    <a href="https://github.com/CereblixCRB/cereblix" target="_blank" rel="noopener">GitHub</a>
     <span class="langsw"><button data-lang="en" onclick="setLang('en')">EN</button><button data-lang="ru" onclick="setLang('ru')">RU</button></span>
   </div>
 </nav>
@@ -249,7 +252,7 @@ footer .foot-sub{margin:0 auto;max-width:640px;line-height:1.6;opacity:.75}
   <p data-i-html="hero_p">Cereblix (CRB) is a cryptocurrency on the new <b>NeuroMorph</b> PoW algorithm: a virtual machine that <b>reprograms itself every 4096 blocks</b>. A chip able to mine it has to be a processor - by definition.</p>
   <div class="hero-cta">
     <div class="cta-row">
-      <a class="btn" href="#mine" data-i="hero_cta1">Start mining in 2 minutes</a>
+      <a class="btn" href="mine.html" data-i="hero_cta1">Start mining in 2 minutes</a>
       <a class="btn ghost" href="wallet/" data-i="hero_cta2">Web wallet</a>
     </div>
     <a class="tg-btn full" href="https://t.me/cereblix" target="_blank" rel="noopener">
@@ -340,62 +343,6 @@ footer .foot-sub{margin:0 auto;max-width:640px;line-height:1.6;opacity:.75}
   <div class="warn" data-i-html="algo_warn">🧪 A free, open-source project. Mine it, fork it, run your own node - the code is all yours.</div>
 </section>
 
-<section id="mine">
-  <h2 data-i-html="mine_h2">Start <em>mining</em></h2>
-  <div class="mine-choose">
-    <a class="mine-card" href="mine.html">
-      <div class="mc-ic">📱</div>
-      <b data-i="mc_browser_t">Mine in your browser</b>
-      <p data-i="mc_browser_b">Easiest. Phone (iOS / Android), tablet or PC. No install, no signing. Slower, but runs anywhere.</p>
-      <span class="mc-go" data-i="mc_browser_go">Open the browser miner →</span>
-    </a>
-    <a class="mine-card" href="#mine-app">
-      <div class="mc-ic">💻</div>
-      <b data-i="mc_app_t">Mine with the app</b>
-      <p data-i="mc_app_b">Faster. Download the native CPU miner for Windows or Linux and run it with your address.</p>
-      <span class="mc-go" data-i="mc_app_go">See the steps below ↓</span>
-    </a>
-    <a class="mine-card" href="mine.html#xmrig">
-      <div class="mc-ic">⚡</div>
-      <b data-i="mc_xmrig_t">Mine with XMRig</b>
-      <p data-i="mc_xmrig_b">Big multi-core CPU? Our fee-free XMRig scales best. Stratum - pool or solo - and you can point it at your own node.</p>
-      <span class="mc-go" data-i="mc_xmrig_go">XMRig downloads &amp; setup →</span>
-    </a>
-  </div>
-  <div id="mine-app" class="steps">
-    <div class="step"><div><b data-i="mine_s1_t">Create a wallet</b><br><span style="color:var(--mut)" data-i-html="mine_s1_b">Open the <a href="wallet/">web wallet</a>, click "Create", save your private key and copy your <code>crb1…</code> address.</span></div></div>
-    <div class="step"><div><b data-i="mine_s2_t">Download the miner</b><br><span style="color:var(--mut)" data-i-html="mine_s2_b">Latest builds on <a href="https://github.com/CereblixCRB/cereblix/releases/latest" target="_blank" rel="noopener">GitHub Releases</a>:
-      <a href="https://github.com/CereblixCRB/cereblix/releases/latest/download/cereblix-miner-windows-amd64.exe">Windows x64</a> ·
-      <a href="https://github.com/CereblixCRB/cereblix/releases/latest/download/cereblix-miner-linux-amd64">Linux x64</a>
-      &nbsp;(Intel and AMD; source is open - <a href="https://github.com/CereblixCRB/cereblix" target="_blank" rel="noopener">github.com/CereblixCRB/cereblix</a>)</span></div></div>
-    <div class="step"><div><b data-i="mine_s3_t">Run it</b>
-      <pre>cereblix-miner-windows-amd64.exe -addr crb1YOUR_ADDRESS</pre>
-      <span style="color:var(--mut)" data-i-html="mine_s3_b">All cores are used by default; limit them with <code>-threads 4</code>. The miner connects to the public node by itself. Find a block - 50 CRB land on your address. The balance shows in the wallet within ~a minute.</span></div></div>
-    <div class="step"><div><b data-i="mine_s4_t">(Optional) Run your own node</b>
-      <pre>cereblixd -datadir ./data
-cereblix-miner -node http://127.0.0.1:18751/api -addr crb1YOUR_ADDRESS</pre>
-      <span style="color:var(--mut)" data-i-html="mine_s4_b">Your own node = your own vote in the network and independent chain validation. Download: <a href="https://github.com/CereblixCRB/cereblix/releases/latest/download/cereblixd-linux-amd64">Linux</a> · <a href="https://github.com/CereblixCRB/cereblix/releases/latest/download/cereblixd-windows-amd64.exe">Windows</a> · or build from <a href="https://github.com/CereblixCRB/cereblix" target="_blank" rel="noopener">source</a>.</span></div></div>
-  </div>
-  <h2 style="margin-top:40px" data-i-html="sp_h">Solo or <em>pool</em>?</h2>
-  <div class="grid" style="margin-bottom:16px">
-    <div class="card">
-      <h3><span class="ico">🎯</span><span data-i="solo_t">Solo</span></h3>
-      <p data-i="solo_b">You mine straight against the network. Find a block and you keep the full 50 CRB - but it's a lottery: on a small CPU you might wait hours or days between wins. Best if you have a big multi-core rig.</p>
-      <pre>cereblix-miner -addr crb1YOUR_ADDRESS</pre>
-    </div>
-    <div class="card">
-      <h3><span class="ico">👥</span><span data-i="pool_t">Pool</span></h3>
-      <p data-i="pool_b">You mine together with everyone else. You earn a steady trickle proportional to your work, and the pool auto-pays your address once you reach 0.05 CRB (1% fee). Best for laptops and ordinary CPUs - far less variance.</p>
-      <pre>cereblix-miner -addr crb1YOUR_ADDRESS -node https://cereblix.com/pool/api</pre>
-    </div>
-  </div>
-  <div class="warn" data-i-html="sp_note">💡 On the pool your miner logs <b>"share accepted"</b> - those are <b>shares</b> (proofs of work at an easier target), not full blocks. Your real reward lands as automatic pool payouts to your address. Same miner either way - only the <code>-node</code> changes.</div>
-  <div class="warn" data-i-html="ru_note">🇷🇺 <b>RU / CIS</b> and cereblix.com is slow or blocked? Mine through our Moscow relay node - same chain, same pool, no Cloudflare: <code>-node https://ru.cereblix.com/pool/api</code> (solo: <code>-node https://ru.cereblix.com/api</code>).</div>
-  <div class="warn" data-i-html="hive_note">🐝 <b>Mining rig on Hive OS?</b> Add a <b>Custom miner</b> in your Flight Sheet - Installation URL <code>https://github.com/CereblixCRB/cereblix/releases/latest/download/cereblix-hiveos.tar.gz</code>, Pool URL <code>https://cereblix.com/pool/api</code>, your <code>crb1…</code> wallet. It auto-starts, survives reboots and shows hashrate in the dashboard.</div>
-  <div class="warn" data-i-html="xmrig_note">⚡ <b>Big multi-core CPU?</b> Our official <b>fee-free</b> XMRig (donation removed, GPL source) scales better than the native miner - point it at our Stratum, <b>pool</b> <code>stratum.cereblix.com:3333</code> or <b>solo</b> <code>:3334</code> (solo now shows steady "accepted" feedback shares too, auto-vardiff; pick your own with <code>-p diff=N</code>). <b>🇷🇺 RU/CIS</b> route (no Cloudflare): <code>ru.cereblix.com:3333</code> pool / <code>:3334</code> solo. Uses <b>all CPU cores by default</b> - if not all are used, set the count with <code>-t N</code> (or <code>--cpu-max-threads-hint=50</code>). Downloads, ready commands and how to mine to <b>your own node</b>: <a href="mine.html#xmrig">the mining guide</a>.</div>
-  <div class="warn" data-i-html="safe_note">⚠️ <b>Download only the official builds</b> - from this page, <a href="mine.html">the mining guide</a>, or <a href="https://github.com/CereblixCRB/cereblix/releases/latest" target="_blank" rel="noopener">GitHub Releases</a>. Any "xmrig-cereblix" or "cereblix" miner from elsewhere is <b>not ours</b> - don't run it.</div>
-</section>
-
 <section id="spec">
   <h2 data-i-html="spec_h2">Network <em>parameters</em></h2>
   <div class="card"><table>
@@ -441,21 +388,21 @@ cereblix-miner -node http://127.0.0.1:18751/api -addr crb1YOUR_ADDRESS</pre>
       </ul>
     </div>
     <div class="phase">
-      <div class="ph-head"><span class="ph-num">3</span><span class="ph-title" data-i="rm3_t">Trust &amp; community</span><span class="chip doing" data-i="rm_c_doing">In progress</span><span class="ph-prog"><span class="ph-bar"><i style="width:67%"></i></span>2/3</span></div>
+      <div class="ph-head"><span class="ph-num">3</span><span class="ph-title" data-i="rm3_t">Trust &amp; community</span><span class="chip done" data-i="rm_c_done">Done</span><span class="ph-prog"><span class="ph-bar"><i style="width:100%"></i></span>3/3</span></div>
       <ul class="tasks">
         <li class="done"><span class="ic">✓</span><span class="tx" data-i="t3_1">Public launch announcement (Bitcointalk, forums)</span></li>
         <li class="done"><span class="ic">✓</span><span class="tx" data-i="t3_4">Start the community everywhere - Telegram, X, Reddit &amp; more</span></li>
-        <li class="todo"><span class="ic"></span><span class="tx" data-i="t2_6">Grow to many independent miners &amp; nodes</span></li>
+        <li class="done"><span class="ic">✓</span><span class="tx" data-i="t2_6">Grow to many independent miners &amp; nodes</span></li>
       </ul>
     </div>
     <div class="phase">
-      <div class="ph-head"><span class="ph-num">4</span><span class="ph-title" data-i="rm4_t">Our own secure P2P platform</span><span class="chip plan" data-i="rm_c_plan">Planned</span><span class="ph-prog"><span class="ph-bar"><i style="width:0"></i></span>0/1</span></div>
+      <div class="ph-head"><span class="ph-num">4</span><span class="ph-title" data-i="rm4_t">Our own secure P2P platform</span><span class="chip done" data-i="rm_c_done">Done</span><span class="ph-prog"><span class="ph-bar"><i style="width:100%"></i></span>1/1</span></div>
       <ul class="tasks">
-        <li class="todo"><span class="ic"></span><span class="tx" data-i-html="t4_1"><b>Buy, sell &amp; swap CRB directly between people</b>, right on the site - with built-in on-chain escrow on every deal, so funds are released only when both sides confirm and neither party is ever exposed. Trade CRB for other currencies peer-to-peer: a simple on-ramp so far more people can get and use CRB.</span></li>
+        <li class="done"><span class="ic">✓</span><span class="tx" data-i-html="t4_1"><b>Buy, sell &amp; swap CRB directly between people</b>, right on the site - with built-in on-chain escrow on every deal, so funds are released only when both sides confirm and neither party is ever exposed. Trade CRB for other currencies peer-to-peer: a simple on-ramp so far more people can get and use CRB.</span></li>
       </ul>
     </div>
     <div class="phase">
-      <div class="ph-head"><span class="ph-num">5</span><span class="ph-title" data-i="rm6_t">Real-world use &amp; innovation</span><span class="chip plan" data-i="rm_c_plan3">Planned</span></div>
+      <div class="ph-head"><span class="ph-num">5</span><span class="ph-title" data-i="rm6_t">Real-world use &amp; innovation</span><span class="chip doing" data-i="rm_c_doing">In progress</span></div>
       <ul class="tasks">
         <li class="todo"><span class="ic"></span><span class="tx" data-i-html="t6_1"><b>Cereblix Captcha</b> - the visitor solves a captcha while their machine mines CRB: realness is proven twice (the captcha + the proof-of-work), and project owners earn from it - anti-bot and monetization in one <span class="star">flagship</span></span></li>
         <li class="todo"><span class="ic"></span><span class="tx" data-i="t6_2">Native mobile app (wallet + background mining)</span></li>
@@ -520,11 +467,11 @@ cereblix-miner -node http://127.0.0.1:18751/api -addr crb1YOUR_ADDRESS</pre>
   <details><summary data-i="faq2_q">What about GPUs and botnets?</summary>
     <p data-i="faq2_a">GPUs: random branches every few instructions cause warp divergence - the card runs at the speed of one or two of its scalar cores, i.e. slower than a laptop. Botnets are a problem for all CPU coins; our answer is economic: a low cap at launch makes them unprofitable, and egalitarian mining distributes the coin wider than any "fair" GPU launch.</p></details>
   <details><summary data-i="faq3_q">Where does CRB trade? What's the price?</summary>
-    <p data-i="faq3_a">We're launching on DEX exchanges soon. Follow the news in our <a href="https://t.me/cereblix" target="_blank" rel="noopener">Telegram</a>.</p></details>
+    <p data-i-html="faq3_a"><b>P2P escrow deals are live now</b> - agree a trade in our <a href="https://t.me/cereblix" target="_blank" rel="noopener">Telegram</a> or Discord chat, then settle it safely on our <a href="/p2p">P2P escrow desk</a> (funds are held in escrow until both sides confirm). DEX/CEX listings come later - follow the news in <a href="https://t.me/cereblix" target="_blank" rel="noopener">Telegram</a>.</p></details>
   <details><summary data-i="faq4_q">Is this a fork of Monero/RandomX?</summary>
     <p data-i="faq4_a">No. The codebase is written from scratch in Go (core + node + miner ~2500 lines, zero external dependencies). NeuroMorph conceptually extends RandomX's random-program idea, but adds the key part: epoch mutation of the VM semantics itself. RandomX is frozen forever - NeuroMorph is not frozen by principle.</p></details>
   <details><summary data-i="faq5_q">How can I support the network?</summary>
-    <p data-i-html="faq5_a">Mine (even 1-2 threads helps security), run a node, mirror the source. The code is open: <a href="https://github.com/CereblixCRB/cereblix" target="_blank" rel="noopener">github.com/CereblixCRB/cereblix</a>.</p></details>
+    <p data-i-html="faq5_a"><b>Mine</b> - even 1-2 threads help security (<a href="mine.html">how to mine</a>). <b>Run a public node</b> to strengthen and decentralize the network (<a href="node.html">node guide</a>). And mirror the open source: <a href="https://github.com/CereblixCRB/cereblix" target="_blank" rel="noopener">github.com/CereblixCRB/cereblix</a>.</p></details>
 </section>
 
 <footer>
@@ -548,7 +495,7 @@ cereblix-miner -node http://127.0.0.1:18751/api -addr crb1YOUR_ADDRESS</pre>
 const I18N = {
   en: {},  // English is the source text in the HTML; en = identity
   ru: {
-    nav_home:"Главная", nav_mine:"Майнинг", nav_webmine:"Веб-майнинг", nav_pool:"Пул", nav_explorer:"Обозреватель", nav_wallet:"Кошелёк", nav_faucet:"Кран", nav_p2p:"P2P", nav_roadmap:"Дорожная карта",
+    nav_home:"Главная", nav_mine:"⛏️ Как майнить?", nav_webmine:"Веб-майнинг", nav_pool:"Пул", nav_explorer:"Обозреватель", nav_wallet:"Кошелёк", nav_faucet:"Кран", nav_p2p:"P2P", nav_roadmap:"Дорожная карта",
     rm_h2:'Дорожная <em>карта</em>',
     rm_intro:"Открыто и честно - что уже сделано (✓) и что впереди (○). Без дат и обещаний цены: ликвидность и листинги придут по мере реального спроса и комьюнити, а не хайпа.",
     hz1:"Горизонт 1 — Запуск", hz1s:"уже в эфире",
@@ -651,11 +598,11 @@ const I18N = {
     faq2_q:"А GPU и ботнеты?",
     faq2_a:"GPU: случайные ветвления каждые несколько инструкций приводят к дивергенции warp'ов - видеокарта работает на скорости одного-двух своих скалярных ядер, т.е. медленнее ноутбука. Ботнеты - проблема всех CPU-монет; наш ответ экономический: низкая капитализация на старте делает их нерентабельными, а эгалитарный майнинг распределяет монету шире, чем любой «честный» GPU-запуск.",
     faq3_q:"Где торгуется CRB? Сколько он стоит?",
-    faq3_a:'Скоро выходим на DEX-биржи. Следите за новостями в нашем <a href="https://t.me/cereblix" target="_blank" rel="noopener">Telegram</a>.',
+    faq3_a:'<b>P2P-эскроу-сделки уже работают</b> - договоритесь о сделке в нашем <a href="https://t.me/cereblix" target="_blank" rel="noopener">Telegram</a> или Discord-чате и проведите её безопасно на нашей <a href="/p2p">P2P-эскроу-площадке</a> (средства в эскроу, пока обе стороны не подтвердят). Листинги на DEX/CEX - позже, следите в <a href="https://t.me/cereblix" target="_blank" rel="noopener">Telegram</a>.',
     faq4_q:"Это форк Monero/RandomX?",
     faq4_a:"Нет. Кодовая база написана с нуля на Go (ядро + нода + майнер ~2500 строк, ноль внешних зависимостей). NeuroMorph концептуально развивает идею случайных программ RandomX, но добавляет главное: эпохальную мутацию самой семантики VM. RandomX зафиксирован навечно - NeuroMorph не фиксирован в принципе.",
     faq5_q:"Как поддержать сеть?",
-    faq5_a:'Майните (даже 1-2 потока - вклад в безопасность), держите ноду, зеркальте исходники. Код открыт: <a href="https://github.com/CereblixCRB/cereblix" target="_blank" rel="noopener">github.com/CereblixCRB/cereblix</a>.',
+    faq5_a:'<b>Майните</b> - даже 1-2 потока помогают безопасности (<a href="mine.html">как майнить</a>). <b>Поднимите публичную ноду</b>, чтобы укрепить и децентрализовать сеть (<a href="node.html">гайд по ноде</a>). И зеркальте открытый код: <a href="https://github.com/CereblixCRB/cereblix" target="_blank" rel="noopener">github.com/CereblixCRB/cereblix</a>.',
     footer1:"Cereblix · запущена 11 июня 2026 · без премайна, без фонда · открытый код",
     footer2:"Бесплатный открытый опенсорсный проект - майнь, форкай, поднимай свою ноду.",
     name_cere_t:"cereb - от cerebrum (мозг) 🧠",
