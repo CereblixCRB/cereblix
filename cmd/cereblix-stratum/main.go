@@ -169,6 +169,10 @@ type client struct {
 	extranonce uint64            // address-bound tag the pool requires in the nonce's top 16 bits
 	jobs       map[string]string // recent jobID -> full pool work id ("<nodeID>|<poolAddr>|<addr>")
 	lastTgtHex string            // solo: target hex of the last pushed job (to detect a vardiff change)
+	lastHeader string            // header hex of the last pushed job — detects a TEMPLATE change even
+	//                              within the same tip (e.g. on a pool failover the new pool's node
+	//                              serves a different Time/mempool template), so miners get fresh work
+	//                              immediately instead of grinding the old template until the next block
 
 	// solo share-difficulty / vardiff state (only used when -solo); guarded by sdMu.
 	sdMu        sync.Mutex
@@ -179,7 +183,7 @@ type client struct {
 	shareN      int
 }
 
-func (c *client) setJob(jobID, poolID string, extranonce uint64, targetHex string) {
+func (c *client) setJob(jobID, poolID string, extranonce uint64, targetHex, header string) {
 	c.jobMu.Lock()
 	defer c.jobMu.Unlock()
 	if len(c.jobs) > 32 { // cap memory; recent jobs only
@@ -189,6 +193,7 @@ func (c *client) setJob(jobID, poolID string, extranonce uint64, targetHex strin
 	c.curJobID = jobID
 	c.extranonce = extranonce
 	c.lastTgtHex = targetHex
+	c.lastHeader = header
 }
 
 // curDiffStr returns the connection's current vardiff share difficulty as a short string.
@@ -319,7 +324,7 @@ func (c *client) handleLogin(id any, params json.RawMessage) bool {
 	// vardiff eases down from it. Real crediting / blocks are still decided by the backend.
 	tgtHex := c.shareTargetHex(parseTarget(w.Target))
 	job["target"] = tgtHex
-	c.setJob(jobID, poolID, w.Extranonce, tgtHex)
+	c.setJob(jobID, poolID, w.Extranonce, tgtHex, w.Header)
 	c.sendResult(id, map[string]any{"id": c.session, "job": job, "status": "OK",
 		"extensions": []string{"algo", "keepalive"}})
 	mode := "pool"
@@ -386,7 +391,7 @@ func (c *client) handleSubmitPool(id any, poolID string, full uint64, t0 time.Ti
 		c.onSoloShare(time.Now())
 		c.sendResult(id, map[string]any{"status": "OK"})
 		vlog("✓ share %s… diff=%s %dms", c.short(), c.curDiffStr(), rtt)
-	case msg == "low difficulty share": // met the vardiff target, not the pool's: keepalive feedback
+	case strings.Contains(msg, "low difficulty") || strings.Contains(msg, "proof of work"): // sub-target share -> keepalive feedback (pool: "low difficulty share"; node: "insufficient proof of work")
 		c.onSoloShare(time.Now())
 		c.sendResult(id, map[string]any{"status": "OK"})
 		vlog("· feedback %s… diff=%s %dms", c.short(), c.curDiffStr(), rtt)
@@ -442,7 +447,7 @@ func submitSolo(poolID string, nonce uint64) (kind, msg string) {
 	}
 	e := strings.ToLower(r.Error)
 	switch {
-	case strings.Contains(e, "proof of work"):
+	case strings.Contains(e, "proof of work"), strings.Contains(e, "low difficulty"):
 		return "feedback", ""
 	case strings.Contains(e, "stale"), strings.Contains(e, "unknown work"):
 		return "stale", ""
@@ -495,9 +500,9 @@ func (c *client) poller(done <-chan struct{}) {
 			tgtHex := c.shareTargetHex(parseTarget(w.Target)) // vardiff in both modes
 			job["target"] = tgtHex
 			c.jobMu.Lock()
-			changed := jobID != c.curJobID || tgtHex != c.lastTgtHex
+			changed := jobID != c.curJobID || tgtHex != c.lastTgtHex || w.Header != c.lastHeader
 			c.jobMu.Unlock()
-			c.setJob(jobID, poolID, w.Extranonce, tgtHex)
+			c.setJob(jobID, poolID, w.Extranonce, tgtHex, w.Header)
 			if changed {
 				c.pushJob(job)
 				vlog("→ job %s… id=%s diff=%s", c.short(), jobID, c.curDiffStr())
