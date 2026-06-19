@@ -43,7 +43,25 @@ import (
 var (
 	poolAPI    string
 	pollEvery  time.Duration
-	httpClient = &http.Client{Timeout: 10 * time.Second}
+	// A pooled keep-alive client. The stdlib default keeps only MaxIdleConnsPerHost=2 warm
+	// connections, so under load (>2 concurrent submits) every extra request opens a fresh TCP
+	// connection and pays a handshake. That is invisible when the pool is local (~0.4ms) but
+	// catastrophic when the ACTIVE pool is the .95 standby reached over the WireGuard hop (~23ms
+	// RTT): the per-request handshake + latency caps submit throughput, shares back up, miners
+	// resubmit, and you get a storm of submits with a low accept rate. Keeping a large warm pool
+	// pipelines the ~23ms latency across many reused connections (~256/0.023s ≈ 11k submits/s
+	// headroom vs the ~55/s real load), so a failover to .95 stays healthy.
+	httpClient = &http.Client{
+		Timeout: 10 * time.Second,
+		Transport: &http.Transport{
+			Proxy:               http.ProxyFromEnvironment,
+			MaxIdleConns:        512,
+			MaxIdleConnsPerHost: 256,
+			MaxConnsPerHost:     0, // don't cap concurrent submit fan-out
+			IdleConnTimeout:     90 * time.Second,
+			DisableCompression:  true, // payloads are tiny JSON; gzip is pure overhead
+		},
+	}
 	connSeq    uint64 // global counter -> a unique 16-bit per-connection id (nonce bits 32-47)
 	verbose    bool   // -v: log every job sent and every share (with round-trip ms)
 )
@@ -83,6 +101,7 @@ func fetchWork(addr, worker string) (*poolWork, error) {
 	if err := json.NewDecoder(resp.Body).Decode(&w); err != nil {
 		return nil, err
 	}
+	_, _ = io.Copy(io.Discard, resp.Body) // fully drain so the keep-alive connection is returned to the pool, not closed
 	return &w, nil
 }
 
