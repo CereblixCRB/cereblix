@@ -214,6 +214,9 @@ func safePeerTransport() *http.Transport {
 			if ip == nil {
 				return fmt.Errorf("refusing dial to unresolved address %q", address)
 			}
+			if ipTrusted(ip) {
+				return nil // operator-declared trusted subnet (e.g. the WG mesh)
+			}
 			if ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() ||
 				ip.IsLinkLocalMulticast() || ip.IsUnspecified() {
 				return fmt.Errorf("refusing dial to non-public address %s", ip)
@@ -249,12 +252,53 @@ func peerHostAllowed(raw string) bool {
 		return false
 	}
 	if ip := net.ParseIP(host); ip != nil {
+		if ipTrusted(ip) {
+			return true // operator-declared trusted subnet (e.g. the WG mesh)
+		}
 		if ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() ||
 			ip.IsLinkLocalMulticast() || ip.IsUnspecified() {
 			return false
 		}
 	}
 	return true
+}
+
+// trustedNets are operator-declared CIDRs (e.g. a private WireGuard mesh) that
+// are EXEMPT from the SSRF guard above, so a node may peer with its own internal
+// mesh over RFC1918 addresses for both block sync and tx gossip. Empty by
+// default — a node that does not pass -trustedsubnet keeps the full guard, so
+// this can never weaken the public network. Written once at startup (before any
+// peer I/O) and only read thereafter.
+var trustedNets []*net.IPNet
+
+// SetTrustedSubnets parses comma-separated CIDRs into the trusted-peer set,
+// skipping invalid entries with a warning. Call once, before node.New.
+func SetTrustedSubnets(csv string) {
+	trustedNets = nil
+	for _, c := range strings.Split(csv, ",") {
+		if c = strings.TrimSpace(c); c == "" {
+			continue
+		}
+		_, netw, err := net.ParseCIDR(c)
+		if err != nil {
+			log.Printf("trustedsubnet: ignoring invalid CIDR %q: %v", c, err)
+			continue
+		}
+		trustedNets = append(trustedNets, netw)
+	}
+	if len(trustedNets) > 0 {
+		log.Printf("trustedsubnet: SSRF guard exempts operator-declared range(s): %s", csv)
+	}
+}
+
+// ipTrusted reports whether ip falls inside an operator-declared trusted subnet.
+func ipTrusted(ip net.IP) bool {
+	for _, netw := range trustedNets {
+		if netw.Contains(ip) {
+			return true
+		}
+	}
+	return false
 }
 
 func (n *Node) peerList() []string {

@@ -22,7 +22,7 @@ import (
 // nodeVersion is this binary's software release version. The auto-updater
 // installs a newer one named in the authority-signed manifest; the consensus
 // version it signals in blocks is core.NodeConsensusVersion (separate).
-const nodeVersion = "2.2.4"
+const nodeVersion = "2.2.5"
 
 // Where to look for the signed upgrade manifest, in order. Every source is
 // verified against core.AuthorityPubKey, so an untrusted mirror cannot harm us;

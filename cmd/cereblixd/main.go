@@ -21,6 +21,7 @@ func main() {
 		rpcAddr  = flag.String("rpc", "127.0.0.1:18751", "rpc listen address")
 		peers    = flag.String("peers", "http://seed.cereblix.com:18750", "comma-separated seed peer URLs")
 		public   = flag.String("public", "", "publicly reachable URL of this node (advertised to peers)")
+		trustSub = flag.String("trustedsubnet", "", "comma-separated CIDR(s) exempt from the P2P SSRF guard for an internal mesh, e.g. 10.10.0.0/24 (default: none = full guard)")
 		mine     = flag.Bool("mine", false, "enable built-in miner")
 		threads  = flag.Int("threads", 2, "miner threads")
 		coinbase = flag.String("coinbase", "", "address that receives block rewards")
@@ -69,6 +70,7 @@ func main() {
 			seeds = append(seeds, p)
 		}
 	}
+	node.SetTrustedSubnets(*trustSub) // before New: addPeer() consults the trusted set
 	n := node.New(chain, *datadir, *public, seeds)
 	n.Version = nodeVersion
 	log.Printf("node software v%s (consensus v%d)", nodeVersion, core.NodeConsensusVersion)
