@@ -58,6 +58,28 @@ h1{font-family:var(--fd);font-size:clamp(24px,5vw,30px);font-weight:700;letter-s
 .lead{color:var(--mut);font-size:14.5px;margin:0 0 14px}
 .cmd{display:block;white-space:pre;overflow-x:auto;background:#0b1120;border:1px solid var(--border);border-radius:11px;padding:12px 14px;margin:12px 0 4px;font-family:ui-monospace,Consolas,monospace;font-size:12.5px;color:#cbd5e1;line-height:1.7}
 .muted{font-size:12.5px;color:var(--mut);margin-top:7px}
+/* prominent region node cards */
+.ndband{display:flex;align-items:center;gap:9px;font-family:var(--fd);font-weight:700;font-size:14.5px;margin:16px 0 11px;padding:10px 14px;border-radius:12px;flex-wrap:wrap}
+.ndband.stratum{color:#ffe9bd;background:linear-gradient(135deg,rgba(255,206,90,.16),rgba(34,211,238,.05));border:1px solid rgba(255,206,90,.42)}
+.ndband.native{color:var(--mut);background:var(--glass);border:1px solid var(--border)}
+.ndgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(218px,1fr));gap:12px;margin-bottom:6px}
+.ndc{background:linear-gradient(165deg,rgba(146,180,255,.08),rgba(146,180,255,.02));border:1px solid var(--border);border-radius:16px;padding:15px 16px 14px;transition:border-color .15s,transform .15s,box-shadow .2s}
+.ndc:hover{border-color:var(--border2);transform:translateY(-2px);box-shadow:0 16px 34px -20px rgba(34,211,238,.6)}
+.ndc .ndtop{display:flex;align-items:center;gap:12px;margin-bottom:11px}
+.ndc .fl{font-size:32px;line-height:1;filter:drop-shadow(0 3px 8px rgba(0,0,0,.45))}
+.ndc .rg{font-family:var(--fd);font-weight:700;font-size:17px;line-height:1.1}
+.ndc .loc{font-size:11px;color:var(--mut);margin-top:2px}
+.ndc .ep{display:flex;align-items:center;gap:8px;margin-top:8px}
+.ndc .ep .tg{flex:0 0 auto;font-size:10px;font-weight:800;letter-spacing:.04em;width:40px;text-align:center;border-radius:6px;padding:4px 0}
+.ndc .ep .tg.pool{color:#bbf7d0;background:rgba(52,211,153,.16);border:1px solid rgba(52,211,153,.38)}
+.ndc .ep .tg.solo{color:#ddd0ff;background:rgba(167,139,250,.16);border:1px solid rgba(167,139,250,.4)}
+.ndc code.cp{flex:1;min-width:0;display:flex;align-items:center;gap:7px;background:#0b1120;border:1px solid var(--border);border-radius:8px;padding:6px 9px;font-family:ui-monospace,Consolas,monospace;font-size:12px;color:var(--acc);cursor:pointer;transition:border-color .12s,background .12s,color .12s}
+.ndc code.cp:hover{border-color:var(--acc);background:#0d1530}
+.ndc code.cp .tx{flex:1;min-width:0;word-break:break-all;line-height:1.3}
+.ndc code.cp .ci{flex:0 0 auto;font-size:11px;opacity:.55}
+.ndc code.cp.copied{border-color:var(--ok);color:var(--ok)}
+.ndc code.cp.copied .ci{opacity:1}
+.ndfoot{font-size:12.5px;color:var(--mut);margin-top:10px}
 a{color:var(--acc)}
 </style>
 </head>
@@ -89,6 +111,48 @@ a{color:var(--acc)}
 
 <a class="tomine" href="mine.html" data-i-html="back">← All mining options</a>
 
+<section class="sec" id="nodes">
+  <h2 data-i-html="s_nodes_h">🔌 Our nodes — pick your region</h2>
+  <p class="lead" data-i-html="s_nodes_p">Same network everywhere — just choose the closest endpoint. XMRig speaks <b>Stratum</b> (all regions); the <b>native</b> miner uses the HTTP endpoint (Europe &amp; Russia). Pool <code>:3333</code> = steady payouts, solo <code>:3334</code> = whole 50 CRB blocks.</p>
+  <div class="ndband stratum"><span data-i="band_stratum">⚡ XMRig (Stratum) — every region</span></div>
+  <div class="ndgrid">
+    <div class="ndc">
+      <div class="ndtop"><span class="fl">🇩🇪</span><div><div class="rg" data-i="rg_eu">Europe</div><div class="loc" data-i="loc_eu">Germany · main · default</div></div></div>
+      <div class="ep"><span class="tg pool" data-i="t_pool">POOL</span><code class="cp" data-cp="stratum.cereblix.com:3333" onclick="cpy(this)"><span class="tx">stratum.cereblix.com:3333</span><span class="ci">📋</span></code></div>
+      <div class="ep"><span class="tg solo" data-i="t_solo">SOLO</span><code class="cp" data-cp="stratum.cereblix.com:3334" onclick="cpy(this)"><span class="tx">stratum.cereblix.com:3334</span><span class="ci">📋</span></code></div>
+    </div>
+    <div class="ndc">
+      <div class="ndtop"><span class="fl">🇷🇺</span><div><div class="rg" data-i="rg_ru">Russia / CIS</div><div class="loc" data-i="loc_ru">Moscow · no Cloudflare</div></div></div>
+      <div class="ep"><span class="tg pool" data-i="t_pool">POOL</span><code class="cp" data-cp="ru.cereblix.com:3333" onclick="cpy(this)"><span class="tx">ru.cereblix.com:3333</span><span class="ci">📋</span></code></div>
+      <div class="ep"><span class="tg solo" data-i="t_solo">SOLO</span><code class="cp" data-cp="ru.cereblix.com:3334" onclick="cpy(this)"><span class="tx">ru.cereblix.com:3334</span><span class="ci">📋</span></code></div>
+    </div>
+    <div class="ndc">
+      <div class="ndtop"><span class="fl">🇺🇸</span><div><div class="rg" data-i="rg_us">USA</div><div class="loc" data-i="loc_us">New York</div></div></div>
+      <div class="ep"><span class="tg pool" data-i="t_pool">POOL</span><code class="cp" data-cp="us.cereblix.com:3333" onclick="cpy(this)"><span class="tx">us.cereblix.com:3333</span><span class="ci">📋</span></code></div>
+      <div class="ep"><span class="tg solo" data-i="t_solo">SOLO</span><code class="cp" data-cp="us.cereblix.com:3334" onclick="cpy(this)"><span class="tx">us.cereblix.com:3334</span><span class="ci">📋</span></code></div>
+    </div>
+    <div class="ndc">
+      <div class="ndtop"><span class="fl">🇸🇬</span><div><div class="rg" data-i="rg_asia">Asia</div><div class="loc" data-i="loc_asia">Singapore</div></div></div>
+      <div class="ep"><span class="tg pool" data-i="t_pool">POOL</span><code class="cp" data-cp="asia.cereblix.com:3333" onclick="cpy(this)"><span class="tx">asia.cereblix.com:3333</span><span class="ci">📋</span></code></div>
+      <div class="ep"><span class="tg solo" data-i="t_solo">SOLO</span><code class="cp" data-cp="asia.cereblix.com:3334" onclick="cpy(this)"><span class="tx">asia.cereblix.com:3334</span><span class="ci">📋</span></code></div>
+    </div>
+  </div>
+  <div class="ndband native"><span data-i="band_native">💻 Native miner (HTTP getwork) — Europe &amp; Russia</span></div>
+  <div class="ndgrid">
+    <div class="ndc">
+      <div class="ndtop"><span class="fl">🇩🇪</span><div><div class="rg" data-i="rg_eu">Europe</div><div class="loc" data-i="loc_eu_n">Germany · main · default</div></div></div>
+      <div class="ep"><span class="tg pool" data-i="t_pool">POOL</span><code class="cp" data-cp="https://cereblix.com/pool/api" onclick="cpy(this)"><span class="tx">https://cereblix.com/pool/api</span><span class="ci">📋</span></code></div>
+      <div class="ep"><span class="tg solo" data-i="t_solo">SOLO</span><code class="cp" data-cp="https://cereblix.com/api" onclick="cpy(this)"><span class="tx">https://cereblix.com/api</span><span class="ci">📋</span></code></div>
+    </div>
+    <div class="ndc">
+      <div class="ndtop"><span class="fl">🇷🇺</span><div><div class="rg" data-i="rg_ru">Russia / CIS</div><div class="loc" data-i="loc_ru_n">Moscow · no Cloudflare</div></div></div>
+      <div class="ep"><span class="tg pool" data-i="t_pool">POOL</span><code class="cp" data-cp="https://ru.cereblix.com/pool/api" onclick="cpy(this)"><span class="tx">https://ru.cereblix.com/pool/api</span><span class="ci">📋</span></code></div>
+      <div class="ep"><span class="tg solo" data-i="t_solo">SOLO</span><code class="cp" data-cp="https://ru.cereblix.com/api" onclick="cpy(this)"><span class="tx">https://ru.cereblix.com/api</span><span class="ci">📋</span></code></div>
+    </div>
+  </div>
+  <div class="ndfoot" data-i-html="nd_foot">🇺🇸 US &amp; 🇸🇬 Asia are <b>Stratum-only</b> (XMRig) — for the native HTTP miner use 🇩🇪 Europe or 🇷🇺 Russia. XMRig: host after <code>-o</code>; native: host after <code>-node</code>. <span style="opacity:.85">Tap any address to copy it.</span></div>
+</section>
+
 <section class="sec" id="xmrig">
   <h2 data-i-html="s_xmrig_h">⚡ 1 · XMRig - fee-free, for big multi-core CPUs</h2>
   <p class="lead" data-i-html="s_xmrig_p">Our official <b>fee-free</b> XMRig (developer donation removed, GPL source). On large CPUs it scales better than the native miner. It speaks Stratum - point it at ours, pool or solo.</p>
@@ -106,7 +170,7 @@ xmrig-cereblix -o stratum.cereblix.com:3334 -a nm/1 -u crb1YOUR_ADDRESS -p x</di
   <div class="muted" data-i-html="s_xmrig_solo">💡 Solo (<code>:3334</code>) now serves an easy <b>auto-vardiff</b> share target, so XMRig shows steady <b>"accepted"</b> shares + live hashrate just like the pool - while real blocks still pay the full 50 CRB. Choose your own difficulty with <code>-p diff=N</code>.</div>
   <div class="muted" data-i-html="s_xmrig_cores">🧮 <b>CPU cores.</b> This build uses <b>all your CPU cores by default</b>. If it ever runs on fewer threads than your CPU has, set the count yourself: add <code>-t N</code> (N = number of threads) or <code>--cpu-max-threads-hint=50</code> (percent of cores). On <b>Hive OS</b> leave <i>Extra config arguments</i> empty (algo <code>nm/1</code> and all cores are automatic); to limit cores there add <code>"max-threads-hint": 50</code> (JSON, not <code>-t</code>).</div>
   <div class="muted" data-i-html="s_xmrig_perf">🚀 <b>More hashrate.</b> Three levers, biggest first. <b>(1) Huge pages</b> - often <b>+20-70%</b>, the single biggest win. XMRig uses them automatically, but on <b>Windows</b> grant the privilege once: <code>secpol.msc</code> → Local Policies → User Rights Assignment → <i>Lock pages in memory</i> → add your user, log out/in, then run XMRig <b>as Administrator</b>. On <b>Linux</b> reserve them: <code>sudo sysctl -w vm.nr_hugepages=1280</code>. The startup log should read <code>huge pages 100%</code>. <b>(2) Thread count</b> - "all cores" isn't always fastest: NeuroMorph is memory-bound, so on <b>hybrid Intel</b> (P+E) also try the P-core count (<code>-t N</code>) and keep whatever gives more H/s. <b>(3) Big EPYC / Threadripper</b> (several CCDs / NUMA) - run <b>one instance per CCD / NUMA node</b>, each pinned with <code>--cpu-affinity</code>, and sum the hashrate; a single process can lag across nodes. With huge pages and the right thread count our fee-free build lands roughly on par with SRBMiner after its 3% fee.</div>
-  <div class="muted" data-i-html="s_xmrig_ru">🇷🇺 <b>RU / CIS.</b> If shares drop out or the connection keeps timing out, use the Moscow relay (local route, no Cloudflare, same Stratum): pool <code>-o ru.cereblix.com:3333</code> or solo <code>-o ru.cereblix.com:3334</code> - everything else stays the same.</div>
+  <div class="muted" data-i-html="s_xmrig_ru">🌍 <b>Regional routes.</b> Pick the closest endpoint (same Stratum, just swap the host after <code>-o</code>): 🇷🇺 RU/CIS <code>ru.cereblix.com</code> (no Cloudflare), 🇺🇸 US <code>us.cereblix.com</code>, 🇸🇬 Asia <code>asia.cereblix.com</code> — port <code>:3333</code> pool / <code>:3334</code> solo. Main host: <code>stratum.cereblix.com</code>.</div>
 </section>
 
 <section class="sec" id="native">
@@ -137,13 +201,22 @@ const I = {
     sub:'Два бесплатных CPU-майнера для CRB. Они работают хорошо, но на большинстве машин дают <b>меньше хешрейта, чем SRBMiner</b> - поэтому это второй выбор.',
     rec:'👉 Для максимального хешрейта рекомендуем <a href="mine-srbminer.html">SRBMiner</a>. Эти варианты - если хотите открытый исходник / без комиссии или майнить на свою ноду.',
     back:'← Все способы майнинга',
+    s_nodes_h:"🔌 Наши ноды — выберите свой регион",
+    s_nodes_p:'Сеть везде одна — просто выберите ближайший адрес. XMRig работает по <b>Stratum</b> (все регионы); <b>нативный</b> майнер использует HTTP-адрес (Европа и Россия). Пул <code>:3333</code> = стабильные выплаты, соло <code>:3334</code> = целые блоки по 50 CRB.',
+    band_stratum:"⚡ XMRig (Stratum) — все регионы",
+    band_native:"💻 Нативный майнер (HTTP getwork) — Европа и Россия",
+    rg_eu:"Европа", rg_ru:"Россия / СНГ", rg_us:"США", rg_asia:"Азия",
+    loc_eu:"Германия · основной · по умолчанию", loc_ru:"Москва · без Cloudflare", loc_us:"Нью-Йорк", loc_asia:"Сингапур",
+    loc_eu_n:"Германия · основной · по умолчанию", loc_ru_n:"Москва · без Cloudflare",
+    t_pool:"ПУЛ", t_solo:"СОЛО",
+    nd_foot:'🇺🇸 США и 🇸🇬 Азия — <b>только Stratum</b> (XMRig); для нативного HTTP-майнера используйте 🇩🇪 Европу или 🇷🇺 Россию. XMRig: хост после <code>-o</code>; нативный: хост после <code>-node</code>. <span style="opacity:.85">Нажмите на любой адрес, чтобы скопировать.</span>',
     s_xmrig_h:"⚡ 1 · XMRig - без комиссии, для мощных многоядерных CPU",
     s_xmrig_p:"Наша официальная сборка XMRig <b>без комиссии</b> (донат разработчику убран, исходники под GPL). На больших CPU масштабируется лучше нативного майнера. Говорит по Stratum - подключайте к нашему, пул или соло.",
     s_xmrig_src:'Исходники (GPL): <a href="https://cereblix.com/xmrig-cereblix-src.tar.gz">xmrig-cereblix-src.tar.gz</a> · зеркало в <a href="https://github.com/CereblixCRB/cereblix/releases/tag/xmrig" target="_blank" rel="noopener">релизе xmrig на GitHub</a>. Intel Mac - соберите из исходников (бинарник нативный arm64).',
     s_xmrig_solo:'💡 Соло (<code>:3334</code>) теперь отдаёт лёгкий <b>авто-vardiff</b> share-target, так что XMRig стабильно показывает <b>«accepted»</b> и хешрейт - как на пуле, при этом настоящие блоки по-прежнему дают все 50 CRB. Свою сложность выбирайте через <code>-p diff=N</code>.',
     s_xmrig_cores:'🧮 <b>Ядра CPU.</b> По умолчанию используются <b>все ядра процессора</b>. Если вдруг задействованы не все потоки - задайте число вручную: добавьте <code>-t N</code> (N - число потоков) или <code>--cpu-max-threads-hint=50</code> (процент ядер). На <b>Hive OS</b> поле <i>Extra config arguments</i> оставьте пустым (algo <code>nm/1</code> и все ядра включаются сами); ограничить ядра там - <code>"max-threads-hint": 50</code> (JSON, не <code>-t</code>).',
     s_xmrig_perf:'🚀 <b>Больше хешрейта.</b> Три рычага, по убыванию эффекта. <b>(1) Huge pages</b> - часто <b>+20-70%</b>, самый большой выигрыш. XMRig включает их сам, но на <b>Windows</b> нужно один раз выдать привилегию: <code>secpol.msc</code> → Локальные политики → Назначение прав пользователя → <i>Блокировка страниц в памяти</i> → добавьте пользователя, перезайдите, запускайте XMRig <b>от администратора</b>. На <b>Linux</b>: <code>sudo sysctl -w vm.nr_hugepages=1280</code>. В логе старта должно быть <code>huge pages 100%</code>. <b>(2) Число потоков</b> - «все ядра» не всегда быстрее: NeuroMorph упирается в память, на <b>гибридных Intel</b> (P+E) попробуйте число P-ядер (<code>-t N</code>). <b>(3) Большие EPYC / Threadripper</b> - по одному инстансу на CCD / NUMA-узел с <code>--cpu-affinity</code>, суммируйте хешрейт. С huge pages наша сборка идёт примерно вровень с SRBMiner после его 3% fee.',
-    s_xmrig_ru:'🇷🇺 <b>RU / СНГ.</b> Если шары пропадают или соединение отваливается по таймауту - подключайтесь через московский релей (без Cloudflare, тот же Stratum): пул <code>-o ru.cereblix.com:3333</code> или соло <code>-o ru.cereblix.com:3334</code>.',
+    s_xmrig_ru:'🌍 <b>Региональные маршруты.</b> Выберите ближайший адрес (тот же Stratum, просто замените хост после <code>-o</code>): 🇷🇺 RU/СНГ <code>ru.cereblix.com</code> (без Cloudflare), 🇺🇸 США <code>us.cereblix.com</code>, 🇸🇬 Азия <code>asia.cereblix.com</code> — порт <code>:3333</code> пул / <code>:3334</code> соло. Основной хост: <code>stratum.cereblix.com</code>.',
     s_native_h:"💻 2 · Нативный CPU-майнер - самый простой",
     s_native_p:"Официальный майнер одним файлом - кратно быстрее браузера и самый простой «настоящий» вариант. Скачайте, запустите со своим адресом; публичную ноду найдёт сам.",
     s_native_hive:'🐝 <b>Риг на Hive OS?</b> Flight Sheet → Custom miner, Installation URL <code>https://github.com/CereblixCRB/cereblix/releases/latest/download/cereblix-hiveos.tar.gz</code>, Pool URL <code>https://cereblix.com/pool/api</code>, кошелёк <code>crb1…</code>.',
@@ -166,6 +239,14 @@ function applyLang(l){
   document.querySelectorAll('.langsw button').forEach(b=>b.classList.toggle('on',b.dataset.lang===l));
 }
 function setLang(l){ localStorage.setItem('lang',l); applyLang(l); }
+// Click-to-copy for the node endpoint cards (clipboard API + execCommand fallback).
+function cpy(el){
+  const txt=el.getAttribute('data-cp')||''; if(!txt) return;
+  const done=()=>{ el.classList.add('copied'); const i=el.querySelector('.ci'); const o=i?i.textContent:''; if(i)i.textContent='✓'; setTimeout(()=>{ el.classList.remove('copied'); if(i)i.textContent=o; },1100); };
+  if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(done).catch(()=>fbCopy(txt,done)); }
+  else fbCopy(txt,done);
+}
+function fbCopy(t,cb){ try{ const a=document.createElement('textarea'); a.value=t; a.style.position='fixed'; a.style.opacity='0'; document.body.appendChild(a); a.select(); document.execCommand('copy'); document.body.removeChild(a); cb(); }catch(e){} }
 applyLang(LANG);
 </script>
 </body>

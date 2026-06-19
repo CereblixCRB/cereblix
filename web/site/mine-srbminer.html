@@ -61,6 +61,24 @@ h1{font-family:var(--fd);font-size:clamp(24px,5vw,30px);font-weight:700;letter-s
 .ndtable th,.ndtable td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--border);vertical-align:top}
 .ndtable th{color:var(--mut);font-weight:600;font-family:var(--fd)}
 .ndtable td code{font-size:12.5px;color:#cbd5e1}
+/* prominent region node cards */
+.ndgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(218px,1fr));gap:12px;margin:12px 0 6px}
+.ndc{background:linear-gradient(165deg,rgba(255,206,90,.07),rgba(146,180,255,.02));border:1px solid var(--border);border-radius:16px;padding:15px 16px 14px;transition:border-color .15s,transform .15s,box-shadow .2s}
+.ndc:hover{border-color:rgba(255,206,90,.5);transform:translateY(-2px);box-shadow:0 16px 34px -20px rgba(255,206,90,.5)}
+.ndc .ndtop{display:flex;align-items:center;gap:12px;margin-bottom:11px}
+.ndc .fl{font-size:32px;line-height:1;filter:drop-shadow(0 3px 8px rgba(0,0,0,.45))}
+.ndc .rg{font-family:var(--fd);font-weight:700;font-size:17px;line-height:1.1}
+.ndc .loc{font-size:11px;color:var(--mut);margin-top:2px}
+.ndc .ep{display:flex;align-items:center;gap:8px;margin-top:8px}
+.ndc .ep .tg{flex:0 0 auto;font-size:10px;font-weight:800;letter-spacing:.04em;width:40px;text-align:center;border-radius:6px;padding:4px 0}
+.ndc .ep .tg.pool{color:#bbf7d0;background:rgba(52,211,153,.16);border:1px solid rgba(52,211,153,.38)}
+.ndc .ep .tg.solo{color:#ddd0ff;background:rgba(167,139,250,.16);border:1px solid rgba(167,139,250,.4)}
+.ndc code.cp{flex:1;min-width:0;display:flex;align-items:center;gap:7px;background:#0b1120;border:1px solid var(--border);border-radius:8px;padding:6px 9px;font-family:ui-monospace,Consolas,monospace;font-size:12px;color:var(--acc);cursor:pointer;transition:border-color .12s,background .12s,color .12s}
+.ndc code.cp:hover{border-color:var(--acc);background:#0d1530}
+.ndc code.cp .tx{flex:1;min-width:0;word-break:break-all;line-height:1.3}
+.ndc code.cp .ci{flex:0 0 auto;font-size:11px;opacity:.55}
+.ndc code.cp.copied{border-color:var(--ok);color:var(--ok)}
+.ndc code.cp.copied .ci{opacity:1}
 .qnav{display:flex;gap:8px;flex-wrap:wrap;margin:2px 0 26px}
 .qnav a{font-size:13px;font-weight:600;color:var(--mut);text-decoration:none;background:var(--glass);border:1px solid var(--border);border-radius:999px;padding:7px 14px}
 .qnav a:hover{border-color:var(--acc);color:var(--txt)}
@@ -132,15 +150,29 @@ SRBMiner-MULTI --algorithm neuromorph --pool stratum.cereblix.com:3334 --wallet 
 <section class="sec" id="nodes">
   <h2 data-i-html="s_nodes_h">🌐 Our nodes - pick one for <code>--pool</code></h2>
   <p class="lead" data-i-html="s_nodes_p">Choose the endpoint that fits you and put it after <code>--pool</code>. Pool = steady payouts; solo = whole 50 CRB blocks (a lottery). RU/CIS routes go through our Moscow relay (no Cloudflare) - use them if the main host is slow or blocked.</p>
-  <table class="ndtable">
-    <thead><tr><th data-i="th_what">Use</th><th data-i="th_ep">Endpoint (<code>--pool</code>)</th></tr></thead>
-    <tbody>
-      <tr><td data-i="nd_pool">🌍 Pool (recommended)</td><td><code>stratum.cereblix.com:3333</code></td></tr>
-      <tr><td data-i="nd_solo">🌍 Solo (50 CRB blocks)</td><td><code>stratum.cereblix.com:3334</code></td></tr>
-      <tr><td data-i="nd_rupool">🇷🇺 RU/CIS pool</td><td><code>ru.cereblix.com:3333</code></td></tr>
-      <tr><td data-i="nd_rusolo">🇷🇺 RU/CIS solo</td><td><code>ru.cereblix.com:3334</code></td></tr>
-    </tbody>
-  </table>
+  <div class="ndgrid">
+    <div class="ndc">
+      <div class="ndtop"><span class="fl">🇩🇪</span><div><div class="rg" data-i="rg_eu">Europe</div><div class="loc" data-i="loc_eu">Germany · main · default</div></div></div>
+      <div class="ep"><span class="tg pool" data-i="t_pool">POOL</span><code class="cp" data-cp="stratum.cereblix.com:3333" onclick="cpy(this)"><span class="tx">stratum.cereblix.com:3333</span><span class="ci">📋</span></code></div>
+      <div class="ep"><span class="tg solo" data-i="t_solo">SOLO</span><code class="cp" data-cp="stratum.cereblix.com:3334" onclick="cpy(this)"><span class="tx">stratum.cereblix.com:3334</span><span class="ci">📋</span></code></div>
+    </div>
+    <div class="ndc">
+      <div class="ndtop"><span class="fl">🇷🇺</span><div><div class="rg" data-i="rg_ru">Russia / CIS</div><div class="loc" data-i="loc_ru">Moscow · no Cloudflare</div></div></div>
+      <div class="ep"><span class="tg pool" data-i="t_pool">POOL</span><code class="cp" data-cp="ru.cereblix.com:3333" onclick="cpy(this)"><span class="tx">ru.cereblix.com:3333</span><span class="ci">📋</span></code></div>
+      <div class="ep"><span class="tg solo" data-i="t_solo">SOLO</span><code class="cp" data-cp="ru.cereblix.com:3334" onclick="cpy(this)"><span class="tx">ru.cereblix.com:3334</span><span class="ci">📋</span></code></div>
+    </div>
+    <div class="ndc">
+      <div class="ndtop"><span class="fl">🇺🇸</span><div><div class="rg" data-i="rg_us">USA</div><div class="loc" data-i="loc_us">New York</div></div></div>
+      <div class="ep"><span class="tg pool" data-i="t_pool">POOL</span><code class="cp" data-cp="us.cereblix.com:3333" onclick="cpy(this)"><span class="tx">us.cereblix.com:3333</span><span class="ci">📋</span></code></div>
+      <div class="ep"><span class="tg solo" data-i="t_solo">SOLO</span><code class="cp" data-cp="us.cereblix.com:3334" onclick="cpy(this)"><span class="tx">us.cereblix.com:3334</span><span class="ci">📋</span></code></div>
+    </div>
+    <div class="ndc">
+      <div class="ndtop"><span class="fl">🇸🇬</span><div><div class="rg" data-i="rg_asia">Asia</div><div class="loc" data-i="loc_asia">Singapore</div></div></div>
+      <div class="ep"><span class="tg pool" data-i="t_pool">POOL</span><code class="cp" data-cp="asia.cereblix.com:3333" onclick="cpy(this)"><span class="tx">asia.cereblix.com:3333</span><span class="ci">📋</span></code></div>
+      <div class="ep"><span class="tg solo" data-i="t_solo">SOLO</span><code class="cp" data-cp="asia.cereblix.com:3334" onclick="cpy(this)"><span class="tx">asia.cereblix.com:3334</span><span class="ci">📋</span></code></div>
+    </div>
+  </div>
+  <div class="muted" data-i-html="s_nodes_tip">🟢 <b>POOL</b> (<code>:3333</code>) = steady payouts · 🎲 <b>SOLO</b> (<code>:3334</code>) = whole 50 CRB blocks. Put the address after <code>--pool</code>. <span style="opacity:.85">Tap any address to copy it.</span></div>
   <div class="muted" data-i-html="s_nodes_n">🔒 Running your own node for trustless solo? You can point SRBMiner at your own Stratum bridge - see <a href="node.html">Run your own node &amp; stratum node</a>.</div>
 </section>
 
@@ -187,6 +219,10 @@ const I = {
     s_nodes_p:'Выберите подходящий адрес и подставьте его после <code>--pool</code>. Пул = стабильные выплаты; соло = целые блоки по 50 CRB (лотерея). Маршруты RU/СНГ идут через московский релей (без Cloudflare) - используйте их, если основной хост тормозит или заблокирован.',
     th_what:"Назначение", th_ep:'Адрес (<code>--pool</code>)',
     nd_pool:"🌍 Пул (рекомендуется)", nd_solo:"🌍 Соло (блоки по 50 CRB)", nd_rupool:"🇷🇺 Пул RU/СНГ", nd_rusolo:"🇷🇺 Соло RU/СНГ",
+    rg_eu:"Европа", rg_ru:"Россия / СНГ", rg_us:"США", rg_asia:"Азия",
+    loc_eu:"Германия · основной · по умолчанию", loc_ru:"Москва · без Cloudflare", loc_us:"Нью-Йорк", loc_asia:"Сингапур",
+    t_pool:"ПУЛ", t_solo:"СОЛО",
+    s_nodes_tip:'🟢 <b>ПУЛ</b> (<code>:3333</code>) = стабильные выплаты · 🎲 <b>СОЛО</b> (<code>:3334</code>) = целые блоки по 50 CRB. Адрес ставьте после <code>--pool</code>. <span style="opacity:.85">Нажмите на адрес, чтобы скопировать.</span>',
     s_nodes_n:'🔒 Хотите trustless-соло на своей ноде? SRBMiner можно навести на ваш собственный Stratum-мост - см. <a href="node.html">Своя нода и стратум-нода</a>.',
     s_hive_h:"🐝 Hive OS - флайт-шит",
     s_hive_p:'SRBMiner-Multi есть в Hive OS «из коробки». Создайте Flight Sheet и наведите майнер на CRB:',
@@ -210,6 +246,14 @@ function applyLang(l){
   document.querySelectorAll('.langsw button').forEach(b=>b.classList.toggle('on',b.dataset.lang===l));
 }
 function setLang(l){ localStorage.setItem('lang',l); applyLang(l); }
+// Click-to-copy for the node endpoint cards (clipboard API + execCommand fallback).
+function cpy(el){
+  const txt=el.getAttribute('data-cp')||''; if(!txt) return;
+  const done=()=>{ el.classList.add('copied'); const i=el.querySelector('.ci'); const o=i?i.textContent:''; if(i)i.textContent='✓'; setTimeout(()=>{ el.classList.remove('copied'); if(i)i.textContent=o; },1100); };
+  if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(done).catch(()=>fbCopy(txt,done)); }
+  else fbCopy(txt,done);
+}
+function fbCopy(t,cb){ try{ const a=document.createElement('textarea'); a.value=t; a.style.position='fixed'; a.style.opacity='0'; document.body.appendChild(a); a.select(); document.execCommand('copy'); document.body.removeChild(a); cb(); }catch(e){} }
 applyLang(LANG);
 </script>
 </body>

@@ -53,6 +53,31 @@ nav .links a.minecta:hover{color:#ffe2a3;border-color:rgba(255,206,90,.85);box-s
 .endp .egrp:first-child{margin-top:0}
 .endp .egrp.pool{color:var(--ok)}
 .endp .egrp.solo{color:var(--acc2)}
+/* prominent region node cards */
+.ndband{display:flex;align-items:center;gap:9px;font-family:var(--fd);font-weight:700;font-size:14.5px;margin:20px 0 11px;padding:10px 14px;border-radius:12px;flex-wrap:wrap}
+.ndband.stratum{color:#ffe9bd;background:linear-gradient(135deg,rgba(255,206,90,.16),rgba(34,211,238,.05));border:1px solid rgba(255,206,90,.42)}
+.ndband.native{color:var(--mut);background:var(--glass);border:1px solid var(--border)}
+.ndband .pill{margin-left:auto;font-family:'Inter',system-ui,sans-serif;font-size:11px;font-weight:700;letter-spacing:.02em;padding:3px 10px;border-radius:999px;white-space:nowrap}
+.ndband.stratum .pill{background:var(--gold);color:#06121f}
+.ndgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(214px,1fr));gap:12px;margin-bottom:6px}
+.ndc{background:linear-gradient(165deg,rgba(146,180,255,.08),rgba(146,180,255,.02));border:1px solid var(--border);border-radius:16px;padding:15px 16px 14px;transition:border-color .15s,transform .15s,box-shadow .2s}
+.ndc:hover{border-color:var(--border2);transform:translateY(-2px);box-shadow:0 16px 34px -20px rgba(34,211,238,.6)}
+.ndc .ndtop{display:flex;align-items:center;gap:12px;margin-bottom:11px}
+.ndc .fl{font-size:32px;line-height:1;filter:drop-shadow(0 3px 8px rgba(0,0,0,.45))}
+.ndc .rg{font-family:var(--fd);font-weight:700;font-size:17px;line-height:1.1}
+.ndc .loc{font-size:11px;color:var(--mut);margin-top:2px}
+.ndc .ep{display:flex;align-items:center;gap:8px;margin-top:8px}
+.ndc .ep .tg{flex:0 0 auto;font-size:10px;font-weight:800;letter-spacing:.04em;width:40px;text-align:center;border-radius:6px;padding:4px 0}
+.ndc .ep .tg.pool{color:#bbf7d0;background:rgba(52,211,153,.16);border:1px solid rgba(52,211,153,.38)}
+.ndc .ep .tg.solo{color:#ddd0ff;background:rgba(167,139,250,.16);border:1px solid rgba(167,139,250,.4)}
+.ndc code.cp{flex:1;min-width:0;display:flex;align-items:center;gap:7px;background:#0b1120;border:1px solid var(--border);border-radius:8px;padding:6px 9px;font-family:ui-monospace,Consolas,monospace;font-size:12px;color:var(--acc);cursor:pointer;transition:border-color .12s,background .12s,color .12s}
+.ndc code.cp:hover{border-color:var(--acc);background:#0d1530}
+.ndc code.cp .tx{flex:1;min-width:0;word-break:break-all;line-height:1.3}
+.ndc code.cp .ci{flex:0 0 auto;font-size:11px;opacity:.55}
+.ndc code.cp.copied{border-color:var(--ok);color:var(--ok)}
+.ndc code.cp.copied .ci{opacity:1}
+.ndc .epn{flex:1;min-width:0;font-size:11.5px;color:var(--mut);padding:4px 0}
+.ndfoot{font-size:12.5px;color:var(--mut);margin-top:10px}
 @media(max-width:620px){nav .links{margin-left:0;width:100%;gap:15px;overflow-x:auto}}
 .langsw{display:inline-flex;gap:2px;border:1px solid var(--border);border-radius:9px;overflow:hidden;background:var(--glass)}
 .langsw button{background:transparent;color:var(--mut);border:0;padding:5px 10px;cursor:pointer;font-size:13px;font-weight:600;font-family:inherit}
@@ -139,15 +164,46 @@ a{color:var(--acc)}
     <a class="poollink" href="mine.html"><b data-i="t_guide">⛏️ Full mining guide</b><span data-i="t_guide_s">SRBMiner · XMRig · native · Hive OS · your own node</span></a>
     <a class="poollink" href="webmine.html"><b data-i="t_web">📱 Browser miner</b><span data-i="t_web_s">No install - try it on any device</span></a>
   </div>
-  <h3 class="poolh3" data-i="endp_t">Connect any miner - endpoints</h3>
-  <div class="endp">
-    <div class="egrp pool" data-i="g_pool">🟢 POOL — steady payouts (recommended)</div>
-    <div class="erow"><span class="who">💻 <span data-i="e_native">Native miner</span> (HTTP)</span><code>-node https://cereblix.com/pool/api</code><span class="eru">🇷🇺 ru.cereblix.com/pool/api</span></div>
-    <div class="erow"><span class="who">⚡ XMRig · 🔥 SRBMiner (Stratum)</span><code>stratum.cereblix.com:3333</code><span class="eru">🇷🇺 ru.cereblix.com:3333</span></div>
-    <div class="egrp solo" data-i="g_solo">🎲 SOLO — whole 50 CRB blocks (a lottery)</div>
-    <div class="erow"><span class="who">💻 <span data-i="e_native">Native miner</span> (HTTP)</span><span class="eru" data-i="e_solo_native">run without -node (solo to the public node), or set -node to your own node</span></div>
-    <div class="erow"><span class="who">⚡ XMRig · 🔥 SRBMiner (Stratum)</span><code>stratum.cereblix.com:3334</code><span class="eru">🇷🇺 ru.cereblix.com:3334</span></div>
+  <h3 class="poolh3" data-i="endp_t">🔌 Mining nodes — pick the region closest to you</h3>
+
+  <div class="ndband stratum"><span data-i="band_stratum">🔥 SRBMiner · ⚡ XMRig (Stratum) — every region</span><span class="pill" data-i="band_rec">Recommended · most hashrate</span></div>
+  <div class="ndgrid">
+    <div class="ndc">
+      <div class="ndtop"><span class="fl">🇩🇪</span><div><div class="rg" data-i="rg_eu">Europe</div><div class="loc" data-i="loc_eu">Germany · main · default</div></div></div>
+      <div class="ep"><span class="tg pool" data-i="t_pool">POOL</span><code class="cp" data-cp="stratum.cereblix.com:3333" onclick="cpy(this)"><span class="tx">stratum.cereblix.com:3333</span><span class="ci">📋</span></code></div>
+      <div class="ep"><span class="tg solo" data-i="t_solo">SOLO</span><code class="cp" data-cp="stratum.cereblix.com:3334" onclick="cpy(this)"><span class="tx">stratum.cereblix.com:3334</span><span class="ci">📋</span></code></div>
+    </div>
+    <div class="ndc">
+      <div class="ndtop"><span class="fl">🇷🇺</span><div><div class="rg" data-i="rg_ru">Russia / CIS</div><div class="loc" data-i="loc_ru">Moscow · no Cloudflare</div></div></div>
+      <div class="ep"><span class="tg pool" data-i="t_pool">POOL</span><code class="cp" data-cp="ru.cereblix.com:3333" onclick="cpy(this)"><span class="tx">ru.cereblix.com:3333</span><span class="ci">📋</span></code></div>
+      <div class="ep"><span class="tg solo" data-i="t_solo">SOLO</span><code class="cp" data-cp="ru.cereblix.com:3334" onclick="cpy(this)"><span class="tx">ru.cereblix.com:3334</span><span class="ci">📋</span></code></div>
+    </div>
+    <div class="ndc">
+      <div class="ndtop"><span class="fl">🇺🇸</span><div><div class="rg" data-i="rg_us">USA</div><div class="loc" data-i="loc_us">New York</div></div></div>
+      <div class="ep"><span class="tg pool" data-i="t_pool">POOL</span><code class="cp" data-cp="us.cereblix.com:3333" onclick="cpy(this)"><span class="tx">us.cereblix.com:3333</span><span class="ci">📋</span></code></div>
+      <div class="ep"><span class="tg solo" data-i="t_solo">SOLO</span><code class="cp" data-cp="us.cereblix.com:3334" onclick="cpy(this)"><span class="tx">us.cereblix.com:3334</span><span class="ci">📋</span></code></div>
+    </div>
+    <div class="ndc">
+      <div class="ndtop"><span class="fl">🇸🇬</span><div><div class="rg" data-i="rg_asia">Asia</div><div class="loc" data-i="loc_asia">Singapore</div></div></div>
+      <div class="ep"><span class="tg pool" data-i="t_pool">POOL</span><code class="cp" data-cp="asia.cereblix.com:3333" onclick="cpy(this)"><span class="tx">asia.cereblix.com:3333</span><span class="ci">📋</span></code></div>
+      <div class="ep"><span class="tg solo" data-i="t_solo">SOLO</span><code class="cp" data-cp="asia.cereblix.com:3334" onclick="cpy(this)"><span class="tx">asia.cereblix.com:3334</span><span class="ci">📋</span></code></div>
+    </div>
   </div>
+
+  <div class="ndband native"><span data-i="band_native">💻 Native miner (HTTP getwork) — simpler, but lower hashrate</span></div>
+  <div class="ndgrid">
+    <div class="ndc">
+      <div class="ndtop"><span class="fl">🇩🇪</span><div><div class="rg" data-i="rg_eu">Europe</div><div class="loc" data-i="loc_eu_n">Germany · main · default</div></div></div>
+      <div class="ep"><span class="tg pool" data-i="t_pool">POOL</span><code class="cp" data-cp="https://cereblix.com/pool/api" onclick="cpy(this)"><span class="tx">https://cereblix.com/pool/api</span><span class="ci">📋</span></code></div>
+      <div class="ep"><span class="tg solo" data-i="t_solo">SOLO</span><code class="cp" data-cp="https://cereblix.com/api" onclick="cpy(this)"><span class="tx">https://cereblix.com/api</span><span class="ci">📋</span></code></div>
+    </div>
+    <div class="ndc">
+      <div class="ndtop"><span class="fl">🇷🇺</span><div><div class="rg" data-i="rg_ru">Russia / CIS</div><div class="loc" data-i="loc_ru_n">Moscow · no Cloudflare</div></div></div>
+      <div class="ep"><span class="tg pool" data-i="t_pool">POOL</span><code class="cp" data-cp="https://ru.cereblix.com/pool/api" onclick="cpy(this)"><span class="tx">https://ru.cereblix.com/pool/api</span><span class="ci">📋</span></code></div>
+      <div class="ep"><span class="tg solo" data-i="t_solo">SOLO</span><code class="cp" data-cp="https://ru.cereblix.com/api" onclick="cpy(this)"><span class="tx">https://ru.cereblix.com/api</span><span class="ci">📋</span></code></div>
+    </div>
+  </div>
+  <div class="ndfoot" data-i-html="nd_foot">🇺🇸 US &amp; 🇸🇬 Asia are <b>Stratum-only</b> — for the native HTTP miner use 🇩🇪 Europe or 🇷🇺 Russia above. <code>-node</code> for the native miner, <code>--pool</code>/<code>-o</code> for SRBMiner/XMRig. <span style="opacity:.85">Tap any address to copy it.</span></div>
 </div>
 
 <div class="card">
@@ -185,7 +241,15 @@ const I = { en:{}, ru:{
   pool_intro:'Направьте любой майнер на адрес пула ниже - и всё, вы зарабатываете. Награды приходят <b>автоматически</b> выплатами пула, как только баланс превысит минимум; <b>первая выплата - через ~100 блоков (~1.5-2 ч)</b>, пока награда за блок созревает (100 подтверждений). Строки <b>"share accepted"</b> в логе - это доказательства, криптографически привязанные к вашему адресу: чужой вашу работу не присвоит.',
   t_guide:"⛏️ Полный гайд по майнингу", t_guide_s:"SRBMiner · XMRig · нативный · Hive OS · своя нода",
   t_web:"📱 Браузерный майнер", t_web_s:"Без установки - на любом устройстве",
-  endp_t:"Подключение любого майнера - адреса",
+  endp_t:"🔌 Майнинг-ноды — выберите ближайший регион",
+  band_stratum:"🔥 SRBMiner · ⚡ XMRig (Stratum) — все регионы",
+  band_rec:"Рекомендуется · больше хешрейта",
+  band_native:"💻 Нативный майнер (HTTP getwork) — проще, но хешрейт ниже",
+  rg_eu:"Европа", rg_ru:"Россия / СНГ", rg_us:"США", rg_asia:"Азия",
+  loc_eu:"Германия · основной · по умолчанию", loc_ru:"Москва · без Cloudflare", loc_us:"Нью-Йорк", loc_asia:"Сингапур",
+  loc_eu_n:"Германия · основной · по умолчанию", loc_ru_n:"Москва · без Cloudflare",
+  t_pool:"ПУЛ", t_solo:"СОЛО",
+  nd_foot:'🇺🇸 США и 🇸🇬 Азия — <b>только Stratum</b>; для нативного HTTP-майнера используйте 🇩🇪 Европу или 🇷🇺 Россию выше. <code>-node</code> — для нативного майнера, <code>--pool</code>/<code>-o</code> — для SRBMiner/XMRig. <span style="opacity:.85">Нажмите на любой адрес, чтобы скопировать.</span>',
   e_native:"Нативный майнер", e_stratum:"(Stratum)",
   g_pool:"🟢 ПУЛ — стабильные выплаты (рекомендуется)",
   g_solo:"🎲 СОЛО — целые блоки по 50 CRB (лотерея)",
@@ -238,6 +302,15 @@ function setLang(l){localStorage.setItem('lang',l);applyLang(l);}
 const t=k=>LANG==='en'?(EN[k]??k):(I.ru[k]??EN[k]??k);
 
 const POOL='pool/api', NODE='api';
+// Click-to-copy for the node endpoint cards. Copies the data-cp value (clipboard
+// API, with an execCommand fallback) and flashes a ✓ on the tapped chip.
+function cpy(el){
+  const txt=el.getAttribute('data-cp')||''; if(!txt) return;
+  const done=()=>{ el.classList.add('copied'); const i=el.querySelector('.ci'); const o=i?i.textContent:''; if(i)i.textContent='✓'; setTimeout(()=>{ el.classList.remove('copied'); if(i)i.textContent=o; },1100); };
+  if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(done).catch(()=>fbCopy(txt,done)); }
+  else fbCopy(txt,done);
+}
+function fbCopy(t,cb){ try{ const a=document.createElement('textarea'); a.value=t; a.style.position='fixed'; a.style.opacity='0'; document.body.appendChild(a); a.select(); document.execCommand('copy'); document.body.removeChild(a); cb(); }catch(e){} }
 const $=id=>document.getElementById(id);
 const U=1e8;
 // Network & pool TOTALS are always shown in MH/s (fixed unit).
