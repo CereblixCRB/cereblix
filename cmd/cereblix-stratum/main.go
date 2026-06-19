@@ -87,6 +87,8 @@ var (
 	dReal, dLowfb, dStaleDup, dOther atomic.Int64
 	dPushTip, dPushTgt, dPushHdr     atomic.Int64
 )
+var dOtherMu sync.Mutex
+var dOtherMsgs = map[string]int{} // -diag: sampled "other" reject messages = the .95-active trigger
 
 func diagLoop() {
 	t := time.NewTicker(5 * time.Second)
@@ -95,6 +97,16 @@ func diagLoop() {
 		log.Printf("DIAG 5s: submits=%d staleJobSubmit=%d | verdict real=%d lowfb=%d staleDup=%d other=%d | jobpush tip=%d tgt=%d hdr=%d",
 			dSubmits.Swap(0), dStaleJob.Swap(0), dReal.Swap(0), dLowfb.Swap(0), dStaleDup.Swap(0), dOther.Swap(0),
 			dPushTip.Swap(0), dPushTgt.Swap(0), dPushHdr.Swap(0))
+		dOtherMu.Lock()
+		if len(dOtherMsgs) > 0 {
+			parts := make([]string, 0, len(dOtherMsgs))
+			for m, c := range dOtherMsgs {
+				parts = append(parts, fmt.Sprintf("%dx %q", c, m))
+			}
+			log.Printf("DIAG other-msgs: %s", strings.Join(parts, " | "))
+			dOtherMsgs = map[string]int{}
+		}
+		dOtherMu.Unlock()
 	}
 }
 
@@ -443,6 +455,11 @@ func (c *client) handleSubmitPool(id any, poolID string, full uint64, t0 time.Ti
 			dStaleDup.Add(1)
 		default:
 			dOther.Add(1)
+			dOtherMu.Lock()
+			if len(dOtherMsgs) < 30 {
+				dOtherMsgs[msg]++
+			}
+			dOtherMu.Unlock()
 		}
 	}
 	switch {
@@ -459,9 +476,13 @@ func (c *client) handleSubmitPool(id any, poolID string, full uint64, t0 time.Ti
 		c.sendResult(id, map[string]any{"status": "OK"})
 		vlog("· feedback %s… diff=%s %dms", c.short(), c.curDiffStr(), rtt)
 	case msg == "stale" || msg == "duplicate": // template rolled over / resend: soft-ack, next job follows
+		c.onSoloShare(time.Now()) // a real find, just late: feed vardiff
 		c.sendResult(id, map[string]any{"status": "OK"})
 		vlog("· %s %s… %dms", msg, c.short(), rtt)
 	default:
+		c.onSoloShare(time.Now()) // a real find the pool could not take (e.g. "validator busy, retry"): still
+		//                            feed vardiff, so a busy/reject spell can't ease the target into a submit
+		//                            storm that saturates the validator and spirals (the .95-active failure)
 		c.sendError(id, msg)
 		vlog("✗ share %s… %s %dms", c.short(), msg, rtt)
 	}
