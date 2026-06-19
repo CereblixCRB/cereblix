@@ -8,15 +8,15 @@
 //
 // Job/share convention (document this for any miner that targets us):
 //   - blob   : the raw block header (HeaderLen bytes) as hex. The nonce is the
-//              LAST 8 bytes (offset NonceOffset), little-endian. The TOP 16 bits
-//              (blob bytes NonceOffset+6 and +7) are a RESERVED extranonce that
-//              the pool pinned to your address - DO NOT change them. Vary only
-//              the lower 48 bits (blob bytes NonceOffset .. NonceOffset+5).
+//     LAST 8 bytes (offset NonceOffset), little-endian. The TOP 16 bits
+//     (blob bytes NonceOffset+6 and +7) are a RESERVED extranonce that
+//     the pool pinned to your address - DO NOT change them. Vary only
+//     the lower 48 bits (blob bytes NonceOffset .. NonceOffset+5).
 //   - target : 32-byte big-endian hex. A share is valid iff
-//              bigEndian(NeuroMorphHash(blob)) <= target.
+//     bigEndian(NeuroMorphHash(blob)) <= target.
 //   - seed_hash : NeuroMorph epoch seed (hex) used to derive the VM params.
 //   - submit.nonce : the 8 nonce bytes (offset NonceOffset) as hex, little-endian
-//              byte order (same order they sit in the blob), i.e. 16 hex chars.
+//     byte order (same order they sit in the blob), i.e. 16 hex chars.
 package main
 
 import (
@@ -41,8 +41,8 @@ import (
 )
 
 var (
-	poolAPI    string
-	pollEvery  time.Duration
+	poolAPI   string
+	pollEvery time.Duration
 	// A pooled keep-alive client. The stdlib default keeps only MaxIdleConnsPerHost=2 warm
 	// connections, so under load (>2 concurrent submits) every extra request opens a fresh TCP
 	// connection and pays a handshake. That is invisible when the pool is local (~0.4ms) but
@@ -62,14 +62,39 @@ var (
 			DisableCompression:  true, // payloads are tiny JSON; gzip is pure overhead
 		},
 	}
-	connSeq    uint64 // global counter -> a unique 16-bit per-connection id (nonce bits 32-47)
-	verbose    bool   // -v: log every job sent and every share (with round-trip ms)
+	connSeq uint64 // global counter -> a unique 16-bit per-connection id (nonce bits 32-47)
+	verbose bool   // -v: log every job sent and every share (with round-trip ms)
 )
 
 // vlog logs only when -v is set (per-job / per-share lines would flood a busy pool).
 func vlog(format string, a ...any) {
 	if verbose {
 		log.Printf(format, a...)
+	}
+}
+
+// --- diagnostics (-diag): aggregate counters logged every 5s, to PIN why a failover degrades
+// (e.g. "active pool on .95 → 72% of submits stale/dup") instead of guessing. Per 5s window:
+//
+//	staleJobSubmit = the miner submitted for a job the bridge had ALREADY replaced (it lags the
+//	                 job stream) — vs verdict staleDup, where the POOL rejected the share as stale.
+//	verdict real/lowfb/staleDup/other = the pool's outcome mix (lowfb = the eased-vardiff feedback).
+//	jobpush tip/tgt/hdr = WHY the bridge pushed a fresh job (new block / vardiff / template header).
+//	                 A high `hdr` rate means the served template churns (the failover thrash suspect).
+var diag bool
+var (
+	dSubmits, dStaleJob              atomic.Int64
+	dReal, dLowfb, dStaleDup, dOther atomic.Int64
+	dPushTip, dPushTgt, dPushHdr     atomic.Int64
+)
+
+func diagLoop() {
+	t := time.NewTicker(5 * time.Second)
+	defer t.Stop()
+	for range t.C {
+		log.Printf("DIAG 5s: submits=%d staleJobSubmit=%d | verdict real=%d lowfb=%d staleDup=%d other=%d | jobpush tip=%d tgt=%d hdr=%d",
+			dSubmits.Swap(0), dStaleJob.Swap(0), dReal.Swap(0), dLowfb.Swap(0), dStaleDup.Swap(0), dOther.Swap(0),
+			dPushTip.Swap(0), dPushTgt.Swap(0), dPushHdr.Swap(0))
 	}
 }
 
@@ -368,10 +393,17 @@ func (c *client) handleSubmit(id any, params json.RawMessage) {
 		poolID = c.jobs[c.curJobID]
 	}
 	ex := c.extranonce
+	staleJob := p.JobID != "" && p.JobID != c.curJobID // miner is mining a job the bridge already replaced
 	c.jobMu.Unlock()
 	if poolID == "" {
 		c.sendError(id, "no active job - re-login")
 		return
+	}
+	if diag {
+		dSubmits.Add(1)
+		if staleJob {
+			dStaleJob.Add(1)
+		}
 	}
 
 	nonce, ok := parseNonceLE(p.Nonce)
@@ -401,6 +433,18 @@ func (c *client) handleSubmit(id any, params json.RawMessage) {
 func (c *client) handleSubmitPool(id any, poolID string, full uint64, t0 time.Time) {
 	accepted, msg := submitToPool(poolID, full)
 	rtt := time.Since(t0).Milliseconds()
+	if diag {
+		switch {
+		case accepted:
+			dReal.Add(1)
+		case strings.Contains(msg, "low difficulty") || strings.Contains(msg, "proof of work"):
+			dLowfb.Add(1)
+		case msg == "stale" || msg == "duplicate":
+			dStaleDup.Add(1)
+		default:
+			dOther.Add(1)
+		}
+	}
 	switch {
 	case accepted && msg == "BLOCK":
 		c.onSoloShare(time.Now())
@@ -519,11 +563,29 @@ func (c *client) poller(done <-chan struct{}) {
 			tgtHex := c.shareTargetHex(parseTarget(w.Target)) // vardiff in both modes
 			job["target"] = tgtHex
 			c.jobMu.Lock()
-			changed := jobID != c.curJobID || tgtHex != c.lastTgtHex || w.Header != c.lastHeader
+			reason := -1 // why a fresh job is needed: 0=new tip/block, 1=vardiff target, 2=template header
+			switch {
+			case jobID != c.curJobID:
+				reason = 0
+			case tgtHex != c.lastTgtHex:
+				reason = 1
+			case w.Header != c.lastHeader:
+				reason = 2
+			}
 			c.jobMu.Unlock()
 			c.setJob(jobID, poolID, w.Extranonce, tgtHex, w.Header)
-			if changed {
+			if reason >= 0 {
 				c.pushJob(job)
+				if diag {
+					switch reason {
+					case 0:
+						dPushTip.Add(1)
+					case 1:
+						dPushTgt.Add(1)
+					case 2:
+						dPushHdr.Add(1)
+					}
+				}
 				vlog("→ job %s… id=%s diff=%s", c.short(), jobID, c.curDiffStr())
 			}
 		}
@@ -572,6 +634,7 @@ func main() {
 	flag.DurationVar(&pollEvery, "poll", 2*time.Second, "how often to poll the pool for new work")
 	flag.BoolVar(&soloMode, "solo", false, "solo mode: backend is a NODE; serve an easy vardiff share target for feedback (real blocks still go to the node)")
 	flag.BoolVar(&verbose, "v", false, "verbose: log every job sent and every share with round-trip latency (ms)")
+	flag.BoolVar(&diag, "diag", false, "diagnostics: every 5s log aggregate submit/job-push counters (staleJobSubmit, verdict mix, job-push reasons) — to pin why a failover degrades")
 	noUpdate := flag.Bool("noupdate", false, "disable automatic self-update for this run (one-off; see -autoupdate to persist)")
 	doUpdate := flag.Bool("update", false, "update to the latest released bridge (if newer) and exit")
 	doVersion := flag.Bool("version", false, "print version and exit")
@@ -611,6 +674,10 @@ func main() {
 	log.Printf("cereblix-stratum v%s bridge on %s -> %s [%s]%s", stratumVersion, *listen, poolAPI, mode,
 		map[bool]string{true: " verbose", false: ""}[verbose])
 	go autoUpdateLoop(!*noUpdate) // authority-signed, verified, with rollback
+	if diag {
+		log.Printf("stratum: -diag ON — 5s aggregate submit/job-push counters")
+		go diagLoop()
+	}
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
