@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log"
 	"os"
+	"time"
 
 	"cereblix/core"
 )
@@ -37,6 +38,7 @@ type inflight struct {
 // reconcile scans the chain, recomputes Delivered/Owed/Paid from on-chain truth,
 // and expires in-flight payouts that have confirmed or been dropped.
 func reconcile() {
+	t0 := time.Now()
 	f, err := os.Open(chainFile)
 	if err != nil {
 		log.Printf("pool: reconcile cannot read chain (%s): %v", chainFile, err)
@@ -79,9 +81,30 @@ func reconcile() {
 
 	st.mu.Lock()
 	defer st.mu.Unlock()
+	if dbMode {
+		// Refresh the in-memory caches from Postgres (the shared source of truth). This is
+		// what lets a promoted standby take over the SAME accounting: it reads Earned +
+		// inflight from the DB here. Runs every 60s (not the per-share hot path).
+		if e, err := dbGetEarned(); err == nil {
+			st.Earned = e
+		} else {
+			log.Printf("db: getEarned in reconcile: %v", err)
+		}
+		if fl, err := dbInflightList(); err == nil {
+			st.InFlight = map[string]*inflight{}
+			for _, r := range fl {
+				st.InFlight[r.Txid] = &inflight{Miner: r.Addr, Gross: r.Gross, SentHeight: r.SentHeight}
+			}
+		} else {
+			log.Printf("db: inflightList in reconcile: %v", err)
+		}
+	}
 	for tid, fl := range st.InFlight {
 		if onchain[tid] || height > fl.SentHeight+confirmWindowBlocks {
 			delete(st.InFlight, tid) // confirmed (now in Delivered) or dropped (re-payable)
+			if dbMode {
+				_ = dbInflightDelete(tid)
+			}
 		}
 	}
 	for i := range mp {
@@ -93,6 +116,9 @@ func reconcile() {
 			if tid := t.ID(); !onchain[tid] {
 				if _, ok := st.InFlight[tid]; !ok {
 					st.InFlight[tid] = &inflight{Miner: t.To, Gross: t.Amount + t.Fee, SentHeight: height}
+					if dbMode {
+						_ = dbInflightAdd(tid, t.To, t.Amount+t.Fee, height)
+					}
 				}
 			}
 		}
@@ -110,4 +136,10 @@ func reconcile() {
 	st.Owed = owed
 	st.ChainHeight = height
 	st.save()
+	var owedTotal uint64
+	for _, o := range owed {
+		owedTotal += o
+	}
+	log.Printf("RECONCILE: height=%d earned_miners=%d owed_miners=%d owed_total=%s inflight=%d took=%dms",
+		height, len(st.Earned), len(owed), crb(owedTotal), len(st.InFlight), time.Since(t0).Milliseconds())
 }

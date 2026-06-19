@@ -1,0 +1,76 @@
+{
+	auto_https disable_redirects
+}
+
+https://cereblix.com, https://www.cereblix.com {
+	tls /var/lib/caddy/certs/fullchain.pem /var/lib/caddy/certs/privkey.pem
+	encode gzip
+	@www host www.cereblix.com
+	redir @www https://cereblix.com{uri} 301
+
+	# /api/credit mints pool shares — internal (local faucet) only, never from the internet
+	handle /pool/api/credit {
+		respond "not found" 404
+	}
+	handle /pool/* {
+		uri strip_prefix /pool
+		# HA load-balance across the head pool + the .95 standby (over WireGuard). Active health
+		# checks on /api/health route ONLY to the node whose Postgres is primary (returns 200);
+		# the standby returns 503 and is skipped. On a Patroni failover the head pool turns 503 and
+		# .95 turns 200, so pool traffic follows the primary automatically. lb_policy first = prefer
+		# the head while it is healthy.
+		reverse_proxy 127.0.0.1:18754 10.10.0.2:18754 {
+			lb_policy first
+			health_uri /api/health
+			health_interval 3s
+			health_timeout 2s
+			health_status 200
+		}
+	}
+	handle /api/* {
+		reverse_proxy 127.0.0.1:18751
+	}
+	handle /faucet/* {
+		reverse_proxy 127.0.0.1:18753
+	}
+	handle /otc/* {
+		reverse_proxy 127.0.0.1:18756
+	}
+
+	# internal link shortener — cereblix.com/go/<slug> (add a redir line per slug; unknown -> /p2p)
+	handle /go/* {
+		route {
+			redir /go/discord https://discord.com/channels/1515077041937190963/1516790664916893736 302
+			redir * https://cereblix.com/p2p 302
+		}
+	}
+	handle {
+		reverse_proxy 127.0.0.1:8080
+	}
+}
+
+http:// {
+	@acme path /.well-known/acme-challenge/*
+	handle @acme {
+		root * /var/www/html/cereblix
+		file_server
+	}
+	@cereblix host cereblix.com www.cereblix.com
+	redir @cereblix https://cereblix.com{uri} 301
+	handle {
+		reverse_proxy 127.0.0.1:8080
+	}
+}
+
+# Internal HA endpoint for the stratum bridge (localhost only). Same health-checked LB as /pool, so
+# the stratum miners follow a Postgres failover too: getwork/submitwork go to whichever pool is the
+# active primary (200); the standby (503) is skipped. cereblix-stratum points -pool here.
+http://127.0.0.1:18755 {
+	reverse_proxy 127.0.0.1:18754 10.10.0.2:18754 {
+		lb_policy first
+		health_uri /api/health
+		health_interval 3s
+		health_timeout 2s
+		health_status 200
+	}
+}
