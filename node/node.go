@@ -33,6 +33,7 @@ const (
 	rebroadcastInterval = 60 * time.Second // periodic re-flood of unconfirmed mempool txns (gossip backstop)
 	batchBlocks         = 200
 	templateMaxAge      = 8 * time.Second
+	templateRefresh     = 5 * time.Second // min interval between getwork template rebuilds (cf. Bitcoin GBT's few-second cache)
 )
 
 // fallbackSeeds are baked-in public nodes used to bootstrap and to keep the mesh
@@ -46,6 +47,14 @@ var fallbackSeeds = []string{
 	"http://13.140.141.180:18750", // mining-fleet node-5 (also a seed.cereblix.com A-record)
 	"http://13.140.141.179:18750", // mining-fleet node-6
 	"http://13.140.142.95:18750",  // mining-fleet node-7
+}
+
+// workTemplate is one mining job: an unmined block plus when it was built. Several
+// jobs can coexist for a single tip (each mempool-changing refresh publishes a new
+// one), so a miner that solves a slightly-older job is still accepted on submit.
+type workTemplate struct {
+	blk  *core.Block
+	born time.Time
 }
 
 type Node struct {
@@ -67,8 +76,10 @@ type Node struct {
 	subMu       sync.Mutex
 	subscribing map[string]bool // peers we currently hold a subscribe loop for
 
-	tmplMu    sync.Mutex
-	templates map[string]*core.Block // template id -> unmined block
+	tmplMu     sync.Mutex
+	templates  map[string]*workTemplate // work id -> job (current + recent same-tip, kept valid for late submits)
+	tmplLatest map[string]string        // "tipHash|addr" -> current work id
+	tmplSeq    uint64                   // monotonic; makes each work id unique
 
 	cpMu       sync.Mutex
 	checkpoint core.Checkpoint // latest signed authority checkpoint we hold/serve
@@ -98,7 +109,8 @@ func New(chain *core.Chain, dataDir, publicURL string, seedPeers []string) *Node
 		peers:       map[string]time.Time{},
 		client:      safePeerClient(),
 		subClient:   &http.Client{Timeout: subscribeHold + 15*time.Second, Transport: safePeerTransport()},
-		templates:   map[string]*core.Block{},
+		templates:   map[string]*workTemplate{},
+		tmplLatest:  map[string]string{},
 		notifyCh:    make(chan struct{}),
 		subscribing: map[string]bool{},
 		stop:        make(chan struct{}),
@@ -1093,19 +1105,20 @@ func (n *Node) RPCHandler() http.Handler {
 
 	h("/api/getwork", func(w http.ResponseWriter, r *http.Request) {
 		addr := r.URL.Query().Get("addr")
-		tmpl, err := n.getTemplate(addr)
+		tmpl, id, err := n.getTemplate(addr)
 		if err != nil {
 			writeErr(w, 400, err.Error())
 			return
 		}
 		seed, epoch := n.Chain.EpochSeedForNext()
 		writeJSON(w, map[string]any{
-			"id":     tmpl.PrevHash + "|" + addr,
+			"id":     id,
 			"header": hex.EncodeToString(tmpl.HeaderBytes()),
 			"target": tmpl.Target,
 			"seed":   hex.EncodeToString(seed),
 			"epoch":  epoch,
 			"height": tmpl.Height,
+			"ntx":    len(tmpl.Txs), // coinbase + body txs in this job (observability; clients ignore extras)
 		})
 	})
 
@@ -1131,13 +1144,13 @@ func (n *Node) RPCHandler() http.Handler {
 			return
 		}
 		n.tmplMu.Lock()
-		tmpl := n.templates[req.ID]
+		e := n.templates[req.ID]
 		n.tmplMu.Unlock()
-		if tmpl == nil {
+		if e == nil {
 			writeErr(w, 404, "stale or unknown work id")
 			return
 		}
-		b := *tmpl
+		b := *e.blk
 		b.Nonce = nonce
 		if err := n.Chain.AddBlock(&b); err != nil {
 			writeErr(w, 400, err.Error())
@@ -1213,46 +1226,87 @@ func (n *Node) RPCHandler() http.Handler {
 	return mux
 }
 
-// getTemplate returns a cached or fresh mining template for `addr`.
-func (n *Node) getTemplate(addr string) (*core.Block, error) {
+// getTemplate returns the current mining job for `addr` and its work id.
+//
+// Rather than freeze one template per tip (which starved blocks of every transaction
+// that arrived after the tip changed), the job is refreshed from the live mempool at
+// most every templateRefresh - the same few-second cache Bitcoin's getblocktemplate
+// uses. Each refresh that actually changes the block body is published under a NEW
+// work id; older same-tip jobs stay in the map so a miner that already solved one is
+// still accepted on submit (no thrown-away work). Because submit reconstructs the
+// exact job by id, a moving timestamp never desyncs a miner - which is what the old
+// per-tip freeze was guarding against, now handled correctly.
+func (n *Node) getTemplate(addr string) (*core.Block, string, error) {
 	if !core.ValidAddr(addr) {
-		return nil, errors.New("bad or missing addr")
+		return nil, "", errors.New("bad or missing addr")
 	}
-	id := n.Chain.Tip().Hash() + "|" + addr
+	const maxTemplates = 512 // backstop against /api/getwork spam with many addresses
+	tip := n.Chain.Tip().Hash()
+	key := tip + "|" + addr
+
 	n.tmplMu.Lock()
 	defer n.tmplMu.Unlock()
-	// Serve a STABLE template per tip: once built for this tip, reuse it unchanged
-	// until a new block arrives (new tip -> new id below). Rebuilding with a fresh
-	// Time while the tip is unchanged desyncs pool miners - they cache the header
-	// and submit a nonce computed for the OLD Time, which the node would then
-	// reject as "insufficient proof of work", throwing away real work. A frozen
-	// Time stays valid on an unchanged tip (always < now+300 and > median-time-past).
-	if t, ok := n.templates[id]; ok {
-		return t, nil
+
+	// Current job still fresh -> serve it unchanged (stable + costs nothing).
+	if id := n.tmplLatest[key]; id != "" {
+		if e := n.templates[id]; e != nil && time.Since(e.born) < templateRefresh {
+			return e.blk, id, nil
+		}
 	}
-	tmpl, err := n.Chain.BuildTemplate(addr)
+
+	// Rebuild from the live mempool (current txs + a fresh timestamp).
+	fresh, err := n.Chain.BuildTemplate(addr)
 	if err != nil {
-		return nil, err
+		// Transient build error -> keep serving the last good job if we have one.
+		if id := n.tmplLatest[key]; id != "" {
+			if e := n.templates[id]; e != nil {
+				return e.blk, id, nil
+			}
+		}
+		return nil, "", err
 	}
-	id = tmpl.PrevHash + "|" + addr
-	// Drop templates from older tips.
-	for k := range n.templates {
-		if !strings.HasPrefix(k, tmpl.PrevHash) {
+
+	// Evict jobs built on an older tip - a block on them could never be valid now.
+	for k, e := range n.templates {
+		if e.blk.PrevHash != tip {
 			delete(n.templates, k)
 		}
 	}
-	// Hard cap: many distinct addresses at the SAME tip all share the PrevHash
-	// prefix above and survive the prune, so /api/getwork spam with random
-	// addresses could grow this unbounded. Bound it regardless.
-	const maxTemplates = 512
-	if _, exists := n.templates[id]; !exists && len(n.templates) >= maxTemplates {
-		for k := range n.templates {
-			delete(n.templates, k)
-			break
+	for k := range n.tmplLatest {
+		if !strings.HasPrefix(k, tip+"|") {
+			delete(n.tmplLatest, k)
 		}
 	}
-	n.templates[id] = tmpl
-	return tmpl, nil
+
+	// Body unchanged -> don't mint a new id (it would needlessly invalidate miners'
+	// in-flight work); just reset the freshness timer so we recheck after a refresh.
+	if id := n.tmplLatest[key]; id != "" {
+		if e := n.templates[id]; e != nil && e.blk.TxRoot == fresh.TxRoot {
+			e.born = time.Now()
+			return e.blk, id, nil
+		}
+	}
+
+	// Body changed -> publish a new job. Older same-tip jobs stay valid for late
+	// submits; they are dropped on the next tip or by the cap below.
+	n.tmplSeq++
+	id := key + "|" + strconv.FormatUint(n.tmplSeq, 36)
+	n.templates[id] = &workTemplate{blk: fresh, born: time.Now()}
+	n.tmplLatest[key] = id
+
+	// Hard cap: drop the OLDEST job first so we never evict the freshest work.
+	for len(n.templates) > maxTemplates {
+		var oldest string
+		var born time.Time
+		for k, e := range n.templates {
+			if oldest == "" || e.born.Before(born) {
+				oldest, born = k, e.born
+			}
+		}
+		delete(n.templates, oldest)
+	}
+
+	return fresh, id, nil
 }
 
 // ------------------------------------------------------------ built-in miner
