@@ -120,6 +120,27 @@ th{color:var(--mut);font-weight:600}
   </div>
 </div>
 
+<div id="unlock" class="card hidden">
+  <h2 data-i="unlock_t">Unlock wallet</h2>
+  <p class="muted" style="margin-bottom:12px" data-i="unlock_p">This wallet is password-protected. Enter your password to decrypt the key locally - it never leaves your browser.</p>
+  <input id="unlockPw" type="password" autocomplete="current-password" data-ph="pw_ph" placeholder="Password" onkeydown="if(event.key==='Enter')unlock()">
+  <button onclick="unlock()" data-i="unlock_btn">Unlock</button>
+  <div class="muted" id="unlockMsg" style="margin-top:8px;color:#f87171"></div>
+  <div class="muted" style="margin-top:10px;font-size:12px"><a href="#" onclick="forgotPw();return false" data-i="forgot">Forgot password? Re-import your seed.</a></div>
+</div>
+
+<div id="protect" class="card hidden">
+  <h2 data-i="protect_t">Protect with password</h2>
+  <p class="muted" style="margin-bottom:12px" data-i="protect_p">⚠️ Back up your private key first. The key is encrypted with this password and stored encrypted in your browser. If you forget the password you must re-import the key.</p>
+  <input id="pw1" type="password" autocomplete="new-password" data-ph="pw_new_ph" placeholder="New password (min 8 chars)">
+  <input id="pw2" type="password" autocomplete="new-password" data-ph="pw_confirm_ph" placeholder="Confirm password" style="margin-top:8px" onkeydown="if(event.key==='Enter')doProtect()">
+  <div class="row" style="margin-top:10px">
+    <button onclick="doProtect()" data-i="protect_btn">Encrypt</button>
+    <button class="ghost" onclick="cancelProtect()" data-i="su_cancel">cancel</button>
+  </div>
+  <div class="muted" id="protectMsg" style="margin-top:8px;color:#f87171"></div>
+</div>
+
 <div id="main" class="hidden">
   <div class="card">
     <h2 data-i="balance">Balance</h2>
@@ -127,7 +148,7 @@ th{color:var(--mut);font-weight:600}
     <div class="muted" id="unconf" style="margin-top:4px"></div>
     <div class="muted" data-i="your_addr">Your address (click to copy):</div>
     <div class="addr" id="myaddr" onclick="copyAddr()"></div>
-    <div class="muted" style="margin-top:8px">nonce: <span id="nonce">0</span> · <a href="#" onclick="exportKey();return false" data-i="show_key">show private key</a> · <a href="#" onclick="logout();return false" data-i="logout">log out</a></div>
+    <div class="muted" style="margin-top:8px">nonce: <span id="nonce">0</span> · <a href="#" onclick="exportKey();return false" data-i="show_key">show private key</a> · <a href="#" id="protectLink" onclick="showProtect();return false" data-i="protect">🔒 protect with password</a> · <a href="#" onclick="logout();return false" data-i="logout">log out</a><span id="lockState"></span></div>
   </div>
 
   <div class="card">
@@ -190,6 +211,14 @@ const L = {
     fee_low:(floor)=>`fee below the network minimum (${floor} CRB)`,
     history:"History",h_block:"Block",h_type:"Type",h_addr:"Address",h_amount:"Amount",loading:"loading…",network:"Network",connecting:"connecting…",
     e_keylen:"key must be a 64-char seed or a 128-char private key",err:"Error",copied:"Address copied",
+    protect:"🔒 protect with password",protected:"protected",
+    unlock_t:"Unlock wallet",unlock_p:"This wallet is password-protected. Enter your password to decrypt the key locally - it never leaves your browser.",
+    pw_ph:"Password",unlock_btn:"Unlock",forgot:"Forgot password? Re-import your seed.",
+    forgot_confirm:"Remove the encrypted key from this browser? You'll need to re-import your seed / private key to get back in.",
+    protect_t:"Protect with password",protect_p:"⚠️ Back up your private key first (use 'show private key'). The key is encrypted with this password and stored encrypted in your browser. If you forget the password you must re-import the key.",
+    pw_new_ph:"New password (min 8 chars)",pw_confirm_ph:"Confirm password",protect_btn:"Encrypt",
+    enc_short:"password too short (min 8 characters)",enc_mismatch:"passwords do not match",enc_done:"Wallet encrypted - you'll be asked for the password next time",
+    enc_wrong:"wrong password",enc_unavail:"encryption needs HTTPS (secure crypto unavailable here)",
     show_confirm:"Show the private key? Make sure nobody is looking at the screen.",your_key:"Your private key:",
     logout_confirm:"Remove the key from this browser? Without a saved copy you'll lose access to the coins.",
     out:"− sent",in_:"+ received",empty_hist:"empty so far - mine or receive your first CRB",pend:"pending",unconf:"Unconfirmed",loadmore:"Load more",showing:"showing",of:"of",
@@ -215,6 +244,14 @@ const L = {
     fee_low:(floor)=>`комиссия ниже сетевого минимума (${floor} CRB)`,
     history:"История",h_block:"Блок",h_type:"Тип",h_addr:"Адрес",h_amount:"Сумма",loading:"загрузка…",network:"Сеть",connecting:"подключение…",
     e_keylen:"ключ: 64-симв. seed или 128-симв. приватный ключ",err:"Ошибка",copied:"Адрес скопирован",
+    protect:"🔒 защитить паролем",protected:"под паролем",
+    unlock_t:"Разблокировать кошелёк",unlock_p:"Кошелёк защищён паролем. Введите пароль, чтобы расшифровать ключ локально - он не покидает браузер.",
+    pw_ph:"Пароль",unlock_btn:"Разблокировать",forgot:"Забыли пароль? Импортируйте сид заново.",
+    forgot_confirm:"Удалить зашифрованный ключ из этого браузера? Понадобится заново импортировать сид / приватный ключ.",
+    protect_t:"Защитить паролем",protect_p:"⚠️ Сначала сохраните приватный ключ (через 'показать приватный ключ'). Ключ будет зашифрован этим паролем и сохранён зашифрованным в браузере. Забудете пароль - придётся импортировать ключ заново.",
+    pw_new_ph:"Новый пароль (мин. 8 символов)",pw_confirm_ph:"Повторите пароль",protect_btn:"Зашифровать",
+    enc_short:"пароль слишком короткий (мин. 8 символов)",enc_mismatch:"пароли не совпадают",enc_done:"Кошелёк зашифрован - в следующий раз спросим пароль",
+    enc_wrong:"неверный пароль",enc_unavail:"шифрование требует HTTPS (надёжная криптография недоступна)",
     show_confirm:"Показать приватный ключ? Убедитесь, что никто не смотрит на экран.",your_key:"Ваш приватный ключ:",
     logout_confirm:"Удалить ключ из этого браузера? Без сохранённой копии ключа вы потеряете доступ к монетам.",
     out:"− отправка",in_:"+ получение",empty_hist:"пока пусто - намайните или получите первые CRB",pend:"в мемпуле",unconf:"Неподтверждённый",loadmore:"Показать ещё",showing:"показано",of:"из",
@@ -338,14 +375,16 @@ function exportKey(){
 
 function logout(){
   if (confirm(t('logout_confirm'))){
-    localStorage.removeItem('cereblix_sk'); location.reload();
+    localStorage.removeItem('cereblix_sk'); localStorage.removeItem('cereblix_skenc'); location.reload();
   }
 }
 
 function enterWallet(){
   $('setup').classList.add('hidden');
+  $('unlock').classList.add('hidden');
   $('main').classList.remove('hidden');
   $('myaddr').textContent = keys.address;
+  updateLockUI();
   refresh();
 }
 
@@ -564,10 +603,80 @@ async function cancelTx(nonce){
   } catch(e){ toast(t('err') + ': ' + e.message, 6000); }
 }
 
+// ---- key-at-rest encryption (opt-in, WebCrypto/HTTPS; backward-compatible) ----
+// Legacy raw key lives in localStorage['cereblix_sk']. Once the user opts in, the
+// key is encrypted (PBKDF2-SHA256 -> AES-256-GCM) and stored in ['cereblix_skenc']
+// while 'cereblix_sk' is removed; on load we ask for the password and decrypt
+// locally. The raw/legacy path is untouched so existing users are never locked out.
+const KDF_ITER = 210000;
+const cryptoOK = () => !!(window.crypto && window.crypto.subtle);
+const b64 = buf => btoa(String.fromCharCode.apply(null, new Uint8Array(buf)));
+const unb64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+async function deriveAes(password, salt, iter){
+  const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey({ name:'PBKDF2', salt, iterations:iter, hash:'SHA-256' }, base,
+    { name:'AES-GCM', length:256 }, false, ['encrypt','decrypt']);
+}
+async function encryptSk(secretHex, password){
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const aes = await deriveAes(password, salt, KDF_ITER);
+  const ct = await crypto.subtle.encrypt({ name:'AES-GCM', iv }, aes, new TextEncoder().encode(secretHex));
+  return JSON.stringify({ v:1, kdf:'PBKDF2-SHA256', iter:KDF_ITER, salt:b64(salt), iv:b64(iv), ct:b64(ct) });
+}
+async function decryptSk(blobStr, password){
+  const b = JSON.parse(blobStr);
+  const aes = await deriveAes(password, unb64(b.salt), b.iter || KDF_ITER);
+  const pt = await crypto.subtle.decrypt({ name:'AES-GCM', iv:unb64(b.iv) }, aes, unb64(b.ct));
+  return new TextDecoder().decode(pt);
+}
+function updateLockUI(){
+  const enc = !!localStorage.getItem('cereblix_skenc');
+  const pl = $('protectLink'); if (pl) pl.style.display = enc ? 'none' : '';
+  const ls = $('lockState'); if (ls) ls.textContent = enc ? ' · 🔒 ' + t('protected') : '';
+}
+function showProtect(){
+  if (!cryptoOK()){ toast(t('enc_unavail')); return; }
+  $('main').classList.add('hidden'); $('protect').classList.remove('hidden');
+  $('pw1').value = ''; $('pw2').value = ''; $('protectMsg').textContent = '';
+  setTimeout(()=>$('pw1').focus(), 50);
+}
+function cancelProtect(){ $('protect').classList.add('hidden'); $('main').classList.remove('hidden'); }
+async function doProtect(){
+  const p1 = $('pw1').value, p2 = $('pw2').value, msg = $('protectMsg'); msg.textContent = '';
+  if (p1.length < 8){ msg.textContent = t('enc_short'); return; }
+  if (p1 !== p2){ msg.textContent = t('enc_mismatch'); return; }
+  try {
+    const skHex = hex(keys.secretKey);
+    const blob = await encryptSk(skHex, p1);
+    if (await decryptSk(blob, p1) !== skHex) throw new Error('verify');  // never persist a blob that won't decrypt back to the exact key
+    localStorage.setItem('cereblix_skenc', blob);
+    localStorage.removeItem('cereblix_sk');
+    cancelProtect(); updateLockUI(); toast(t('enc_done'));
+  } catch(e){ msg.textContent = t('err') + ': ' + e.message; }
+}
+async function unlock(){
+  const msg = $('unlockMsg'); msg.textContent = '';
+  try {
+    const skHex = await decryptSk(localStorage.getItem('cereblix_skenc'), $('unlockPw').value);
+    await setKeys(skHex);
+    $('unlock').classList.add('hidden'); enterWallet();
+  } catch(e){ msg.textContent = t('enc_wrong'); }
+}
+function forgotPw(){
+  if (confirm(t('forgot_confirm'))){ localStorage.removeItem('cereblix_skenc'); location.reload(); }
+}
+
 (async function init(){
   applyChrome();
-  const saved = localStorage.getItem('cereblix_sk');
-  if (saved) { try { await setKeys(saved); enterWallet(); } catch(e){ localStorage.removeItem('cereblix_sk'); } }
+  if (localStorage.getItem('cereblix_skenc')) {
+    $('setup').classList.add('hidden');
+    $('unlock').classList.remove('hidden');
+    setTimeout(()=>{ const u = $('unlockPw'); if (u) u.focus(); }, 50);
+  } else {
+    const saved = localStorage.getItem('cereblix_sk');
+    if (saved) { try { await setKeys(saved); enterWallet(); } catch(e){ localStorage.removeItem('cereblix_sk'); } }
+  }
   netInfo();
   setInterval(netInfo, 15000);
   setInterval(refresh, 15000);
