@@ -142,9 +142,11 @@ func fetchWork(addr, worker string) (*poolWork, error) {
 	return &w, nil
 }
 
-// submitToPool forwards a solved nonce to the pool. Returns (accepted, message).
-func submitToPool(poolID string, nonce uint64) (bool, string) {
-	body, _ := json.Marshal(map[string]any{"id": poolID, "nonce": strconv.FormatUint(nonce, 10)})
+// submitToPool forwards a solved nonce to the pool. shareTarget is the per-miner vardiff target the
+// bridge currently serves this connection; the pool credits the share at THAT difficulty (assigned-
+// difficulty / fair PPLNS) instead of holding everyone to its full share target. Returns (accepted, msg).
+func submitToPool(poolID, shareTarget string, nonce uint64) (bool, string) {
+	body, _ := json.Marshal(map[string]any{"id": poolID, "nonce": strconv.FormatUint(nonce, 10), "sharetarget": shareTarget})
 	resp, err := httpClient.Post(poolAPI+"/submitwork", "application/json", strings.NewReader(string(body)))
 	if err != nil {
 		return false, "pool unreachable"
@@ -405,6 +407,7 @@ func (c *client) handleSubmit(id any, params json.RawMessage) {
 		poolID = c.jobs[c.curJobID]
 	}
 	ex := c.extranonce
+	tgt := c.lastTgtHex // the per-miner vardiff target currently served; the pool credits this share at it
 	staleJob := p.JobID != "" && p.JobID != c.curJobID // miner is mining a job the bridge already replaced
 	c.jobMu.Unlock()
 	if poolID == "" {
@@ -432,7 +435,7 @@ func (c *client) handleSubmit(id any, params json.RawMessage) {
 	if soloMode {
 		c.handleSubmitSolo(id, poolID, full, t0)
 	} else {
-		c.handleSubmitPool(id, poolID, full, t0)
+		c.handleSubmitPool(id, poolID, tgt, full, t0)
 	}
 }
 
@@ -442,8 +445,8 @@ func (c *client) handleSubmit(id any, params json.RawMessage) {
 // feedback share so strict miners (SRBMiner) stay connected. Crediting is unchanged: the
 // pool still counts only nonces that meet its real share target, so pool accounting and
 // payouts are untouched.
-func (c *client) handleSubmitPool(id any, poolID string, full uint64, t0 time.Time) {
-	accepted, msg := submitToPool(poolID, full)
+func (c *client) handleSubmitPool(id any, poolID, shareTarget string, full uint64, t0 time.Time) {
+	accepted, msg := submitToPool(poolID, shareTarget, full)
 	rtt := time.Since(t0).Milliseconds()
 	if diag {
 		switch {

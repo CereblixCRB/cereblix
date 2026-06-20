@@ -44,7 +44,7 @@ import (
 // stratumVersion is this bridge binary's release version. The updater installs a
 // strictly-newer one named in the authority-signed stratum manifest. Bump it on
 // every bridge release and publish a matching stratum-upgrade.json.
-const stratumVersion = "1.1"
+const stratumVersion = "1.3"
 
 // productGuard is the filename substring a stratum binary URL must contain before
 // we will swap ourselves with it (see file header).
