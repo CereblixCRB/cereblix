@@ -153,6 +153,9 @@ function applyLang(l){
 function setLang(l){ localStorage.setItem('lang',l); applyLang(l); }
 const t = k => LANG==='en' ? (EN[k]??k) : (I.ru[k]??EN[k]??k);
 
+// Two modes: pool (steady share rewards) and solo (whole blocks straight to the
+// node - a lottery). They only differ in the endpoint and, for the pool, an
+// extranonce that binds each share to your address.
 const BASES={pool:'pool/api', solo:'api'};
 let MODE=localStorage.getItem('mine_mode')||'pool';
 const api=()=>BASES[MODE];
@@ -165,17 +168,20 @@ function updateFoundLabel(){
     : (LANG==='ru'?'найдено блоков':'blocks found');
 }
 function setMode(m){
-  if(running) return;                       
+  if(running) return;                       // can't switch mid-mining
   MODE=m; localStorage.setItem('mine_mode',m);
   document.querySelectorAll('#modeseg button').forEach(b=>b.classList.toggle('on',b.dataset.mode===m));
   updateFoundLabel();
 }
 function log(msg,cls){ const el=$('log'); const d=document.createElement('div'); if(cls)d.className=cls; d.textContent='['+new Date().toLocaleTimeString()+'] '+msg; el.appendChild(d); el.scrollTop=el.scrollHeight; }
 
+// thread options. The ceiling is the CPU core count (more threads than cores
+// gives no speedup) - not RAM. A memory guard keeps each worker's ~64 MiB
+// dataset within the device's budget.
 (function(){
   const cores = navigator.hardwareConcurrency || 4;
-  let max = Math.min(cores, 16);              
-  const memGB = navigator.deviceMemory;       
+  let max = Math.min(cores, 16);              // real limit = cores (16 = sanity cap)
+  const memGB = navigator.deviceMemory;       // spec-capped at 8
   if (memGB) max = Math.min(max, Math.max(1, Math.floor(memGB * 1024 * 0.4 / 80)));
   const mobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
   const def = Math.max(1, Math.min(max, mobile ? Math.ceil(cores/2) : cores));
@@ -196,7 +202,9 @@ async function submit(id,nonce){
 
 function dispatch(work){
   curWork = work;
-  
+  // Nonce layout: [extranonce:16][worker:bits 40+][counter]. In pool mode the
+  // extranonce (top 16 bits) is pinned so every share is bound to your address;
+  // solo mode uses extranonce 0. Each worker gets a disjoint 2^40 counter band.
   const ex = BigInt(work.extranonce || 0);
   workers.forEach((w,i)=>{
     const base = ((ex << 48n) + (BigInt(i) << 40n)).toString();
@@ -221,12 +229,12 @@ function onMsg(e){
   else if(m.type==='found'){
     submit(m.id, m.nonce).then(res=>{
       if(res.error){ log((MODE==='pool'?'share rejected: ':'rejected: ')+res.error,'err'); return; }
-      if(res.result==='stale'||res.result==='duplicate') return;     
-      if(res.result==='share'){                                       
+      if(res.result==='stale'||res.result==='duplicate') return;     // transient, ignore
+      if(res.result==='share'){                                       // pool: a share
         found++; $('found').textContent=found;
         if(res.block){ log('★ your share also solved a BLOCK for the pool!','ok'); poll(); }
         else log('share accepted (#'+found+')','ok');
-      } else {                                                        
+      } else {                                                        // solo: a real block
         found++; $('found').textContent=found;
         log('BLOCK FOUND! '+(res.hash||'').slice(0,20)+'…','ok'); poll();
       }

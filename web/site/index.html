@@ -32,7 +32,7 @@ body{background:var(--bg);color:var(--txt);font:16px/1.65 'Inter',system-ui,Sego
 [id]{scroll-margin-top:78px}
 a{color:var(--acc)}
 ::selection{background:rgba(34,211,238,.28)}
-
+/* ---- animated background ---- */
 .bg{position:fixed;inset:0;z-index:-2;overflow:hidden;background:
   radial-gradient(1200px 720px at 50% -12%,#13234a 0%,transparent 60%),
   radial-gradient(820px 560px at 100% -4%,#1c1440 0%,transparent 55%),
@@ -48,10 +48,10 @@ a{color:var(--acc)}
 .grain{position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.035;mix-blend-mode:overlay;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
 @media(prefers-reduced-motion:reduce){.aurora{animation:none}}
 .wrap{max-width:1040px;margin:0 auto;padding:0 18px}
-
+/* ---- logo ---- */
 .logo{flex:0 0 auto;display:block}
 .brand .logo{width:34px;height:34px;filter:drop-shadow(0 4px 13px rgba(34,211,238,.4))}
-
+/* ---- nav ---- */
 .navwrap{position:sticky;top:0;z-index:50;backdrop-filter:blur(14px) saturate(1.5);-webkit-backdrop-filter:blur(14px) saturate(1.5);background:rgba(6,8,15,.6);border-bottom:1px solid var(--border)}
 nav{display:flex;align-items:center;gap:14px;padding:11px 0;flex-wrap:wrap}
 nav .brand{display:flex;align-items:center;gap:11px;text-decoration:none;color:var(--txt)}
@@ -68,7 +68,7 @@ nav .links a.minecta:hover{color:#ffe2a3;border-color:rgba(255,206,90,.85);box-s
 .langsw{display:inline-flex;gap:2px;border:1px solid var(--border);border-radius:9px;overflow:hidden;background:var(--glass)}
 .langsw button{background:transparent;color:var(--mut);border:0;padding:5px 10px;cursor:pointer;font-size:13px;font-weight:600;font-family:inherit}
 .langsw button.on{background:var(--grad);color:#06121f}
-
+/* ---- buttons ---- */
 .btn{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:8px;font-family:var(--fd);font-weight:700;font-size:15px;line-height:1.2;padding:12px 22px;border-radius:13px;text-decoration:none;cursor:pointer;color:#06121f;background:var(--grad);box-shadow:0 8px 22px -6px rgba(34,211,238,.5);transition:transform .15s,box-shadow .15s,filter .15s;border:0}
 .btn:hover{transform:translateY(-2px);box-shadow:0 14px 30px -6px rgba(34,211,238,.62);filter:brightness(1.05)}
 .btn.ghost{background:var(--glass);color:var(--txt);border:1px solid var(--border);box-shadow:none;backdrop-filter:blur(6px)}
@@ -85,7 +85,7 @@ nav .links a.minecta:hover{color:#ffe2a3;border-color:rgba(255,206,90,.85);box-s
 .soc:hover{border-color:var(--acc);color:var(--acc);transform:translateY(-2px)}
 .soc svg{width:21px;height:21px;fill:currentColor;flex:0 0 auto}
 .soc span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
-
+/* ---- hero ---- */
 .hero{position:relative;padding:74px 0 34px;text-align:center}
 .hero-logo{display:flex;justify-content:center;margin-bottom:22px}
 .hero-logo .logo{width:64px;height:64px;filter:drop-shadow(0 8px 26px rgba(123,167,255,.5))}
@@ -95,10 +95,10 @@ nav .links a.minecta:hover{color:#ffe2a3;border-color:rgba(255,206,90,.85);box-s
 .hero h1{font-family:var(--fd);font-size:clamp(33px,6vw,58px);font-weight:700;line-height:1.07;letter-spacing:-.025em;max-width:920px;margin:0 auto 20px}
 .hero h1 em{font-style:normal;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
 .hero p{color:var(--mut);max-width:680px;margin:0 auto 30px;font-size:clamp(15px,2.2vw,19px)}
-
+/* RU text is longer - shrink it so the hero (and the Telegram button) fits one screen */
 html[lang="ru"] .hero h1{font-size:clamp(26px,4.5vw,43px)}
 html[lang="ru"] .hero p{font-size:clamp(14px,1.9vw,16.5px);max-width:640px;margin-bottom:24px}
-
+/* ---- stats ---- */
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(140px,100%),1fr));gap:13px;margin:42px 0 6px}
 .stat{position:relative;background:var(--glass);border:1px solid var(--border);border-radius:16px;padding:18px 10px;text-align:center;backdrop-filter:blur(8px);transition:transform .2s,border-color .2s}
 .stat::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;background:var(--grad);opacity:.75;border-radius:16px 16px 0 0}
@@ -115,7 +115,7 @@ html[lang="ru"] .hero p{font-size:clamp(14px,1.9vw,16.5px);max-width:640px;margi
 .qmark .tip b{color:var(--acc)}
 .qmark .tip .ep-next{display:block;margin-top:7px;color:var(--acc2);font-weight:600}
 .qmark:hover .tip,.qmark:focus .tip{display:block}
-
+/* ---- sections ---- */
 section{padding:54px 0;position:relative}
 h2{font-family:var(--fd);font-size:clamp(26px,4vw,34px);font-weight:700;letter-spacing:-.02em;margin-bottom:24px}
 h2 em{font-style:normal;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
@@ -125,7 +125,7 @@ h2 em{font-style:normal;background:var(--grad);-webkit-background-clip:text;back
 .card h3{font-family:var(--fd);font-size:18px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:10px}
 .card h3 .ico{font-size:21px;flex:0 0 auto}
 .card p{color:var(--mut);font-size:15px}
-
+/* ---- mine hub ---- */
 .mine-choose{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr));gap:16px;margin-bottom:22px}
 .mine-card{position:relative;display:block;background:var(--glass);border:1px solid var(--border);border-radius:18px;padding:24px;text-decoration:none;color:var(--txt);backdrop-filter:blur(8px);overflow:hidden;transition:border-color .15s,transform .15s}
 .mine-card::before{content:"";position:absolute;inset:0;background:radial-gradient(420px 160px at 50% 0%,rgba(34,211,238,.1),transparent 70%);opacity:0;transition:opacity .2s}
@@ -135,7 +135,7 @@ h2 em{font-style:normal;background:var(--grad);-webkit-background-clip:text;back
 .mine-card b{font-family:var(--fd);font-size:18px;display:block}
 .mine-card p{color:var(--mut);font-size:14.5px;margin:8px 0 12px}
 .mine-card .mc-go{color:var(--acc);font-weight:700;font-size:14.5px}
-
+/* ---- steps ---- */
 .steps{counter-reset:s}
 .step{display:flex;gap:16px;margin-bottom:18px;background:var(--glass);border:1px solid var(--border);border-radius:16px;padding:18px;backdrop-filter:blur(8px)}
 .step>div{min-width:0;flex:1}
@@ -159,7 +159,7 @@ footer .social a:hover{text-decoration:underline}
 footer .foot-line{margin:0 auto 6px;max-width:640px;line-height:1.6}
 footer .foot-sub{margin:0 auto;max-width:640px;line-height:1.6;opacity:.75}
 .warn{background:linear-gradient(135deg,rgba(167,139,250,.12),rgba(34,211,238,.06));border:1px solid var(--border2);border-radius:14px;padding:14px 18px;font-size:14.5px;color:#cbd5e1;margin-top:18px;backdrop-filter:blur(6px)}
-
+/* DNA double helix - the "-lix" (helix) in Cereblix, the self-mutating chain */
 .dna{display:flex;justify-content:center;align-items:center;gap:7px;height:64px;margin:26px 0 8px;overflow:hidden}
 .dna .bp{position:relative;width:3px;height:46px;flex:0 0 auto}
 .dna .bp i{position:absolute;left:50%;width:9px;height:9px;margin-left:-4.5px;border-radius:50%;animation:dna 3s ease-in-out infinite}
@@ -179,7 +179,7 @@ footer .foot-sub{margin:0 auto;max-width:640px;line-height:1.6;opacity:.75}
 .naming .tag2 b{color:var(--acc)}
 @media(max-width:560px){.naming .gloss{grid-template-columns:1fr}}
 @media(max-width:560px){.aurora{filter:blur(70px)}.aurora.a3{display:none}}
-
+/* roadmap */
 .rm-intro{color:var(--mut);margin-bottom:6px;max-width:710px;font-size:16px}
 .horizon{margin:30px 0 0}
 .hz{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin:0 0 14px}
@@ -493,7 +493,7 @@ footer .foot-sub{margin:0 auto;max-width:640px;line-height:1.6;opacity:.75}
 
 <script>
 const I18N = {
-  en: {},  
+  en: {},  // English is the source text in the HTML; en = identity
   ru: {
     nav_home:"Главная", nav_mine:"⛏️ Как майнить?", nav_webmine:"Веб-майнинг", nav_pool:"Пул", nav_explorer:"Обозреватель", nav_wallet:"Кошелёк", nav_faucet:"Кран", nav_p2p:"P2P", nav_roadmap:"Дорожная карта",
     rm_h2:'Дорожная <em>карта</em>',
@@ -618,14 +618,14 @@ function detectLang(){
   if (saved === 'ru' || saved === 'en') return saved;
   return (navigator.language || 'en').toLowerCase().startsWith('ru') ? 'ru' : 'en';
 }
-
+// Snapshot the original English HTML so switching back to EN restores it.
 const EN_CACHE = {};
 function applyLang(lang){
   document.documentElement.lang = lang;
   document.querySelectorAll('[data-i],[data-i-html]').forEach(el=>{
     const key = el.getAttribute('data-i') || el.getAttribute('data-i-html');
     const html = el.hasAttribute('data-i-html');
-    if (!(key in EN_CACHE)) EN_CACHE[key] = el.innerHTML; 
+    if (!(key in EN_CACHE)) EN_CACHE[key] = el.innerHTML; // first pass = English source
     let val = lang === 'en' ? EN_CACHE[key] : (I18N.ru[key] ?? EN_CACHE[key]);
     el.innerHTML = val;
   });
@@ -645,7 +645,7 @@ async function load(){
     document.getElementById('s-supply').textContent = fmt(s.supply);
     document.getElementById('s-reward').textContent = fmt(s.reward) + ' CRB';
     document.getElementById('s-epoch').textContent = s.epoch;
-    
+    // Epoch countdown for the "?" tooltip.
     const EPOCH = 4096, nextB = (s.epoch + 1) * EPOCH, rem = nextB - s.height;
     const hrs = Math.round(rem * 60 / 3600), ru = document.documentElement.lang === 'ru';
     const en = document.getElementById('epoch-next');
@@ -667,7 +667,8 @@ function tick(){
   const ru = document.documentElement.lang==='ru';
   el.textContent = age < 60 ? age + (ru?' с':'s') : Math.floor(age/60) + (ru?' м ':'m ') + (age%60) + (ru?' с':'s');
 }
-
+// Build the DNA double helix: each base pair is a column whose two dots
+// animate in opposite sine phase; per-column delay creates the rotating helix.
 function buildDNA(el, count){
   if(!el) return;
   let html='';

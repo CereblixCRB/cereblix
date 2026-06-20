@@ -61,7 +61,7 @@ h1{font-family:var(--fd);font-size:clamp(24px,5vw,30px);font-weight:700;letter-s
 .ndtable th,.ndtable td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--border);vertical-align:top}
 .ndtable th{color:var(--mut);font-weight:600;font-family:var(--fd)}
 .ndtable td code{font-size:12.5px;color:#cbd5e1}
-
+/* prominent region node cards */
 .ndgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(218px,1fr));gap:12px;margin:12px 0 6px}
 .ndc{background:linear-gradient(165deg,rgba(255,206,90,.07),rgba(146,180,255,.02));border:1px solid var(--border);border-radius:16px;padding:15px 16px 14px;transition:border-color .15s,transform .15s,box-shadow .2s}
 .ndc:hover{border-color:rgba(255,206,90,.5);transform:translateY(-2px);box-shadow:0 16px 34px -20px rgba(255,206,90,.5)}
@@ -246,7 +246,7 @@ function applyLang(l){
   document.querySelectorAll('.langsw button').forEach(b=>b.classList.toggle('on',b.dataset.lang===l));
 }
 function setLang(l){ localStorage.setItem('lang',l); applyLang(l); }
-
+// Click-to-copy for the node endpoint cards (clipboard API + execCommand fallback).
 function cpy(el){
   const txt=el.getAttribute('data-cp')||''; if(!txt) return;
   const done=()=>{ el.classList.add('copied'); const i=el.querySelector('.ci'); const o=i?i.textContent:''; if(i)i.textContent='✓'; setTimeout(()=>{ el.classList.remove('copied'); if(i)i.textContent=o; },1100); };

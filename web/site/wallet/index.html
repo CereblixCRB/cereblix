@@ -165,17 +165,18 @@ th{color:var(--mut);font-weight:600}
 <script>
 const API = location.pathname.replace(/wallet\/?.*/, '') + 'api';
 const UNIT = 1e8;
-let keys = null; 
-let feeEdited = false; 
-let feeFloor = 0, feeSuggested = 0; 
-
+let keys = null; // {secretKey: Uint8Array(64), publicKey: Uint8Array(32), address}
+let feeEdited = false; // becomes true once the user types a custom fee
+let feeFloor = 0, feeSuggested = 0; // latest network min / recommended fee (synapses)
+// Transaction history paging: the live top page (refreshed) + older pages the
+// user loads on demand, so every tx is reachable without huge node payloads.
 const HIST_PAGE = 30;
 let histRecent = [], histExtra = [], histPendingRows = '', histTotal = 0, histLoading = false;
 
 const $ = id => document.getElementById(id);
 const hex = b => Array.from(b).map(x=>x.toString(16).padStart(2,'0')).join('');
 const unhex = s => { const m = (s||'').match(/.{2}/g); return m ? new Uint8Array(m.map(x=>parseInt(x,16))) : new Uint8Array(0); };
-
+// Escape server-provided strings before putting them in innerHTML (defense in depth).
 const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
 
 const L = {
@@ -244,6 +245,8 @@ function applyChrome(){
 
 function toast(msg, ms=3500){ const t=$('toast'); t.textContent=msg; t.style.display='block'; clearTimeout(t._h); t._h=setTimeout(()=>t.style.display='none',ms); }
 
+// Pure-JS SHA-256: WebCrypto (crypto.subtle) is unavailable on plain HTTP,
+// so we never depend on it.
 function sha256(data){
   const K = [0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
     0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
@@ -295,11 +298,19 @@ async function setKeys(secretHex){
   const h = (secretHex || '').trim().toLowerCase().replace(/^0x/, '');
   if (!/^[0-9a-f]+$/.test(h) || (h.length !== 128 && h.length !== 64)) throw new Error(t('e_keylen'));
   const raw = unhex(h);
-  
+  // An ed25519 secret key is seed(32) || public(32). ALWAYS re-derive the public
+  // key from the SEED rather than trusting a stored public half: a key whose
+  // public half doesn't match its seed yields an address that can receive but
+  // can NEVER sign ("invalid signature"). fromSeed guarantees they correspond,
+  // and also lets you import a bare 32-byte (64 hex) seed.
   const kp = nacl.sign.keyPair.fromSeed(raw.slice(0, 32));
   keys = { secretKey: kp.secretKey, publicKey: kp.publicKey, address: await addrFromPub(kp.publicKey) };
 }
 
+// Refuse to mint a key unless a cryptographically secure RNG is present.
+// crypto.getRandomValues IS available on plain HTTP (unlike crypto.subtle);
+// real TweetNaCl uses it and throws without it - this guards against a tampered
+// or stripped build silently seeding keys from a weak source.
 function assertCSPRNG(){
   if (!(window.crypto && typeof window.crypto.getRandomValues === 'function'))
     throw new Error(LANG==='ru'
@@ -367,11 +378,11 @@ async function refresh(){
     window._spendableSyn = (b.spendable != null) ? b.spendable : (b.balance||0); updateSendTotal();
     histRecent = await api('/history?addr=' + keys.address + '&limit=' + HIST_PAGE + '&offset=0').catch(()=>[]) || [];
     histTotal = b.txn != null ? b.txn : histRecent.length;
-    
+    // pending (unconfirmed) txns from the mempool that involve this address
     let mp = []; try { mp = await api('/mempool') || []; } catch(e){}
     const pendBadge = `<span style="background:#7a5b12;color:#ffd97a;border-radius:6px;padding:1px 6px;font-size:11px">${t('pend')}</span>`;
     let delta = 0;
-    window._pendOut = {}; 
+    window._pendOut = {}; // nonce -> {to,amount,fee} for replace-by-fee actions
     const pr = (mp||[]).filter(x => x.to === keys.address || x.from_pub === myPub).map(x => {
       const out = x.from_pub === myPub;
       const peer = out ? x.to : ('crb1' + hex(sha256(unhex(x.from_pub)).slice(0,20)));
@@ -396,6 +407,8 @@ async function refresh(){
   } catch(e){ console.error(e); }
 }
 
+// renderHistory composes pending + the live top page + on-demand older pages,
+// de-duplicated by txid, with a "load more" control until every tx is shown.
 function renderHistory(){
   const seen = new Set();
   const confirmed = histRecent.concat(histExtra).filter(h => {
@@ -430,7 +443,10 @@ async function loadMoreHist(){
 }
 
 const toCrb = s => (s / UNIT).toFixed(8).replace(/0+$/, '').replace(/\.$/, '');
-
+// Parse a CRB decimal string to integer synapses (1 CRB = 1e8) WITHOUT float
+// error: accepts a comma or dot separator (so RU "1,5" is not silently read as
+// 1), rejects junk / negatives / >8 decimals / amounts too large to represent
+// exactly. Returns NaN on bad input.
 function crbToSynapses(str){
   const s = (str==null?'':String(str)).trim().replace(',', '.');
   if (s === '' || s === '.' || !/^\d*\.?\d*$/.test(s)) return NaN;
@@ -458,10 +474,15 @@ async function netInfo(){
   } catch(e){ $('netinfo').textContent = t('node_down') + e.message; }
 }
 
+// signAndPost builds, locally signs and broadcasts one transaction. nonce is
+// explicit so a replacement can reuse a pending tx's nonce (replace-by-fee).
 async function signAndPost(to, amount, fee, nonce){
   const st = await api('/status');
   const tx = { from_pub: hex(keys.publicKey), to, amount, fee, nonce };
-  
+  // Consensus signing payload - must match the Go node's Tx.signingPayloadFor
+  // verbatim ("cerebra-tx-v1"; a protocol constant, not the brand). From
+  // chain_id_height the payload also binds chain_id (the genesis hash) so a
+  // signature cannot be replayed onto a fork/testnet. Sign for the next block.
   const nextHeight = (st.height || 0) + 1;
   const payload = (st.chain_id && nextHeight >= st.chain_id_height)
     ? `cerebra-tx-v1|${st.chain_id}|${tx.from_pub}|${tx.to}|${tx.amount}|${tx.fee}|${tx.nonce}`
@@ -492,12 +513,20 @@ async function sendTx(){
   finally { $('sendBtn').disabled = false; }
 }
 
+// bumpFee returns a fee that clears the node's replace-by-fee bar (old +10%, at
+// least +1 synapse), or the current network recommendation if it is higher.
 function bumpFee(oldFee){
   let mn = oldFee + Math.floor(oldFee/10);
   if (mn <= oldFee) mn = oldFee + 1;
   return Math.max(mn, feeSuggested||0);
 }
 
+// speedUp / cancelTx replace a still-pending outgoing tx via replace-by-fee:
+// speed-up re-sends the same payment at a higher fee; cancel replaces it with a
+// 0-value self-send at the same nonce so the original never executes.
+// fee tiers from the live mempool fee distribution — honest competition-based estimate.
+// p50 = median pending fee (~50% chance you outbid enough to make the next block);
+// p99 = 95th percentile (you outbid almost every waiting tx → ~99% next block).
 function _pctl(a,p){return a.length?a[Math.min(a.length-1,Math.floor(p*a.length))]:0}
 async function feeTiers(minFee){
   let mp=[]; try{ mp=await api('/mempool')||[]; }catch(e){}
@@ -508,7 +537,7 @@ async function feeTiers(minFee){
   const p99=Math.max(_pctl(fees,0.95), p50+Math.max(1,Math.ceil(p50/10)), fl);
   return {p50, p99};
 }
-
+// send-form fee tier quick-picks: fill the fee field + show each tier's fee amount
 async function updateFeeTiers(){
   let ti; try{ ti=await feeTiers(feeFloor); }catch(e){ return; } window._sendTiers=ti;
   const g=id=>document.getElementById(id);
@@ -520,7 +549,8 @@ function pickFee(which){
   const fee = which==='p99'?ti.p99:ti.p50;
   const el=document.getElementById('sendFee'); if(el){ el.value=toCrb(fee); feeEdited=true; updateSendTotal(); }
 }
-
+// live total-to-debit: the fee is ALWAYS charged ON TOP of the amount; block the send when the
+// balance can't cover amount+fee (the recipient always gets the full amount, never net of fee).
 function updateSendTotal(){
   const el=document.getElementById('sendTotal'); const btn=document.getElementById('sendBtn'); if(!el) return;
   const amt=crbToSynapses(document.getElementById('sendAmount').value)||0;
@@ -535,7 +565,7 @@ function updateSendTotal(){
 let _suCtx=null;
 async function speedUp(nonce){
   const p=(window._pendOut||{})[nonce]; if(!p) return;
-  const minFee=p.fee+Math.max(1,Math.floor(p.fee/10)); 
+  const minFee=p.fee+Math.max(1,Math.floor(p.fee/10)); // RBF: must beat the old fee
   const ti=await feeTiers(minFee); _suCtx={nonce,p,ti};
   const g=id=>document.getElementById(id);
   g('sp_mid').innerHTML=`<b style="font-size:15px">~50%</b> <span style="color:var(--mut);font-size:12.5px">${t('su_next')}</span><div style="color:var(--acc);font-weight:700;margin-top:3px">${t('su_fee')}: ${toCrb(ti.p50)} CRB</div>`;
@@ -557,7 +587,8 @@ async function cancelTx(nonce){
   const fee = bumpFee(p.fee);
   if (!confirm(t('cancel_confirm')(toCrb(fee)))) return;
   try {
-    
+    // Consensus rejects a 0-amount tx, so cancel with the smallest valid amount
+    // (1 synapse) paid back to yourself - only the fee is actually spent.
     const res = await signAndPost(keys.address, 1, fee, +nonce);
     toast(t('canceled')(res.txid.slice(0,16)));
     setTimeout(refresh, 1500);
