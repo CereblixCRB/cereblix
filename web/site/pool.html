@@ -53,7 +53,7 @@ nav .links a.minecta:hover{color:#ffe2a3;border-color:rgba(255,206,90,.85);box-s
 .endp .egrp:first-child{margin-top:0}
 .endp .egrp.pool{color:var(--ok)}
 .endp .egrp.solo{color:var(--acc2)}
-/* prominent region node cards */
+
 .ndband{display:flex;align-items:center;gap:9px;font-family:var(--fd);font-weight:700;font-size:14.5px;margin:20px 0 11px;padding:10px 14px;border-radius:12px;flex-wrap:wrap}
 .ndband.stratum{color:#ffe9bd;background:linear-gradient(135deg,rgba(255,206,90,.16),rgba(34,211,238,.05));border:1px solid rgba(255,206,90,.42)}
 .ndband.native{color:var(--mut);background:var(--glass);border:1px solid var(--border)}
@@ -302,8 +302,7 @@ function setLang(l){localStorage.setItem('lang',l);applyLang(l);}
 const t=k=>LANG==='en'?(EN[k]??k):(I.ru[k]??EN[k]??k);
 
 const POOL='pool/api', NODE='api';
-// Click-to-copy for the node endpoint cards. Copies the data-cp value (clipboard
-// API, with an execCommand fallback) and flashes a ✓ on the tapped chip.
+
 function cpy(el){
   const txt=el.getAttribute('data-cp')||''; if(!txt) return;
   const done=()=>{ el.classList.add('copied'); const i=el.querySelector('.ci'); const o=i?i.textContent:''; if(i)i.textContent='✓'; setTimeout(()=>{ el.classList.remove('copied'); if(i)i.textContent=o; },1100); };
@@ -313,9 +312,9 @@ function cpy(el){
 function fbCopy(t,cb){ try{ const a=document.createElement('textarea'); a.value=t; a.style.position='fixed'; a.style.opacity='0'; document.body.appendChild(a); a.select(); document.execCommand('copy'); document.body.removeChild(a); cb(); }catch(e){} }
 const $=id=>document.getElementById(id);
 const U=1e8;
-// Network & pool TOTALS are always shown in MH/s (fixed unit).
+
 function fmtMH(h){h=+h||0; return (h/1e6).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})+' MH/s';}
-// Per-miner hashrate scales: kH/s normally, MH/s once a miner crosses 1 MH/s.
+
 function fmtHR(h){h=+h||0; return h>=1e6 ? (h/1e6).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})+' MH/s' : (h/1e3).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})+' kH/s';}
 function fmtCRB(v){return ((+v||0)/U).toLocaleString(undefined,{maximumFractionDigits:4})+' CRB';}
 function fmtCRBint(v){return Math.floor((+v||0)/U).toLocaleString(undefined,{maximumFractionDigits:0})+' CRB';}
@@ -328,12 +327,11 @@ function calcMining(){
   const unit=+(($('calc_unit')&&$('calc_unit').value)||1);
   const hr=v*unit, ru=LANG==='ru';
   if(hr<=0){ out.innerHTML='<span class="muted">'+(ru?'Введите ваш хешрейт выше.':'Enter your hashrate above.')+'</span>'; return; }
-  const netHR=(NET&&+NET.difficulty)?(+NET.difficulty)/60:((NET&&+NET.hashrate)||0); // difficulty-implied net hashrate (stable)
+  const netHR=(NET&&+NET.difficulty)?(+NET.difficulty)/60:((NET&&+NET.hashrate)||0); 
   if(netHR<=0){ out.innerHTML='<span class="muted">'+(ru?'Загрузка данных сети…':'Loading network data…')+'</span>'; return; }
   const reward=(NET&&+NET.reward?+NET.reward:50*U)/U;
   const fee=(LAST&&+LAST.fee_permil?+LAST.fee_permil:10)/1000;
-  // your share = your hashrate / (current network + you) - you ADD to the network, so it
-  // can never exceed ~100% (caps total at 1440 blocks/day = the whole network emission).
+  
   const share=hr/(netHR+hr), blocksDay=share*1440, poolDay=blocksDay*reward*(1-fee);
   const nf=(x,d)=>x.toLocaleString(undefined,{maximumFractionDigits:d});
   let html='<div style="margin:2px 0"><span class="muted">'+(ru?'🟢 В пуле':'🟢 Pool')+': </span><b>≈ '+nf(poolDay,4)+' CRB</b> '+(ru?'/ сутки':'/ day')+' <span class="muted">('+(ru?'стабильно, −'+nf(fee*100,0)+'% комиссия':'steady, −'+nf(fee*100,0)+'% fee')+')</span></div>';
@@ -353,8 +351,7 @@ function calcMining(){
 
 let LAST=null, NET=null;
 async function poll(){
-  // Fetch each source independently so one failing never blocks the other or
-  // wedges the page on "Loading…".
+  
   try{ LAST = await (await fetch(POOL+'/poolstats',{cache:'no-store'})).json(); }
   catch(e){ if(!LAST){ const mb=$('minerbox'); if(mb) mb.innerHTML='<div class="empty">'+(LANG==='ru'?'Не удалось загрузить статистику пула, повтор…':'Could not load pool stats, retrying…')+'</div>'; } }
   try{ NET = await (await fetch(NODE+'/status',{cache:'no-store'})).json(); }catch(e){}
@@ -366,7 +363,7 @@ async function poll(){
 }
 function render(){
   const s=LAST; if(!s) return;
-  // Each section is isolated: a failure in one never leaves another stuck.
+  
   try{ renderStats(s); }catch(e){}
   try{ renderMiners(s); }catch(e){ const mb=$('minerbox'); if(mb) mb.innerHTML='<div class="empty">—</div>'; }
   try{ renderMinerInfo(s); }catch(e){}
@@ -388,9 +385,7 @@ function renderStats(s){
   const a=$('addr'), av=a?a.value.trim():'';
   if($('cmd')) $('cmd').textContent='cereblix-miner -addr '+(/^crb1[0-9a-f]{40}$/.test(av)?av:'crb1YOURADDRESS')+' -node https://cereblix.com/pool/api';
 }
-// Miners arrive in one poolstats fetch, so paging is client-side (no extra load).
-// Default view hides idle sub-threshold/paid-out miners; "Show all" reveals every
-// miner the pool has ever credited, paged, so anyone can audit the full set.
+
 const MINERS_PER = 50;
 let minerPage = 0, showAllMiners = false;
 function minerList(s){
@@ -423,10 +418,9 @@ function renderMiners(s){
 }
 function minerPageNav(d){ minerPage+=d; render(); }
 function toggleAllMiners(){ showAllMiners=!showAllMiners; minerPage=0; render(); }
-// Click a miner row -> open that wallet's full view (balance + tx history) in the explorer.
+
 function openWallet(a){ a=String(a||''); if(/^crb1[0-9a-f]{40}$/i.test(a)) location.href='/explorer#addr/'+a; }
-// Per-miner wallet info (balance) is fetched once per address from the node and
-// cached, so the full panel can show on-chain balance next to the pool stats.
+
 let MINER_EXTRA={}, extraTimer=null, lastInfoAddr='';
 let MINER_WORKERS={}, workerPage=0, workersAddr='';
 function loadWorkers(a){
@@ -436,14 +430,14 @@ function loadWorkers(a){
 function onAddrInput(){
   render();
   const raw=($('addr').value||'').trim();
-  // remember the wallet across browser sessions until the user clears the field
+  
   try{ if(raw) localStorage.setItem('crb_addr',raw); else localStorage.removeItem('crb_addr'); }catch(e){}
   const a=raw.toLowerCase();
   if(!/^crb1[0-9a-f]{40}$/.test(a)){
-    try{ if(!raw && location.search) history.replaceState(null,'',location.pathname); }catch(e){} // empty -> clean URL
+    try{ if(!raw && location.search) history.replaceState(null,'',location.pathname); }catch(e){} 
     return;
   }
-  // valid wallet -> put it in the URL (?addr=) so the page can be bookmarked for quick access
+  
   try{ history.replaceState(null,'','?addr='+a); }catch(e){}
   if(a!==workersAddr){ workersAddr=a; workerPage=0; }
   if(!(a in MINER_EXTRA)){
@@ -481,15 +475,14 @@ function renderWorkersTable(wd){
   return `<div class="wsec"><div class="whead">${esc(t('w_title'))} <span class="muted" style="font-weight:400">(${total} · ${esc(t('w_window'))})</span></div>`
     +`<table><thead><tr><th>${esc(t('w_worker'))}</th><th class="num">${esc(t('c_hr'))}</th><th class="num">${esc(t('w_shares'))}</th><th class="num">${esc(t('w_last'))}</th></tr></thead><tbody>${rows}</tbody></table>${pager}${hint}</div>`;
 }
-// Daily payouts: derived from the chain (incoming txns from the pool wallet),
-// grouped by LOCAL calendar day, last 7 days, with a live countdown to midnight.
+
 let MINER_PAYOUTS={}, cdTimer=null;
 async function loadPayouts(a,force){
   if(!/^crb1[0-9a-f]{40}$/.test(a)) return;
   const pd=MINER_PAYOUTS[a];
-  if(!force && pd && (Date.now()-pd.at)<30000) return; // throttle background refresh
+  if(!force && pd && (Date.now()-pd.at)<30000) return; 
   const pool=((LAST&&LAST.pool_address)||'').toLowerCase();
-  if(!pool) return; // need the pool address to identify payouts
+  if(!pool) return; 
   const cutoff=Math.floor(Date.now()/1000)-8*86400;
   let offset=0,page=0,items=[],stop=false;
   try{
@@ -504,7 +497,7 @@ async function loadPayouts(a,force){
   }catch(e){ return; }
   const byDay={};
   for(const it of items){
-    if(String(it.from||'').toLowerCase()!==pool) continue; // only payouts from the pool
+    if(String(it.from||'').toLowerCase()!==pool) continue; 
     if(String(it.to||'').toLowerCase()!==a) continue;
     const d=new Date((+it.time||0)*1000);
     const key=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
@@ -528,11 +521,11 @@ function renderPayouts(me){
     const label=i===0?t('p_today'):(i===1?t('p_yesterday'):d.toLocaleDateString(LANG==='ru'?'ru-RU':'en-US',{month:'short',day:'numeric'}));
     rows+=`<tr${i===0?' class="me"':''}><td>${esc(label)}</td><td class="num">${e.total?fmtCRB(e.total):'—'}</td><td class="num">${e.count||'—'}</td></tr>`;
   }
-  if(count7===0) return ''; // no payouts in the last 7 days yet — nothing to track
+  if(count7===0) return ''; 
   return `<div class="wsec"><div class="whead">${esc(t('p_title'))} <span class="muted" style="font-weight:400;font-size:13px">· ${esc(t('p_ends'))} <span id="pcd" style="font-family:ui-monospace,Consolas,monospace">${fmtHMS(msToLocalMidnight())}</span></span></div>`
     +`<table><thead><tr><th>${esc(t('p_day'))}</th><th class="num">${esc(t('p_payout'))}</th><th class="num">${esc(t('p_payments'))}</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
-// All info on the miner whose wallet was entered, in an appearing panel of fields.
+
 function renderMinerInfo(s){
   const box=$('minerinfo'); if(!box) return;
   const me=(($('addr')?$('addr').value:'')||'').trim().toLowerCase();
@@ -545,7 +538,7 @@ function renderMinerInfo(s){
   const active=miners.filter(m=>(+m.hashrate||0)>0).sort((x,y)=>(+y.hashrate||0)-(+x.hashrate||0));
   const poolHR=+s.pool_hashrate||0, mHR=mine?+mine.hashrate||0:0;
   const fee=(+s.fee_permil||0)/1000, reward=(NET&&+NET.reward)||50*U;
-  const netHRd=(NET&&+NET.difficulty)?(+NET.difficulty)/60:((NET&&+NET.hashrate)||0); // stable difficulty-implied net hashrate (realized one is jumpy)
+  const netHRd=(NET&&+NET.difficulty)?(+NET.difficulty)/60:((NET&&+NET.hashrate)||0); 
   const share=poolHR>0&&mHR>0 ? 100*mHR/poolHR : 0;
   const estDay=netHRd>0&&mHR>0 ? (mHR/netHRd)*1440*(reward/U)*(1-fee) : 0;
   const crbT=v=>((+v||0)/U).toLocaleString(undefined,{maximumFractionDigits:2})+'<small> CRB</small>';
@@ -567,19 +560,19 @@ function renderMinerInfo(s){
   const head=`<div class="mhead"><span class="mlabel">${esc(t(mine?'m_label':'m_label_wallet'))}</span><span class="addr">${esc(shortAddr(me))}</span>${mine?'<span class="tag">'+esc(t('you_row'))+'</span>':''}</div>`;
   let body=tiles.length?`<div class="mgrid">`+tiles.map(([k,v])=>`<div class="stat sm"><div class="k">${esc(t(k))}</div><div class="v">${v}</div></div>`).join('')+`</div>`:'';
   if(!mine) body+=`<div class="muted" style="margin-top:10px;font-size:13.5px">${esc(t('not_pool'))}</div>`;
-  body += renderWorkersTable(MINER_WORKERS[me]); // per-worker (rig) breakdown, paginated
-  body += renderPayouts(me); // daily payout history + countdown
+  body += renderWorkersTable(MINER_WORKERS[me]); 
+  body += renderPayouts(me); 
   const anim=(me!==lastInfoAddr)?' anim':'';
   box.innerHTML=`<div class="minfo${anim}">${head}${body}</div>`;
   lastInfoAddr=me;
 }
 applyLang(LANG);
-// restore the wallet from the URL (?addr=, for bookmarks) first, else from the saved one
+
 try{ const u=new URLSearchParams(location.search).get('addr'); const sv=localStorage.getItem('crb_addr'); const init=((u||sv)||'').trim(); if(init && $('addr')) $('addr').value=init; }catch(e){}
 poll();
 setInterval(poll,10000);
 startCountdown();
-if($('addr') && ($('addr').value||'').trim()) onAddrInput(); // populate panel for the restored wallet
+if($('addr') && ($('addr').value||'').trim()) onAddrInput(); 
 </script>
 </body>
 </html>

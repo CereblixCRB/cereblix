@@ -58,7 +58,7 @@ h1{font-family:var(--fd);font-size:clamp(24px,5vw,30px);font-weight:700;letter-s
 .lead{color:var(--mut);font-size:14.5px;margin:0 0 14px}
 .cmd{display:block;white-space:pre;overflow-x:auto;background:#0b1120;border:1px solid var(--border);border-radius:11px;padding:12px 14px;margin:12px 0 4px;font-family:ui-monospace,Consolas,monospace;font-size:12.5px;color:#cbd5e1;line-height:1.7}
 .muted{font-size:12.5px;color:var(--mut);margin-top:7px}
-/* prominent region node cards */
+
 .ndband{display:flex;align-items:center;gap:9px;font-family:var(--fd);font-weight:700;font-size:14.5px;margin:16px 0 11px;padding:10px 14px;border-radius:12px;flex-wrap:wrap}
 .ndband.stratum{color:#ffe9bd;background:linear-gradient(135deg,rgba(255,206,90,.16),rgba(34,211,238,.05));border:1px solid rgba(255,206,90,.42)}
 .ndband.native{color:var(--mut);background:var(--glass);border:1px solid var(--border)}
@@ -239,7 +239,7 @@ function applyLang(l){
   document.querySelectorAll('.langsw button').forEach(b=>b.classList.toggle('on',b.dataset.lang===l));
 }
 function setLang(l){ localStorage.setItem('lang',l); applyLang(l); }
-// Click-to-copy for the node endpoint cards (clipboard API + execCommand fallback).
+
 function cpy(el){
   const txt=el.getAttribute('data-cp')||''; if(!txt) return;
   const done=()=>{ el.classList.add('copied'); const i=el.querySelector('.ci'); const o=i?i.textContent:''; if(i)i.textContent='✓'; setTimeout(()=>{ el.classList.remove('copied'); if(i)i.textContent=o; },1100); };

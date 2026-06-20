@@ -143,8 +143,8 @@ th{color:var(--mut);font-weight:600}
 <script>
 const API = location.pathname.replace(/wallet\/?.*/, '') + 'api';
 const UNIT = 1e8;
-let keys = null; // {secretKey: Uint8Array(64), publicKey: Uint8Array(32), address}
-let feeEdited = false; // becomes true once the user types a custom fee
+let keys = null; 
+let feeEdited = false; 
 
 const $ = id => document.getElementById(id);
 const hex = b => Array.from(b).map(x=>x.toString(16).padStart(2,'0')).join('');
@@ -194,8 +194,6 @@ function applyChrome(){
 
 function toast(msg, ms=3500){ const t=$('toast'); t.textContent=msg; t.style.display='block'; clearTimeout(t._h); t._h=setTimeout(()=>t.style.display='none',ms); }
 
-// Pure-JS SHA-256: WebCrypto (crypto.subtle) is unavailable on plain HTTP,
-// so we never depend on it.
 function sha256(data){
   const K = [0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
     0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
@@ -250,10 +248,6 @@ async function setKeys(secretHex){
   keys = { secretKey: sk, publicKey: kp.publicKey, address: await addrFromPub(kp.publicKey) };
 }
 
-// Refuse to mint a key unless a cryptographically secure RNG is present.
-// crypto.getRandomValues IS available on plain HTTP (unlike crypto.subtle);
-// real TweetNaCl uses it and throws without it - this guards against a tampered
-// or stripped build silently seeding keys from a weak source.
 function assertCSPRNG(){
   if (!(window.crypto && typeof window.crypto.getRandomValues === 'function'))
     throw new Error(LANG==='ru'
@@ -350,10 +344,7 @@ async function sendTx(){
     const b = await api('/balance?addr=' + keys.address);
     const st = await api('/status');
     const tx = { from_pub: hex(keys.publicKey), to, amount, fee, nonce: b.nonce };
-    // Consensus signing payload - must match the Go node's Tx.signingPayloadFor
-    // verbatim ("cerebra-tx-v1"; a protocol constant, not the brand). From
-    // chain_id_height the payload also binds chain_id (the genesis hash) so a
-    // signature cannot be replayed onto a fork/testnet. Sign for the next block.
+    
     const nextHeight = (st.height || 0) + 1;
     const payload = (st.chain_id && nextHeight >= st.chain_id_height)
       ? `cerebra-tx-v1|${st.chain_id}|${tx.from_pub}|${tx.to}|${tx.amount}|${tx.fee}|${tx.nonce}`
