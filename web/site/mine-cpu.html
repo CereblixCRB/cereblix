@@ -58,7 +58,7 @@ h1{font-family:var(--fd);font-size:clamp(24px,5vw,30px);font-weight:700;letter-s
 .lead{color:var(--mut);font-size:14.5px;margin:0 0 14px}
 .cmd{display:block;white-space:pre;overflow-x:auto;background:#0b1120;border:1px solid var(--border);border-radius:11px;padding:12px 14px;margin:12px 0 4px;font-family:ui-monospace,Consolas,monospace;font-size:12.5px;color:#cbd5e1;line-height:1.7}
 .muted{font-size:12.5px;color:var(--mut);margin-top:7px}
-/* prominent region node cards */
+
 .ndband{display:flex;align-items:center;gap:9px;font-family:var(--fd);font-weight:700;font-size:14.5px;margin:16px 0 11px;padding:10px 14px;border-radius:12px;flex-wrap:wrap}
 .ndband.stratum{color:#ffe9bd;background:linear-gradient(135deg,rgba(255,206,90,.16),rgba(34,211,238,.05));border:1px solid rgba(255,206,90,.42)}
 .ndband.native{color:var(--mut);background:var(--glass);border:1px solid var(--border)}
@@ -93,12 +93,12 @@ a{color:var(--acc)}
     <a href="./" data-i="home">Home</a>
     <a href="./#roadmap" data-i="roadmap">Roadmap</a>
     <span class="navsep" aria-hidden="true"></span>
-    <a href="mine.html" class="minecta" data-i="mine">⛏️ How to mine?</a>
+    <a href="/mine" class="minecta" data-i="mine">⛏️ How to mine?</a>
     <span class="navsep" aria-hidden="true"></span>
-    <a href="pool.html" data-i="pool">Pool</a>
-    <a href="explorer.html" data-i="explorer">Explorer</a>
+    <a href="/pool" data-i="pool">Pool</a>
+    <a href="/explorer" data-i="explorer">Explorer</a>
     <a href="wallet/" data-i="wallet">Wallet</a>
-    <a href="faucet.html" data-i="faucet">Faucet</a>
+    <a href="/faucet" data-i="faucet">Faucet</a>
     <a href="/p2p">P2P</a>
     <span class="langsw"><button data-lang="en" onclick="setLang('en')">EN</button><button data-lang="ru" onclick="setLang('ru')">RU</button></span>
   </div>
@@ -107,9 +107,9 @@ a{color:var(--acc)}
 <h1 data-i-html="title">XMRig &amp; the <em>native</em> miner</h1>
 <div class="sub" data-i-html="sub">Two free CPU miners for CRB. They work well, but on most machines they give <b>less hashrate than SRBMiner</b> - so they're the second choice.</div>
 
-<div class="recbanner" data-i-html="rec">👉 For the best hashrate we recommend <a href="mine-srbminer.html">SRBMiner</a>. Pick these only if you prefer open-source / fee-free, or want to mine to your own node.</div>
+<div class="recbanner" data-i-html="rec">👉 For the best hashrate we recommend <a href="/mine-srbminer">SRBMiner</a>. Pick these only if you prefer open-source / fee-free, or want to mine to your own node.</div>
 
-<a class="tomine" href="mine.html" data-i-html="back">← All mining options</a>
+<a class="tomine" href="/mine" data-i-html="back">← All mining options</a>
 
 <section class="sec" id="nodes">
   <h2 data-i-html="s_nodes_h">🔌 Our nodes — pick your region</h2>
@@ -188,8 +188,8 @@ cereblix-miner -addr crb1YOUR_ADDRESS</div>
   <div class="muted" data-i-html="s_native_ru">🇷🇺 <b>RU / CIS</b> and cereblix.com is slow or blocked? Mine via the Moscow relay (no Cloudflare): <code>-node https://ru.cereblix.com/pool/api</code> (solo <code>https://ru.cereblix.com/api</code>).</div>
 </section>
 
-<div class="note" data-i-html="explain">💡 <b>Solo vs pool?</b> Solo keeps the whole 50 CRB per block but is a lottery (better on big multi-core rigs). Pool pays a steady trickle proportional to your work, auto-paid to your address at 0.05 CRB (1% fee) - far less variance, better for laptops. On the pool your log shows <b>"share accepted"</b> (proofs at an easier target); the real reward lands as automatic payouts. Track it all on the <a href="pool.html">pool dashboard</a>.</div>
-<div class="note" data-i-html="farm_n">🚜 <b>Running a farm or want your own node?</b> See <a href="node.html">Run your own node &amp; farm proxy</a>.</div>
+<div class="note" data-i-html="explain">💡 <b>Solo vs pool?</b> Solo keeps the whole 50 CRB per block but is a lottery (better on big multi-core rigs). Pool pays a steady trickle proportional to your work, auto-paid to your address at 0.05 CRB (1% fee) - far less variance, better for laptops. On the pool your log shows <b>"share accepted"</b> (proofs at an easier target); the real reward lands as automatic payouts. Track it all on the <a href="/pool">pool dashboard</a>.</div>
+<div class="note" data-i-html="farm_n">🚜 <b>Running a farm or want your own node?</b> See <a href="/node">Run your own node &amp; farm proxy</a>.</div>
 <div class="note" data-i-html="safe_n">⚠️ Download only from this page, <a href="https://cereblix.com">cereblix.com</a>, or our <a href="https://github.com/CereblixCRB/cereblix/releases/latest" target="_blank" rel="noopener">GitHub releases</a>. Any "xmrig-cereblix" or "cereblix" build from elsewhere is NOT ours - don't run it.</div>
 </div>
 
@@ -199,7 +199,7 @@ const I = {
     home:"Главная", roadmap:"Дорожная карта", mine:"⛏️ Как майнить?", pool:"Пул", explorer:"Обозреватель", wallet:"Кошелёк", faucet:"Кран",
     title:'XMRig и <em>нативный</em> майнер',
     sub:'Два бесплатных CPU-майнера для CRB. Они работают хорошо, но на большинстве машин дают <b>меньше хешрейта, чем SRBMiner</b> - поэтому это второй выбор.',
-    rec:'👉 Для максимального хешрейта рекомендуем <a href="mine-srbminer.html">SRBMiner</a>. Эти варианты - если хотите открытый исходник / без комиссии или майнить на свою ноду.',
+    rec:'👉 Для максимального хешрейта рекомендуем <a href="/mine-srbminer">SRBMiner</a>. Эти варианты - если хотите открытый исходник / без комиссии или майнить на свою ноду.',
     back:'← Все способы майнинга',
     s_nodes_h:"🔌 Наши ноды — выберите свой регион",
     s_nodes_p:'Сеть везде одна — просто выберите ближайший адрес. XMRig работает по <b>Stratum</b> (все регионы); <b>нативный</b> майнер использует HTTP-адрес (Европа и Россия). Пул <code>:3333</code> = стабильные выплаты, соло <code>:3334</code> = целые блоки по 50 CRB.',
@@ -221,8 +221,8 @@ const I = {
     s_native_p:"Официальный майнер одним файлом - кратно быстрее браузера и самый простой «настоящий» вариант. Скачайте, запустите со своим адресом; публичную ноду найдёт сам.",
     s_native_hive:'🐝 <b>Риг на Hive OS?</b> Flight Sheet → Custom miner, Installation URL <code>https://github.com/CereblixCRB/cereblix/releases/latest/download/cereblix-hiveos.tar.gz</code>, Pool URL <code>https://cereblix.com/pool/api</code>, кошелёк <code>crb1…</code>.',
     s_native_ru:'🇷🇺 <b>RU / СНГ</b> и cereblix.com тормозит или заблокирован? Майньте через московский релей (без Cloudflare): <code>-node https://ru.cereblix.com/pool/api</code> (соло <code>https://ru.cereblix.com/api</code>).',
-    explain:'💡 <b>Соло или пул?</b> Соло отдаёт все 50 CRB за блок, но это лотерея (лучше на мощных ригах). Пул платит стабильно, пропорционально работе, автовыплата при 0.05 CRB (комиссия 1%) - меньше разброс, лучше для ноутбуков. В пуле лог пишет <b>«share accepted»</b>; реальная награда приходит автовыплатами. Следите на <a href="pool.html">дашборде пула</a>.',
-    farm_n:'🚜 <b>Ферма или своя нода?</b> См. <a href="node.html">Запуск своей ноды и прокси для ферм</a>.',
+    explain:'💡 <b>Соло или пул?</b> Соло отдаёт все 50 CRB за блок, но это лотерея (лучше на мощных ригах). Пул платит стабильно, пропорционально работе, автовыплата при 0.05 CRB (комиссия 1%) - меньше разброс, лучше для ноутбуков. В пуле лог пишет <b>«share accepted»</b>; реальная награда приходит автовыплатами. Следите на <a href="/pool">дашборде пула</a>.',
+    farm_n:'🚜 <b>Ферма или своя нода?</b> См. <a href="/node">Запуск своей ноды и прокси для ферм</a>.',
     safe_n:'⚠️ Скачивайте только с этой страницы, с <a href="https://cereblix.com">cereblix.com</a> или из наших <a href="https://github.com/CereblixCRB/cereblix/releases/latest" target="_blank" rel="noopener">релизов на GitHub</a>. Любой «xmrig-cereblix» или «cereblix» из других мест НЕ наш - не запускайте.'
   }
 };
@@ -239,7 +239,7 @@ function applyLang(l){
   document.querySelectorAll('.langsw button').forEach(b=>b.classList.toggle('on',b.dataset.lang===l));
 }
 function setLang(l){ localStorage.setItem('lang',l); applyLang(l); }
-// Click-to-copy for the node endpoint cards (clipboard API + execCommand fallback).
+
 function cpy(el){
   const txt=el.getAttribute('data-cp')||''; if(!txt) return;
   const done=()=>{ el.classList.add('copied'); const i=el.querySelector('.ci'); const o=i?i.textContent:''; if(i)i.textContent='✓'; setTimeout(()=>{ el.classList.remove('copied'); if(i)i.textContent=o; },1100); };

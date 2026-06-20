@@ -71,12 +71,12 @@ a{color:var(--acc)}
     <a href="./" data-i="home">Home</a>
     <a href="./#roadmap" data-i="roadmap">Roadmap</a>
     <span class="navsep" aria-hidden="true"></span>
-    <a href="mine.html" class="minecta" data-i="mine">⛏️ How to mine?</a>
+    <a href="/mine" class="minecta" data-i="mine">⛏️ How to mine?</a>
     <span class="navsep" aria-hidden="true"></span>
-    <a href="pool.html" data-i="pool">Pool</a>
-    <a href="explorer.html" data-i="explorer">Explorer</a>
+    <a href="/pool" data-i="pool">Pool</a>
+    <a href="/explorer" data-i="explorer">Explorer</a>
     <a href="wallet/" data-i="wallet">Wallet</a>
-    <a href="faucet.html" data-i="faucet">Faucet</a>
+    <a href="/faucet" data-i="faucet">Faucet</a>
     <a href="/p2p">P2P</a>
     <span class="langsw"><button data-lang="en" onclick="setLang('en')">EN</button><button data-lang="ru" onclick="setLang('ru')">RU</button></span>
   </div>
@@ -85,7 +85,7 @@ a{color:var(--acc)}
 <h1 data-i-html="title">Your own <em>node</em>, stratum node &amp; farm proxy</h1>
 <div class="sub" data-i-html="sub">For trustless solo mining and for farms. Run a full node, bridge it to Stratum for XMRig, and aggregate many rigs behind one proxy.</div>
 
-<a class="tomine" href="mine.html" data-i-html="back">← All mining options</a>
+<a class="tomine" href="/mine" data-i-html="back">← All mining options</a>
 
 <section class="sec" id="node">
   <h2 data-i-html="s_node_h">🖧 Run your own node</h2>
@@ -122,7 +122,7 @@ xmrig-cereblix -o 127.0.0.1:3334 -a nm/1 -u crb1YOUR_ADDRESS -p x
 <section class="sec" id="proxy">
   <h2 data-i-html="s_proxy_h">🚜 Running a farm? Aggregate rigs with the proxy</h2>
   <p class="lead" data-i-html="s_proxy_p">Our fee-free <b>xmrig-cereblix-proxy</b> (Stratum proxy) lets a whole farm share one connection and one config: point the proxy at the pool, then point every rig at the proxy.</p>
-  <div class="warn" data-i-html="s_proxy_srb">⚠️ The proxy currently works with <b>XMRig only</b> - not with SRBMiner yet. Farms that want to run behind the proxy should use our fee-free <a href="mine-cpu.html#xmrig">XMRig</a> on the rigs for now.</div>
+  <div class="warn" data-i-html="s_proxy_srb">⚠️ The proxy currently works with <b>XMRig only</b> - not with SRBMiner yet. Farms that want to run behind the proxy should use our fee-free <a href="/mine-cpu#xmrig">XMRig</a> on the rigs for now.</div>
   <div class="dls">
     <a class="dl" href="https://github.com/CereblixCRB/cereblix/releases/download/xmrig/xmrig-cereblix-proxy-windows-x64.exe"><b>🪟 Windows x64</b><span>xmrig-cereblix-proxy</span></a>
     <a class="dl" href="https://github.com/CereblixCRB/cereblix/releases/download/xmrig/xmrig-cereblix-proxy-linux-x64"><b>🐧 Linux x64</b><span>xmrig-cereblix-proxy</span></a>
@@ -135,7 +135,7 @@ xmrig-cereblix -o 127.0.0.1:3334 -a nm/1 -u crb1YOUR_ADDRESS -p x
 xmrig-cereblix-proxy -c config.json
 # 3. point every rig at the proxy (not the pool):
 xmrig-cereblix -a nm/1 -o PROXY_IP:3333 -u crb1YOUR_ADDRESS -p x</div>
-  <div class="muted" data-i-html="s_proxy_n">⚠️ Upstream must be the <b>pool</b> — main <code>stratum.cereblix.com:3333</code> or the closest region: 🇷🇺 <code>ru.cereblix.com</code> · 🇺🇸 <code>us.cereblix.com</code> · 🇸🇬 <code>asia.cereblix.com</code> (all <code>:3333</code>). Earnings still track per address on the <a href="pool.html">pool dashboard</a>.</div>
+  <div class="muted" data-i-html="s_proxy_n">⚠️ Upstream must be the <b>pool</b> — main <code>stratum.cereblix.com:3333</code> or the closest region: 🇷🇺 <code>ru.cereblix.com</code> · 🇺🇸 <code>us.cereblix.com</code> · 🇸🇬 <code>asia.cereblix.com</code> (all <code>:3333</code>). Earnings still track per address on the <a href="/pool">pool dashboard</a>.</div>
   <div class="muted" data-i-html="s_proxy_ops">🛠️ Monitoring (built-in HTTP API), per-rig stats, TLS for remote rigs and a <b>systemd</b> service: see the <a href="https://github.com/CereblixCRB/cereblix#run-a-farm-through-a-proxy-xmrig-cereblix-proxy">README</a>. The proxy also prints an update notice when a newer build ships (download only - disable with <code>--no-version-check</code>).</div>
 </section>
 
@@ -157,9 +157,9 @@ const I = {
     s_strat_tip:'<code>-solo</code> включает лёгкий feedback-target с авто-vardiff (XMRig стабильно показывает «accepted» и хешрейт), подстраиваясь под ваш CPU и сеть; настоящие блоки всё равно уходят на вашу ноду. Сложность по умолчанию — как у пула; своя — через <code>-p diff=N</code>. Флаг <code>-pool</code> — это просто getwork-API, на который майнить (ваша нода <code>…:18751/api</code> для trustless-соло).',
     s_proxy_h:'🚜 Большая ферма? Агрегируйте риги через прокси',
     s_proxy_p:'Наш бесплатный <b>xmrig-cereblix-proxy</b> (Stratum-прокси) позволяет всей ферме работать через одно соединение и один конфиг: наводите прокси на пул, а каждый риг - на прокси.',
-    s_proxy_srb:'⚠️ Прокси сейчас работает <b>только с XMRig</b> - с SRBMiner пока нет. Фермам, которые хотят работать через прокси, пока используйте на ригах нашу бесплатную <a href="mine-cpu.html#xmrig">сборку XMRig</a>.',
+    s_proxy_srb:'⚠️ Прокси сейчас работает <b>только с XMRig</b> - с SRBMiner пока нет. Фермам, которые хотят работать через прокси, пока используйте на ригах нашу бесплатную <a href="/mine-cpu#xmrig">сборку XMRig</a>.',
     s_proxy_src:'Исходники (GPL): <a href="https://github.com/CereblixCRB/cereblix/releases/download/xmrig/xmrig-cereblix-proxy-src.tar.gz">xmrig-cereblix-proxy-src.tar.gz</a>.',
-    s_proxy_n:'⚠️ Апстрим - только <b>пул</b>: основной <code>stratum.cereblix.com:3333</code> или ближайший регион: 🇷🇺 <code>ru.cereblix.com</code> · 🇺🇸 <code>us.cereblix.com</code> · 🇸🇬 <code>asia.cereblix.com</code> (везде <code>:3333</code>). Заработок по-прежнему виден по адресу на <a href="pool.html">дашборде пула</a>.',
+    s_proxy_n:'⚠️ Апстрим - только <b>пул</b>: основной <code>stratum.cereblix.com:3333</code> или ближайший регион: 🇷🇺 <code>ru.cereblix.com</code> · 🇺🇸 <code>us.cereblix.com</code> · 🇸🇬 <code>asia.cereblix.com</code> (везде <code>:3333</code>). Заработок по-прежнему виден по адресу на <a href="/pool">дашборде пула</a>.',
     s_proxy_ops:'🛠️ Мониторинг (встроенный HTTP API), статистика по ригам, TLS для удалённых ригов и <b>systemd</b>-сервис - в <a href="https://github.com/CereblixCRB/cereblix#run-a-farm-through-a-proxy-xmrig-cereblix-proxy">README</a>. Прокси также печатает уведомление о новой версии (только ссылка - отключить <code>--no-version-check</code>).',
     safe_n:'⚠️ Скачивайте только с этой страницы, с <a href="https://cereblix.com">cereblix.com</a> или из наших <a href="https://github.com/CereblixCRB/cereblix/releases/latest" target="_blank" rel="noopener">релизов на GitHub</a>. Любой «cereblix» из других мест НЕ наш - не запускайте. Полное руководство - в <a href="https://github.com/CereblixCRB/cereblix#mine" target="_blank" rel="noopener">README</a>.'
   }

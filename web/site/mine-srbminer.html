@@ -61,7 +61,7 @@ h1{font-family:var(--fd);font-size:clamp(24px,5vw,30px);font-weight:700;letter-s
 .ndtable th,.ndtable td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--border);vertical-align:top}
 .ndtable th{color:var(--mut);font-weight:600;font-family:var(--fd)}
 .ndtable td code{font-size:12.5px;color:#cbd5e1}
-/* prominent region node cards */
+
 .ndgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(218px,1fr));gap:12px;margin:12px 0 6px}
 .ndc{background:linear-gradient(165deg,rgba(255,206,90,.07),rgba(146,180,255,.02));border:1px solid var(--border);border-radius:16px;padding:15px 16px 14px;transition:border-color .15s,transform .15s,box-shadow .2s}
 .ndc:hover{border-color:rgba(255,206,90,.5);transform:translateY(-2px);box-shadow:0 16px 34px -20px rgba(255,206,90,.5)}
@@ -95,12 +95,12 @@ a{color:var(--acc)}
     <a href="./" data-i="home">Home</a>
     <a href="./#roadmap" data-i="roadmap">Roadmap</a>
     <span class="navsep" aria-hidden="true"></span>
-    <a href="mine.html" class="minecta" data-i="mine">⛏️ How to mine?</a>
+    <a href="/mine" class="minecta" data-i="mine">⛏️ How to mine?</a>
     <span class="navsep" aria-hidden="true"></span>
-    <a href="pool.html" data-i="pool">Pool</a>
-    <a href="explorer.html" data-i="explorer">Explorer</a>
+    <a href="/pool" data-i="pool">Pool</a>
+    <a href="/explorer" data-i="explorer">Explorer</a>
     <a href="wallet/" data-i="wallet">Wallet</a>
-    <a href="faucet.html" data-i="faucet">Faucet</a>
+    <a href="/faucet" data-i="faucet">Faucet</a>
     <a href="/p2p">P2P</a>
     <span class="langsw"><button data-lang="en" onclick="setLang('en')">EN</button><button data-lang="ru" onclick="setLang('ru')">RU</button></span>
   </div>
@@ -111,7 +111,7 @@ a{color:var(--acc)}
 
 <div class="recbanner" data-i-html="rec">⭐ <b>Recommended.</b> If you're not sure which miner to use - use this one. It's the fastest for most CPUs and the simplest to keep current.</div>
 
-<a class="tomine" href="mine.html" data-i-html="back">← All mining options</a>
+<a class="tomine" href="/mine" data-i-html="back">← All mining options</a>
 
 <div class="qnav">
   <a href="#start" data-i="q_start">🚀 Quick start</a>
@@ -131,7 +131,7 @@ a{color:var(--acc)}
 SRBMiner-MULTI --algorithm neuromorph --pool stratum.cereblix.com:3333 --wallet crb1YOUR_ADDRESS --password x
 # solo - whole 50 CRB blocks (use port :3334)
 SRBMiner-MULTI --algorithm neuromorph --pool stratum.cereblix.com:3334 --wallet crb1YOUR_ADDRESS --password x</div>
-  <div class="muted" data-i-html="s_start_n">🧮 All CPU cores are used by default. Name each rig with <code>--worker RIGNAME</code> so you can see them separately on the <a href="pool.html">pool dashboard</a>.</div>
+  <div class="muted" data-i-html="s_start_n">🧮 All CPU cores are used by default. Name each rig with <code>--worker RIGNAME</code> so you can see them separately on the <a href="/pool">pool dashboard</a>.</div>
 </section>
 
 <section class="sec" id="config">
@@ -173,7 +173,7 @@ SRBMiner-MULTI --algorithm neuromorph --pool stratum.cereblix.com:3334 --wallet 
     </div>
   </div>
   <div class="muted" data-i-html="s_nodes_tip">🟢 <b>POOL</b> (<code>:3333</code>) = steady payouts · 🎲 <b>SOLO</b> (<code>:3334</code>) = whole 50 CRB blocks. Put the address after <code>--pool</code>. <span style="opacity:.85">Tap any address to copy it.</span></div>
-  <div class="muted" data-i-html="s_nodes_n">🔒 Running your own node for trustless solo? You can point SRBMiner at your own Stratum bridge - see <a href="node.html">Run your own node &amp; stratum node</a>.</div>
+  <div class="muted" data-i-html="s_nodes_n">🔒 Running your own node for trustless solo? You can point SRBMiner at your own Stratum bridge - see <a href="/node">Run your own node &amp; stratum node</a>.</div>
 </section>
 
 <section class="sec" id="hive">
@@ -188,7 +188,7 @@ SRBMiner-MULTI --algorithm neuromorph --pool stratum.cereblix.com:3334 --wallet 
      Wallet:     crb1YOUR_ADDRESS
      Password:   x
 5. Apply the flight sheet to your rig(s).</div>
-  <div class="muted" data-i-html="s_hive_n">If your Hive uses the "Setup miner config" text box, the equivalent flags are: <code>--algorithm neuromorph --pool stratum.cereblix.com:3333 --wallet crb1YOUR_ADDRESS --password x</code>. Name rigs with <code>--worker</code> to track them on the <a href="pool.html">pool dashboard</a>. ⚠️ The farm <a href="node.html#proxy">proxy</a> does not support SRBMiner yet (XMRig only) - run SRBMiner directly on each rig.</div>
+  <div class="muted" data-i-html="s_hive_n">If your Hive uses the "Setup miner config" text box, the equivalent flags are: <code>--algorithm neuromorph --pool stratum.cereblix.com:3333 --wallet crb1YOUR_ADDRESS --password x</code>. Name rigs with <code>--worker</code> to track them on the <a href="/pool">pool dashboard</a>. ⚠️ The farm <a href="/node#proxy">proxy</a> does not support SRBMiner yet (XMRig only) - run SRBMiner directly on each rig.</div>
 </section>
 
 <section class="sec" id="perf">
@@ -197,7 +197,7 @@ SRBMiner-MULTI --algorithm neuromorph --pool stratum.cereblix.com:3334 --wallet 
   <div class="note" data-i-html="s_perf_b"><b>Large / huge pages</b> - often the single biggest win (+20-70%). SRBMiner enables them automatically once the OS allows it. On <b>Windows</b>: <code>secpol.msc</code> → Local Policies → User Rights Assignment → <i>Lock pages in memory</i> → add your user, log out/in, then run SRBMiner <b>as Administrator</b>. On <b>Linux</b>: reserve them with <code>sudo sysctl -w vm.nr_hugepages=1280</code>. <br><br><b>Thread count</b> - "all cores" isn't always fastest; on hybrid Intel (P+E) try the P-core count too and keep whatever gives more H/s (<code>--cpu-threads N</code>). <br><br><b>Big EPYC / Threadripper</b> (multiple CCD / NUMA) - one instance per CCD / NUMA node, pinned, then sum the hashrate.</div>
 </section>
 
-<div class="note" data-i-html="safe_n">⚠️ Download SRBMiner-Multi only from its <a href="https://github.com/doktor83/SRBMiner-Multi" target="_blank" rel="noopener">official repository</a>. Prefer open-source / fee-free? Use our <a href="mine-cpu.html">XMRig or native miner</a> instead.</div>
+<div class="note" data-i-html="safe_n">⚠️ Download SRBMiner-Multi only from its <a href="https://github.com/doktor83/SRBMiner-Multi" target="_blank" rel="noopener">official repository</a>. Prefer open-source / fee-free? Use our <a href="/mine-cpu">XMRig or native miner</a> instead.</div>
 </div>
 
 <script>
@@ -211,7 +211,7 @@ const I = {
     q_start:"🚀 Быстрый старт", q_config:"⚙️ Настройки", q_nodes:"🌐 Наши ноды", q_hive:"🐝 Hive OS", q_perf:"📈 Больше хешрейта",
     s_start_h:"🚀 Быстрый старт",
     s_start_p:'Скачайте SRBMiner-Multi из официального репозитория и запустите одну строку со своим адресом <code>crb1…</code>. CRB майнится как алгоритм <code>neuromorph</code>.',
-    s_start_n:'🧮 По умолчанию используются все ядра. Называйте каждый риг через <code>--worker ИМЯ</code>, чтобы видеть их отдельно на <a href="pool.html">дашборде пула</a>.',
+    s_start_n:'🧮 По умолчанию используются все ядра. Называйте каждый риг через <code>--worker ИМЯ</code>, чтобы видеть их отдельно на <a href="/pool">дашборде пула</a>.',
     s_cfg_h:"⚙️ Настройки и конфиг",
     s_cfg_p:'Ключевые флаги. Можно передавать в командной строке или положить в <code>config.txt</code> SRBMiner / в <code>.bat</code> / <code>.sh</code>-запускатор.',
     s_cfg_n:'💡 Типичный <code>start.bat</code> (Windows) - одна строка: <code>SRBMiner-MULTI.exe --algorithm neuromorph --pool stratum.cereblix.com:3333 --wallet crb1ВАШ_АДРЕС --password x</code> - сохраните рядом с майнером и запустите двойным кликом.',
@@ -223,14 +223,14 @@ const I = {
     loc_eu:"Германия · основной · по умолчанию", loc_ru:"Москва · без Cloudflare", loc_us:"Нью-Йорк", loc_asia:"Сингапур",
     t_pool:"ПУЛ", t_solo:"СОЛО",
     s_nodes_tip:'🟢 <b>ПУЛ</b> (<code>:3333</code>) = стабильные выплаты · 🎲 <b>СОЛО</b> (<code>:3334</code>) = целые блоки по 50 CRB. Адрес ставьте после <code>--pool</code>. <span style="opacity:.85">Нажмите на адрес, чтобы скопировать.</span>',
-    s_nodes_n:'🔒 Хотите trustless-соло на своей ноде? SRBMiner можно навести на ваш собственный Stratum-мост - см. <a href="node.html">Своя нода и стратум-нода</a>.',
+    s_nodes_n:'🔒 Хотите trustless-соло на своей ноде? SRBMiner можно навести на ваш собственный Stratum-мост - см. <a href="/node">Своя нода и стратум-нода</a>.',
     s_hive_h:"🐝 Hive OS - флайт-шит",
     s_hive_p:'SRBMiner-Multi есть в Hive OS «из коробки». Создайте Flight Sheet и наведите майнер на CRB:',
-    s_hive_n:'Если в Hive используется текстовое поле «Setup miner config», эквивалентные флаги: <code>--algorithm neuromorph --pool stratum.cereblix.com:3333 --wallet crb1ВАШ_АДРЕС --password x</code>. Называйте риги через <code>--worker</code> для отслеживания на <a href="pool.html">дашборде пула</a>. ⚠️ Прокси для ферм пока <b>не поддерживает SRBMiner</b> (только XMRig) - запускайте SRBMiner прямо на каждом риге.',
+    s_hive_n:'Если в Hive используется текстовое поле «Setup miner config», эквивалентные флаги: <code>--algorithm neuromorph --pool stratum.cereblix.com:3333 --wallet crb1ВАШ_АДРЕС --password x</code>. Называйте риги через <code>--worker</code> для отслеживания на <a href="/pool">дашборде пула</a>. ⚠️ Прокси для ферм пока <b>не поддерживает SRBMiner</b> (только XMRig) - запускайте SRBMiner прямо на каждом риге.',
     s_perf_h:"📈 Выжать больше хешрейта",
     s_perf_p:'NeuroMorph упирается в память, поэтому важнее всего настройка памяти.',
     s_perf_b:'<b>Большие страницы (huge / large pages)</b> - часто самый большой выигрыш (+20-70%). SRBMiner включает их сам, как только разрешит ОС. На <b>Windows</b>: <code>secpol.msc</code> → Локальные политики → Назначение прав пользователя → <i>Блокировка страниц в памяти</i> → добавьте пользователя, перезайдите, запускайте SRBMiner <b>от администратора</b>. На <b>Linux</b>: <code>sudo sysctl -w vm.nr_hugepages=1280</code>.<br><br><b>Число потоков</b> - «все ядра» не всегда быстрее; на гибридных Intel (P+E) попробуйте и число P-ядер, оставьте что даёт больше H/s (<code>--cpu-threads N</code>).<br><br><b>Большие EPYC / Threadripper</b> (несколько CCD / NUMA) - по одному инстансу на CCD / NUMA-узел с привязкой, затем суммируйте хешрейт.',
-    safe_n:'⚠️ Скачивайте SRBMiner-Multi только из его <a href="https://github.com/doktor83/SRBMiner-Multi" target="_blank" rel="noopener">официального репозитория</a>. Нужен открытый исходник / без комиссии? Берите наш <a href="mine-cpu.html">XMRig или нативный майнер</a>.'
+    safe_n:'⚠️ Скачивайте SRBMiner-Multi только из его <a href="https://github.com/doktor83/SRBMiner-Multi" target="_blank" rel="noopener">официального репозитория</a>. Нужен открытый исходник / без комиссии? Берите наш <a href="/mine-cpu">XMRig или нативный майнер</a>.'
   }
 };
 const EN={};
@@ -246,7 +246,7 @@ function applyLang(l){
   document.querySelectorAll('.langsw button').forEach(b=>b.classList.toggle('on',b.dataset.lang===l));
 }
 function setLang(l){ localStorage.setItem('lang',l); applyLang(l); }
-// Click-to-copy for the node endpoint cards (clipboard API + execCommand fallback).
+
 function cpy(el){
   const txt=el.getAttribute('data-cp')||''; if(!txt) return;
   const done=()=>{ el.classList.add('copied'); const i=el.querySelector('.ci'); const o=i?i.textContent:''; if(i)i.textContent='✓'; setTimeout(()=>{ el.classList.remove('copied'); if(i)i.textContent=o; },1100); };

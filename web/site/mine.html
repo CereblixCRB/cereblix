@@ -73,12 +73,12 @@ a{color:var(--acc)}
     <a href="./" data-i="home">Home</a>
     <a href="./#roadmap" data-i="roadmap">Roadmap</a>
     <span class="navsep" aria-hidden="true"></span>
-    <a href="mine.html" class="minecta active" data-i="mine">⛏️ How to mine?</a>
+    <a href="/mine" class="minecta active" data-i="mine">⛏️ How to mine?</a>
     <span class="navsep" aria-hidden="true"></span>
-    <a href="pool.html" data-i="pool">Pool</a>
-    <a href="explorer.html" data-i="explorer">Explorer</a>
+    <a href="/pool" data-i="pool">Pool</a>
+    <a href="/explorer" data-i="explorer">Explorer</a>
     <a href="wallet/" data-i="wallet">Wallet</a>
-    <a href="faucet.html" data-i="faucet">Faucet</a>
+    <a href="/faucet" data-i="faucet">Faucet</a>
     <a href="/p2p">P2P</a>
     <span class="langsw"><button data-lang="en" onclick="setLang('en')">EN</button><button data-lang="ru" onclick="setLang('ru')">RU</button></span>
   </div>
@@ -87,10 +87,10 @@ a{color:var(--acc)}
 <h1 data-i-html="title">How to <em>mine</em> CRB</h1>
 <div class="sub" data-i-html="sub">CRB is CPU-only - mine it on any machine. Pick a path below; rewards go straight to your <code>crb1…</code> address.</div>
 
-<div class="recbanner" data-i-html="rec">⭐ <b>Recommended right now: <a href="mine-srbminer.html">SRBMiner</a>.</b> It's the most up-to-date and gives the most hashrate on almost any machine.</div>
+<div class="recbanner" data-i-html="rec">⭐ <b>Recommended right now: <a href="/mine-srbminer">SRBMiner</a>.</b> It's the most up-to-date and gives the most hashrate on almost any machine.</div>
 
 <div class="hubgrid">
-  <a class="hubcard rec" href="mine-srbminer.html">
+  <a class="hubcard rec" href="/mine-srbminer">
     <div class="hic">🔥</div>
     <div>
       <h3><span data-i="c1_t">SRBMiner</span> <span class="rectag" data-i="c1_tag">Best</span></h3>
@@ -98,7 +98,7 @@ a{color:var(--acc)}
       <span class="go" data-i="c1_go">SRBMiner guide, config &amp; our nodes →</span>
     </div>
   </a>
-  <a class="hubcard" href="mine-cpu.html">
+  <a class="hubcard" href="/mine-cpu">
     <div class="hic">⚡</div>
     <div>
       <h3 data-i="c2_t">XMRig &amp; native miner</h3>
@@ -106,7 +106,7 @@ a{color:var(--acc)}
       <span class="go" data-i="c2_go">XMRig &amp; native setup →</span>
     </div>
   </a>
-  <a class="hubcard" href="webmine.html">
+  <a class="hubcard" href="/webmine">
     <div class="hic">📱</div>
     <div>
       <h3 data-i="c3_t">Web miner</h3>
@@ -114,7 +114,7 @@ a{color:var(--acc)}
       <span class="go" data-i="c3_go">Open the browser miner →</span>
     </div>
   </a>
-  <a class="hubcard" href="node.html">
+  <a class="hubcard" href="/node">
     <div class="hic">🖧</div>
     <div>
       <h3 data-i="c4_t">Run your own node</h3>
@@ -124,7 +124,7 @@ a{color:var(--acc)}
   </a>
 </div>
 
-<div class="note" data-i-html="explain">💡 <b>Solo vs pool?</b> Pool pays a steady trickle proportional to your work (auto-paid at 0.05 CRB, 1% fee) - best for laptops and normal CPUs. Solo keeps the whole 50 CRB per block but is a lottery - better on big rigs. Track everything on the <a href="pool.html">pool dashboard</a>.</div>
+<div class="note" data-i-html="explain">💡 <b>Solo vs pool?</b> Pool pays a steady trickle proportional to your work (auto-paid at 0.05 CRB, 1% fee) - best for laptops and normal CPUs. Solo keeps the whole 50 CRB per block but is a lottery - better on big rigs. Track everything on the <a href="/pool">pool dashboard</a>.</div>
 <div class="note" data-i-html="safe_n">⚠️ Download miners only from this site, our <a href="https://github.com/CereblixCRB/cereblix/releases/latest" target="_blank" rel="noopener">GitHub releases</a>, or SRBMiner's <a href="https://github.com/doktor83/SRBMiner-Multi" target="_blank" rel="noopener">official repo</a>. Any "cereblix" build from elsewhere is NOT ours.</div>
 </div>
 
@@ -134,12 +134,12 @@ const I = {
     home:"Главная", roadmap:"Дорожная карта", mine:"⛏️ Как майнить?", pool:"Пул", explorer:"Обозреватель", wallet:"Кошелёк", faucet:"Кран",
     title:'Как <em>майнить</em> CRB',
     sub:'CRB майнится только на CPU - на любой машине. Выберите путь ниже; награды идут прямо на ваш адрес <code>crb1…</code>.',
-    rec:'⭐ <b>Сейчас рекомендуем: <a href="mine-srbminer.html">SRBMiner</a>.</b> Самый актуальный и даёт больше всего хешрейта почти на любой машине.',
+    rec:'⭐ <b>Сейчас рекомендуем: <a href="/mine-srbminer">SRBMiner</a>.</b> Самый актуальный и даёт больше всего хешрейта почти на любой машине.',
     c1_t:"SRBMiner", c1_tag:"Лучший", c1_p:"Самый актуальный майнер и наибольший хешрейт почти на любой машине. Запуск одной строкой; отлично работает и на Hive OS. (Комиссия SRBMiner 3%.)", c1_go:"Гайд по SRBMiner, конфиг и наши ноды →",
     c2_t:"XMRig и нативный майнер", c2_p:"Открытые, бесплатные CPU-майнеры. Обычно немного меньше хешрейта, чем SRBMiner - берите ради открытого исходника или для майнинга на свою ноду.", c2_go:"Настройка XMRig и нативного →",
     c3_t:"Веб-майнер", c3_p:"Майните прямо в браузере - телефон, планшет или ПК. Без установки и скачивания. Медленнее, но проще всего попробовать.", c3_go:"Открыть браузерный майнер →",
     c4_t:"Своя нода", c4_p:"Полная нода + стратум-нода для trustless соло-майнинга и прокси для ферм - много ригов через одно соединение.", c4_go:"Нода, стратум-нода и прокси →",
-    explain:'💡 <b>Соло или пул?</b> Пул платит стабильно, пропорционально вашей работе (автовыплата при 0.05 CRB, комиссия 1%) - лучше для ноутбуков и обычных CPU. Соло отдаёт все 50 CRB за блок, но это лотерея - лучше на мощных ригах. Следите на <a href="pool.html">дашборде пула</a>.',
+    explain:'💡 <b>Соло или пул?</b> Пул платит стабильно, пропорционально вашей работе (автовыплата при 0.05 CRB, комиссия 1%) - лучше для ноутбуков и обычных CPU. Соло отдаёт все 50 CRB за блок, но это лотерея - лучше на мощных ригах. Следите на <a href="/pool">дашборде пула</a>.',
     safe_n:'⚠️ Скачивайте майнеры только с этого сайта, из наших <a href="https://github.com/CereblixCRB/cereblix/releases/latest" target="_blank" rel="noopener">релизов на GitHub</a> или из <a href="https://github.com/doktor83/SRBMiner-Multi" target="_blank" rel="noopener">официального репозитория</a> SRBMiner. Любой «cereblix» из других мест НЕ наш.'
   }
 };

@@ -88,12 +88,12 @@ a{color:var(--acc)}
     <a href="./" data-i="home">Home</a>
     <a href="./#roadmap" data-i="roadmap">Roadmap</a>
     <span class="navsep" aria-hidden="true"></span>
-    <a href="mine.html" class="minecta" data-i="mine">⛏️ How to mine?</a>
+    <a href="/mine" class="minecta" data-i="mine">⛏️ How to mine?</a>
     <span class="navsep" aria-hidden="true"></span>
-    <a href="pool.html" data-i="pool">Pool</a>
-    <a href="explorer.html" data-i="explorer">Explorer</a>
+    <a href="/pool" data-i="pool">Pool</a>
+    <a href="/explorer" data-i="explorer">Explorer</a>
     <a href="wallet/" data-i="wallet">Wallet</a>
-    <a href="faucet.html" class="active" data-i="faucet">Faucet</a>
+    <a href="/faucet" class="active" data-i="faucet">Faucet</a>
     <a href="/p2p">P2P</a>
     <span class="langsw"><button data-lang="en" onclick="setLang('en')">EN</button><button data-lang="ru" onclick="setLang('ru')">RU</button></span>
   </div>
@@ -110,7 +110,7 @@ a{color:var(--acc)}
       <div class="owner-quote" data-i="own_quote">I'm the owner and the sole developer of the project, and I fund this faucet for you - to grow the community. No premine, no coinbase allocation - only honest mining; the coins I mine myself I honestly give to you: newcomers to the project and anyone who simply loves a freebie.</div>
       <div class="owner-sign" data-i="own_sign">- Emil Biktimirov, owner &amp; sole developer of Cereblix</div>
       <div class="owner-links">
-        <a href="https://cereblix.com/explorer.html#addr/crb110047ab2e7fd8cc04b8484f58a87e29fcb97c857" target="_blank" rel="noopener" data-i="own_explorer">🔍 Owner wallet</a>
+        <a href="https://cereblix.com/explorer#addr/crb110047ab2e7fd8cc04b8484f58a87e29fcb97c857" target="_blank" rel="noopener" data-i="own_explorer">🔍 Owner wallet</a>
         <a href="https://discord.com/channels/1515077041937190963/1515091708130361374/1516487027497898185" target="_blank" rel="noopener" data-i="own_discord">Discord post</a>
         <a href="https://t.me/cereblix/31" target="_blank" rel="noopener" data-i="own_tg">Telegram post</a>
       </div>
@@ -136,7 +136,7 @@ a{color:var(--acc)}
 </div>
 
 <div class="card" style="font-size:14px;color:var(--mut)">
-  <span data-i="more">Want more than a drop? </span><a href="mine.html" data-i="more_link">Mine CRB</a><span data-i="more2"> - 50 CRB per block, on any CPU.</span>
+  <span data-i="more">Want more than a drop? </span><a href="/mine" data-i="more_link">Mine CRB</a><span data-i="more2"> - 50 CRB per block, on any CPU.</span>
 </div>
 </div>
 
@@ -199,7 +199,7 @@ async function claim(){
       try{
         const res=await (await fetch(API+'/claim',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({addr,challenge:ch.challenge,nonce:String(m.nonce)})})).json();
         if(res.error) show('err',res.error);
-        else show('ok',(LANG==='ru'?'Отправлено '+res.amount+' CRB! ':'Sent '+res.amount+' CRB! ')+'<a href="explorer.html" target="_blank">'+res.txid.slice(0,20)+'…</a>'+(res.solves?(LANG==='ru'?' · решений капчи: '+res.solves:' · captcha solves: '+res.solves):''));
+        else show('ok',(LANG==='ru'?'Отправлено '+res.amount+' CRB! ':'Sent '+res.amount+' CRB! ')+'<a href="/explorer" target="_blank">'+res.txid.slice(0,20)+'…</a>'+(res.solves?(LANG==='ru'?' · решений капчи: '+res.solves:' · captcha solves: '+res.solves):''));
       }catch(e){ show('err',(LANG==='ru'?'Ошибка: ':'Error: ')+e.message); }
       $('btn').disabled=false; $('bar').style.display='none';
     } else if(m.type==='err'){

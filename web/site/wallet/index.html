@@ -72,6 +72,15 @@ th{color:var(--mut);font-weight:600}
 </style>
 </head>
 <body>
+<div id="speedModal" style="position:fixed;inset:0;background:rgba(4,6,12,.72);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;z-index:300;padding:18px" onclick="if(event.target===this)closeSpeed()">
+  <div style="background:var(--panel);border:1px solid var(--border2);border-radius:16px;padding:22px;max-width:400px;width:100%;box-shadow:0 24px 70px -20px #000">
+    <div data-i="su_title" style="font-family:var(--fd);font-size:18px;font-weight:700;margin-bottom:5px">⚡ Speed up transaction</div>
+    <div data-i="su_desc" style="color:var(--mut);font-size:13px;line-height:1.5;margin-bottom:16px">Pick a priority — a higher fee outbids more pending transactions, so yours confirms sooner. Same recipient &amp; amount.</div>
+    <button id="sp_mid" onclick="doSpeedUp('mid')" style="display:block;width:100%;text-align:left;margin-bottom:10px;padding:13px 15px;background:var(--glass);border:1px solid var(--border);border-radius:12px;color:var(--txt);cursor:pointer;font:inherit"></button>
+    <button id="sp_high" onclick="doSpeedUp('high')" style="display:block;width:100%;text-align:left;margin-bottom:14px;padding:13px 15px;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.4);border-radius:12px;color:var(--txt);cursor:pointer;font:inherit"></button>
+    <button data-i="su_cancel" onclick="closeSpeed()" style="display:block;width:100%;padding:9px;background:none;border:none;color:var(--mut);cursor:pointer;font:inherit">cancel</button>
+  </div>
+</div>
 <div class="bg" aria-hidden="true"><div class="aurora a1"></div><div class="aurora a2"></div></div>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse"><stop stop-color="#22d3ee"/><stop offset="1" stop-color="#a78bfa"/></linearGradient></defs></svg>
 <div class="wrap">
@@ -81,12 +90,12 @@ th{color:var(--mut);font-weight:600}
     <a href="../" data-i="nav_home">Home</a>
     <a href="../#roadmap" data-i="nav_roadmap">Roadmap</a>
     <span class="navsep" aria-hidden="true"></span>
-    <a href="../mine.html" class="minecta" data-i="nav_mine">⛏️ How to mine?</a>
+    <a href="/mine" class="minecta" data-i="nav_mine">⛏️ How to mine?</a>
     <span class="navsep" aria-hidden="true"></span>
-    <a href="../pool.html" data-i="nav_pool">Pool</a>
-    <a href="../explorer.html" data-i="nav_explorer">Explorer</a>
+    <a href="/pool" data-i="nav_pool">Pool</a>
+    <a href="/explorer" data-i="nav_explorer">Explorer</a>
     <a href="./" class="active" data-i="nav_wallet">Wallet</a>
-    <a href="../faucet.html" data-i="nav_faucet">Faucet</a>
+    <a href="/faucet" data-i="nav_faucet">Faucet</a>
     <a href="/p2p">P2P</a>
     <span class="langsw"><button data-lang="en" onclick="setLang('en')">EN</button><button data-lang="ru" onclick="setLang('ru')">RU</button></span>
   </div>
@@ -125,10 +134,16 @@ th{color:var(--mut);font-weight:600}
     <h2 data-i="send_crb">Send CRB</h2>
     <input id="sendTo" data-ph="send_to_ph" placeholder="Recipient address (crb1...)">
     <div class="row">
-      <div><input id="sendAmount" data-ph="amount_ph" placeholder="Amount CRB" type="number" step="0.00000001" min="0"></div>
-      <div><input id="sendFee" oninput="feeEdited=true" type="number" step="0.00000001" min="0" title="fee" placeholder="auto"></div>
+      <div><input id="sendAmount" data-ph="amount_ph" placeholder="Amount CRB" type="number" step="0.00000001" min="0" oninput="updateSendTotal()"></div>
+      <div><input id="sendFee" oninput="feeEdited=true;updateSendTotal()" type="number" step="0.00000001" min="0" title="fee" placeholder="auto"></div>
+    </div>
+    <div class="row" style="margin-top:8px;gap:7px">
+      <button type="button" id="feeT50" onclick="pickFee('p50')" class="ghost" style="flex:1;text-align:center;font-size:12px;line-height:1.3;padding:9px 4px">~50%</button>
+      <button type="button" id="feeT99" onclick="pickFee('p99')" class="ghost" style="flex:1;text-align:center;font-size:12px;line-height:1.3;padding:9px 4px">99%</button>
+      <button type="button" onclick="document.getElementById('sendFee').focus()" class="ghost" style="flex:0 0 auto;font-size:12px;padding:9px 13px" data-i="fee_manual">✏️ manual</button>
     </div>
     <div class="muted" style="margin-top:4px" id="feeHint"></div>
+    <div style="margin-top:6px;font-size:12.5px" id="sendTotal"></div>
     <button id="sendBtn" onclick="sendTx()" data-i="sign_send">Sign and send</button>
     <div class="muted" style="margin-top:8px" data-i="fee_note">The fee goes to the block's miner. No minimum is set - but blocks fill by descending fee.</div>
   </div>
@@ -150,18 +165,17 @@ th{color:var(--mut);font-weight:600}
 <script>
 const API = location.pathname.replace(/wallet\/?.*/, '') + 'api';
 const UNIT = 1e8;
-let keys = null; // {secretKey: Uint8Array(64), publicKey: Uint8Array(32), address}
-let feeEdited = false; // becomes true once the user types a custom fee
-let feeFloor = 0, feeSuggested = 0; // latest network min / recommended fee (synapses)
-// Transaction history paging: the live top page (refreshed) + older pages the
-// user loads on demand, so every tx is reachable without huge node payloads.
+let keys = null; 
+let feeEdited = false; 
+let feeFloor = 0, feeSuggested = 0; 
+
 const HIST_PAGE = 30;
 let histRecent = [], histExtra = [], histPendingRows = '', histTotal = 0, histLoading = false;
 
 const $ = id => document.getElementById(id);
 const hex = b => Array.from(b).map(x=>x.toString(16).padStart(2,'0')).join('');
 const unhex = s => { const m = (s||'').match(/.{2}/g); return m ? new Uint8Array(m.map(x=>parseInt(x,16))) : new Uint8Array(0); };
-// Escape server-provided strings before putting them in innerHTML (defense in depth).
+
 const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
 
 const L = {
@@ -182,8 +196,9 @@ const L = {
     net:(s)=>`height <b>${s.height}</b> · epoch ${s.epoch} · network hashrate ~<b>${((+s.hashrate||0)/1e6).toFixed(2)}</b> MH/s · supply ${fmt(s.supply)} CRB · reward ${fmt(s.reward)} CRB · mempool ${s.mempool}`,
     node_down:"node unavailable: ",bad_to:"invalid recipient address",bad_amount:"invalid amount",
     insufficient:(bal)=>`amount + fee exceeds your spendable balance (${bal} CRB)`,
+    send_total:"Total to debit",insuff_short:"insufficient balance",
     send_confirm:(amt,to,fee)=>`Send ${amt} CRB\nto ${to}\nfee ${fee} CRB?`,
-    speedup:"speed up",cancel_tx:"cancel",
+    speedup:"speed up",cancel_tx:"cancel",su_title:"⚡ Speed up transaction",su_desc:"Pick a priority — a higher fee outbids more pending transactions, so yours confirms sooner. Same recipient & amount.",su_next:"into next block",su_fee:"fee",su_max:"max priority",su_cancel:"cancel",fee_manual:"✏️ manual",
     speedup_confirm:(o,n)=>`Re-broadcast this payment with a higher fee so it confirms sooner?\n\nFee: ${o} → ${n} CRB (same recipient, same amount).`,
     cancel_confirm:(n)=>`Cancel this pending transaction?\n\nIt will be replaced by a tiny self-send (fee ${n} CRB) at the same nonce, so the original payment never executes. Only works while it is still unconfirmed.`,
     sped_up:(id)=>`Speed-up sent (TX ${id}…) - higher fee, same nonce`,
@@ -206,8 +221,9 @@ const L = {
     net:(s)=>`высота <b>${s.height}</b> · эпоха ${s.epoch} · хэшрейт сети ~<b>${((+s.hashrate||0)/1e6).toFixed(2)}</b> MH/s · эмиссия ${fmt(s.supply)} CRB · награда за блок ${fmt(s.reward)} CRB · мемпул ${s.mempool}`,
     node_down:"нода недоступна: ",bad_to:"некорректный адрес получателя",bad_amount:"некорректная сумма",
     insufficient:(bal)=>`сумма + комиссия больше доступного баланса (${bal} CRB)`,
+    send_total:"Итого к списанию",insuff_short:"недостаточно средств",
     send_confirm:(amt,to,fee)=>`Отправить ${amt} CRB\nна ${to}\nкомиссия ${fee} CRB?`,
-    speedup:"ускорить",cancel_tx:"отменить",
+    speedup:"ускорить",cancel_tx:"отменить",su_title:"⚡ Ускорить транзакцию",su_desc:"Выберите приоритет — большая комиссия обгоняет больше ожидающих транзакций, ваша подтвердится быстрее. Тот же получатель и сумма.",su_next:"в следующий блок",su_fee:"комиссия",su_max:"макс. приоритет",su_cancel:"отмена",fee_manual:"✏️ вручную",
     speedup_confirm:(o,n)=>`Переотправить этот платёж с большей комиссией, чтобы он подтвердился быстрее?\n\nКомиссия: ${o} → ${n} CRB (тот же получатель и сумма).`,
     cancel_confirm:(n)=>`Отменить эту неподтверждённую транзакцию?\n\nОна будет заменена крошечной самоотправкой (комиссия ${n} CRB) с тем же nonce, и исходный платёж не выполнится. Работает, только пока транзакция в мемпуле.`,
     sped_up:(id)=>`Ускорение отправлено (TX ${id}…) - выше комиссия, тот же nonce`,
@@ -228,8 +244,6 @@ function applyChrome(){
 
 function toast(msg, ms=3500){ const t=$('toast'); t.textContent=msg; t.style.display='block'; clearTimeout(t._h); t._h=setTimeout(()=>t.style.display='none',ms); }
 
-// Pure-JS SHA-256: WebCrypto (crypto.subtle) is unavailable on plain HTTP,
-// so we never depend on it.
 function sha256(data){
   const K = [0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
     0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
@@ -281,19 +295,11 @@ async function setKeys(secretHex){
   const h = (secretHex || '').trim().toLowerCase().replace(/^0x/, '');
   if (!/^[0-9a-f]+$/.test(h) || (h.length !== 128 && h.length !== 64)) throw new Error(t('e_keylen'));
   const raw = unhex(h);
-  // An ed25519 secret key is seed(32) || public(32). ALWAYS re-derive the public
-  // key from the SEED rather than trusting a stored public half: a key whose
-  // public half doesn't match its seed yields an address that can receive but
-  // can NEVER sign ("invalid signature"). fromSeed guarantees they correspond,
-  // and also lets you import a bare 32-byte (64 hex) seed.
+  
   const kp = nacl.sign.keyPair.fromSeed(raw.slice(0, 32));
   keys = { secretKey: kp.secretKey, publicKey: kp.publicKey, address: await addrFromPub(kp.publicKey) };
 }
 
-// Refuse to mint a key unless a cryptographically secure RNG is present.
-// crypto.getRandomValues IS available on plain HTTP (unlike crypto.subtle);
-// real TweetNaCl uses it and throws without it - this guards against a tampered
-// or stripped build silently seeding keys from a weak source.
 function assertCSPRNG(){
   if (!(window.crypto && typeof window.crypto.getRandomValues === 'function'))
     throw new Error(LANG==='ru'
@@ -358,13 +364,14 @@ async function refresh(){
     const myPub = hex(keys.publicKey);
     const b = await api('/balance?addr=' + keys.address);
     $('nonce').textContent = b.nonce;
+    window._spendableSyn = (b.spendable != null) ? b.spendable : (b.balance||0); updateSendTotal();
     histRecent = await api('/history?addr=' + keys.address + '&limit=' + HIST_PAGE + '&offset=0').catch(()=>[]) || [];
     histTotal = b.txn != null ? b.txn : histRecent.length;
-    // pending (unconfirmed) txns from the mempool that involve this address
+    
     let mp = []; try { mp = await api('/mempool') || []; } catch(e){}
     const pendBadge = `<span style="background:#7a5b12;color:#ffd97a;border-radius:6px;padding:1px 6px;font-size:11px">${t('pend')}</span>`;
     let delta = 0;
-    window._pendOut = {}; // nonce -> {to,amount,fee} for replace-by-fee actions
+    window._pendOut = {}; 
     const pr = (mp||[]).filter(x => x.to === keys.address || x.from_pub === myPub).map(x => {
       const out = x.from_pub === myPub;
       const peer = out ? x.to : ('crb1' + hex(sha256(unhex(x.from_pub)).slice(0,20)));
@@ -389,8 +396,6 @@ async function refresh(){
   } catch(e){ console.error(e); }
 }
 
-// renderHistory composes pending + the live top page + on-demand older pages,
-// de-duplicated by txid, with a "load more" control until every tx is shown.
 function renderHistory(){
   const seen = new Set();
   const confirmed = histRecent.concat(histExtra).filter(h => {
@@ -425,10 +430,7 @@ async function loadMoreHist(){
 }
 
 const toCrb = s => (s / UNIT).toFixed(8).replace(/0+$/, '').replace(/\.$/, '');
-// Parse a CRB decimal string to integer synapses (1 CRB = 1e8) WITHOUT float
-// error: accepts a comma or dot separator (so RU "1,5" is not silently read as
-// 1), rejects junk / negatives / >8 decimals / amounts too large to represent
-// exactly. Returns NaN on bad input.
+
 function crbToSynapses(str){
   const s = (str==null?'':String(str)).trim().replace(',', '.');
   if (s === '' || s === '.' || !/^\d*\.?\d*$/.test(s)) return NaN;
@@ -444,9 +446,10 @@ async function netInfo(){
     const s = await api('/status');
     $('netinfo').innerHTML = t('net')(s);
     if (s.fee_suggested != null) {
-      feeSuggested = s.fee_suggested;
+      feeSuggested = s.fee_suggested; updateFeeTiers();
       feeFloor = (s.fee_floor != null) ? s.fee_floor : s.fee_suggested;
       if (!feeEdited) $('sendFee').value = toCrb(s.fee_suggested);
+      updateSendTotal();
       const busy = s.fee_suggested > feeFloor;
       const fh = $('feeHint');
       if (fh) fh.innerHTML = t('fee_rec')(toCrb(s.fee_suggested), toCrb(feeFloor), busy)
@@ -455,15 +458,10 @@ async function netInfo(){
   } catch(e){ $('netinfo').textContent = t('node_down') + e.message; }
 }
 
-// signAndPost builds, locally signs and broadcasts one transaction. nonce is
-// explicit so a replacement can reuse a pending tx's nonce (replace-by-fee).
 async function signAndPost(to, amount, fee, nonce){
   const st = await api('/status');
   const tx = { from_pub: hex(keys.publicKey), to, amount, fee, nonce };
-  // Consensus signing payload - must match the Go node's Tx.signingPayloadFor
-  // verbatim ("cerebra-tx-v1"; a protocol constant, not the brand). From
-  // chain_id_height the payload also binds chain_id (the genesis hash) so a
-  // signature cannot be replayed onto a fork/testnet. Sign for the next block.
+  
   const nextHeight = (st.height || 0) + 1;
   const payload = (st.chain_id && nextHeight >= st.chain_id_height)
     ? `cerebra-tx-v1|${st.chain_id}|${tx.from_pub}|${tx.to}|${tx.amount}|${tx.fee}|${tx.nonce}`
@@ -494,21 +492,60 @@ async function sendTx(){
   finally { $('sendBtn').disabled = false; }
 }
 
-// bumpFee returns a fee that clears the node's replace-by-fee bar (old +10%, at
-// least +1 synapse), or the current network recommendation if it is higher.
 function bumpFee(oldFee){
   let mn = oldFee + Math.floor(oldFee/10);
   if (mn <= oldFee) mn = oldFee + 1;
   return Math.max(mn, feeSuggested||0);
 }
 
-// speedUp / cancelTx replace a still-pending outgoing tx via replace-by-fee:
-// speed-up re-sends the same payment at a higher fee; cancel replaces it with a
-// 0-value self-send at the same nonce so the original never executes.
+function _pctl(a,p){return a.length?a[Math.min(a.length-1,Math.floor(p*a.length))]:0}
+async function feeTiers(minFee){
+  let mp=[]; try{ mp=await api('/mempool')||[]; }catch(e){}
+  const fees=mp.map(x=>+x.fee||0).filter(f=>f>0).sort((a,b)=>a-b);
+  const fl=Math.max(minFee||0, feeFloor||1000);
+  if(!fees.length) return {p50:fl, p99:fl};
+  const p50=Math.max(_pctl(fees,0.50), fl);
+  const p99=Math.max(_pctl(fees,0.95), p50+Math.max(1,Math.ceil(p50/10)), fl);
+  return {p50, p99};
+}
+
+async function updateFeeTiers(){
+  let ti; try{ ti=await feeTiers(feeFloor); }catch(e){ return; } window._sendTiers=ti;
+  const g=id=>document.getElementById(id);
+  if(g('feeT50')) g('feeT50').innerHTML=`<b>~50%</b> <span style="color:var(--mut);font-size:10.5px">${t('su_next')}</span><div style="color:var(--acc);font-weight:700;margin-top:2px">${toCrb(ti.p50)} CRB</div>`;
+  if(g('feeT99')) g('feeT99').innerHTML=`<b>99%</b> <span style="color:var(--mut);font-size:10.5px">${t('su_next')}</span><div style="color:var(--ok);font-weight:700;margin-top:2px">${toCrb(ti.p99)} CRB</div>`;
+}
+function pickFee(which){
+  const ti=window._sendTiers; if(!ti) return;
+  const fee = which==='p99'?ti.p99:ti.p50;
+  const el=document.getElementById('sendFee'); if(el){ el.value=toCrb(fee); feeEdited=true; updateSendTotal(); }
+}
+
+function updateSendTotal(){
+  const el=document.getElementById('sendTotal'); const btn=document.getElementById('sendBtn'); if(!el) return;
+  const amt=crbToSynapses(document.getElementById('sendAmount').value)||0;
+  const fee=crbToSynapses(document.getElementById('sendFee').value||'0')||0;
+  const a=amt>0?amt:0, f=fee>0?fee:0, total=a+f;
+  if(total<=0){ el.textContent=''; if(btn) btn.disabled=false; return; }
+  const over=total>(window._spendableSyn||0);
+  el.innerHTML=`${t('send_total')}: <b>${toCrb(total)} CRB</b> <span style="color:var(--mut)">(${toCrb(a)} + ${toCrb(f)} ${t('su_fee')})</span>`+(over?` — <b style="color:var(--err)">${t('insuff_short')}</b>`:'');
+  el.style.color=over?'var(--err)':'var(--mut)';
+  if(btn) btn.disabled=over;
+}
+let _suCtx=null;
 async function speedUp(nonce){
-  const p = (window._pendOut||{})[nonce]; if (!p) return;
-  const fee = bumpFee(p.fee);
-  if (!confirm(t('speedup_confirm')(toCrb(p.fee), toCrb(fee)))) return;
+  const p=(window._pendOut||{})[nonce]; if(!p) return;
+  const minFee=p.fee+Math.max(1,Math.floor(p.fee/10)); 
+  const ti=await feeTiers(minFee); _suCtx={nonce,p,ti};
+  const g=id=>document.getElementById(id);
+  g('sp_mid').innerHTML=`<b style="font-size:15px">~50%</b> <span style="color:var(--mut);font-size:12.5px">${t('su_next')}</span><div style="color:var(--acc);font-weight:700;margin-top:3px">${t('su_fee')}: ${toCrb(ti.p50)} CRB</div>`;
+  g('sp_high').innerHTML=`<b style="font-size:15px">99%</b> <span style="color:var(--mut);font-size:12.5px">${t('su_next')} · ${t('su_max')}</span><div style="color:var(--ok);font-weight:700;margin-top:3px">${t('su_fee')}: ${toCrb(ti.p99)} CRB</div>`;
+  g('speedModal').style.display='flex';
+}
+function closeSpeed(){ document.getElementById('speedModal').style.display='none'; _suCtx=null; }
+async function doSpeedUp(which){
+  if(!_suCtx) return; const {nonce,p,ti}=_suCtx; const fee=which==='high'?ti.p99:ti.p50;
+  closeSpeed();
   try {
     const res = await signAndPost(p.to, p.amount, fee, +nonce);
     toast(t('sped_up')(res.txid.slice(0,16)));
@@ -520,8 +557,7 @@ async function cancelTx(nonce){
   const fee = bumpFee(p.fee);
   if (!confirm(t('cancel_confirm')(toCrb(fee)))) return;
   try {
-    // Consensus rejects a 0-amount tx, so cancel with the smallest valid amount
-    // (1 synapse) paid back to yourself - only the fee is actually spent.
+    
     const res = await signAndPost(keys.address, 1, fee, +nonce);
     toast(t('canceled')(res.txid.slice(0,16)));
     setTimeout(refresh, 1500);
