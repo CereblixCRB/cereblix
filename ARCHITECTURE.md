@@ -337,10 +337,14 @@ every submitted share is re-verified (a real NeuroMorph hash). Each miner is
 issued a unique **extranonce** that it pins into the top bits of every nonce, so
 a share is cryptographically **bound to one miner** - the pool rejects a share
 whose nonce tag doesn't match, so no one can claim another miner's work. When a
-share also meets the network target the pool forwards the block. Block rewards are
-split among miners proportional to their shares (PROP, with a small pool fee) and
-paid out automatically once a miner crosses a threshold - paying only the
-*matured* (spendable) balance and in partial amounts as more coinbase matures.
+share also meets the network target the pool forwards the block. Every above-floor
+share is credited by the **work its hash actually proves** (difficulty-weighted PPLNS:
+`weight = WorkOf(hash)/WorkOf(shareTarget)`, 1.0 = one standard share, capped at one
+block), so crediting is fair from the smallest CPU to the largest farm and is invariant
+to whatever eased target a stratum bridge serves a miner. Block rewards are split
+proportional to those weights (small pool fee) and paid out automatically once a miner
+crosses a threshold - paying only the *matured* (spendable) balance, in partial amounts
+as more coinbase matures.
 
 ### 6.7. Stratum bridge (`cmd/cereblix-stratum`) - XMRig support
 XMRig-style miners speak **Stratum**, not the node's HTTP getwork, so a small
