@@ -42,17 +42,13 @@ Thumbs.db
 *.wasm
 shots/
 
-# P2P/OTC desk kept LOCAL-only until launch (deployed to the live site, NOT published in the repo)
-web/site/p2p.html
-web/site/p2p*.html
-web/site/p2p*.png
+# The entire web frontend (marketing site + web wallet) now lives in the PRIVATE
+# cereblix-ops repo. This public repo is ONLY the coin/protocol (node, miner,
+# wallet CLI, core, neuromorph, stratum, wasm, hiveos). web/ is kept locally as
+# working files for deploy, but not tracked / published here.
+web/
 otc/
 nacl.min.js
-wallet/nacl.min.js
-
-# Internal NON-PUBLIC operator pages (deployed to the live site at obscure URLs, NOT published)
-# e.g. netminers-*.html = network miner power map (lists pool addrs); keep off public GitHub.
-web/site/netminers*.html
 
 # Forum announcement (ANN) drafts + banner - marketing, kept local-only
 ann/
