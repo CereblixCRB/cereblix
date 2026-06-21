@@ -21,6 +21,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
@@ -38,6 +39,8 @@ import (
 	"time"
 
 	"cereblix/core"
+
+	"github.com/coder/websocket"
 )
 
 var (
@@ -686,8 +689,41 @@ func handleConn(conn net.Conn) {
 	}
 }
 
+// ---- WebSocket transport (browser miners) ----
+// Browsers can't open raw TCP, so they can't speak Stratum directly. serveWS wraps an incoming
+// WebSocket as a net.Conn and runs the SAME handleConn() over it — the browser speaks the identical
+// Stratum dialect (login/job/submit) over WSS and gets the same vardiff + submit-retry + aggregated
+// getwork as a TCP miner. No duplicated mining logic. TLS + origin are terminated by Cloudflare +
+// Caddy in front (the bridge's WS port is internal/WG-only).
+func serveWS(addr string) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", wsHandler)
+	srv := &http.Server{Addr: addr, Handler: mux, ReadHeaderTimeout: 15 * time.Second}
+	log.Printf("cereblix-stratum WS on %s -> %s", addr, poolAPI)
+	if err := srv.ListenAndServe(); err != nil {
+		log.Printf("stratum: ws listen %s: %v", addr, err)
+	}
+}
+
+func wsHandler(w http.ResponseWriter, r *http.Request) {
+	conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{
+		InsecureSkipVerify: true, // origin enforced by Cloudflare/Caddy in front
+		CompressionMode:    websocket.CompressionDisabled,
+	})
+	if err != nil {
+		return
+	}
+	conn.SetReadLimit(1 << 16) // stratum messages are tiny; cap to reject abuse
+	defer conn.CloseNow()
+	// MessageText net.Conn: each Read returns the next WS message's bytes, each Write sends one.
+	// handleConn's line-framed reader/encoder ride over it unchanged (the web client newline-terminates).
+	nc := websocket.NetConn(context.Background(), conn, websocket.MessageText)
+	handleConn(nc)
+}
+
 func main() {
 	listen := flag.String("listen", ":3333", "stratum TCP listen address")
+	wsListen := flag.String("wslisten", "", "extra WebSocket listen address for browser miners (e.g. :3335); empty = off")
 	flag.StringVar(&poolAPI, "pool", "http://127.0.0.1:18754/api", "pool HTTP API base")
 	flag.DurationVar(&pollEvery, "poll", 2*time.Second, "how often to poll the pool for new work")
 	flag.BoolVar(&soloMode, "solo", false, "solo mode: backend is a NODE; serve an easy vardiff share target for feedback (real blocks still go to the node)")
@@ -732,6 +768,9 @@ func main() {
 	log.Printf("cereblix-stratum v%s bridge on %s -> %s [%s]%s", stratumVersion, *listen, poolAPI, mode,
 		map[bool]string{true: " verbose", false: ""}[verbose])
 	go autoUpdateLoop(!*noUpdate) // authority-signed, verified, with rollback
+	if *wsListen != "" {
+		go serveWS(*wsListen) // browser miners: WebSocket → same Stratum handler
+	}
 	if diag {
 		log.Printf("stratum: -diag ON — 5s aggregate submit/job-push counters")
 		go diagLoop()
