@@ -6,8 +6,8 @@ proof-of-work algorithm.** No GPU, no ASIC - ever. One CPU, one vote.
 - 🌐 Site & explorer: https://cereblix.com/
 - 💼 Web wallet: https://cereblix.com/wallet/
 - 🚰 Free faucet: https://cereblix.com/faucet.html
-- ⛏️ Pool: `-node https://cereblix.com/pool/api`
-- 🇷🇺 RU/CIS relay node (no Cloudflare): `-node https://ru.cereblix.com/pool/api`
+- ⛏️ Mine with UNM: `unm -o stratum+tcp://stratum.cereblix.com:3333 -u crb1...`
+- 🇷🇺 RU/CIS Stratum (no Cloudflare): `unm -o stratum+tcp://ru.cereblix.com:3333 -u crb1...`
 - 📖 Full design: [ARCHITECTURE.md](ARCHITECTURE.md)
 
 **Community:**
@@ -64,26 +64,45 @@ go build ./...
 
 # or build each tool:
 go build -o cereblixd        ./cmd/cereblixd
-go build -o cereblix-miner   ./cmd/cereblix-miner
 go build -o cereblix-wallet  ./cmd/cereblix-wallet
 ```
 
 Cross-compile (e.g. Windows from Linux):
 
 ```sh
-GOOS=windows GOARCH=amd64 go build -o cereblix-miner.exe ./cmd/cereblix-miner
+GOOS=windows GOARCH=amd64 go build -o cereblix-wallet.exe ./cmd/cereblix-wallet
 ```
 
 ## Mine
 
+The fastest way to mine is **UNM (Ultra Native Miner)** — our new from-scratch CPU
+miner. It **auto-tunes to your CPU** (NUMA nodes, physical cores, best AES path —
+AES-NI / VAES-256 / VAES-512) and is the **fastest CRB CPU miner we have measured**:
+on a dual **EPYC 7B13** it **beats SRBMiner-Multi 3.3.9** (which takes a 3% fee)
+while using fewer threads — with **zero configuration**. It **self-updates**
+(signed manifest, SHA-256 verified) and **never drops you** — a built-in
+supervisor restarts it on any error and Stratum auto-reconnects.
+
+| Platform | Download (latest release) |
+|---|---|
+| Windows x64 | [unm-windows-amd64.exe](https://github.com/CereblixCRB/cereblix/releases/latest/download/unm-windows-amd64.exe) |
+| Linux x64 | [unm-linux-amd64](https://github.com/CereblixCRB/cereblix/releases/latest/download/unm-linux-amd64) |
+| Hive OS | [unm-hiveos.tar.gz](https://github.com/CereblixCRB/cereblix/releases/latest/download/unm-hiveos.tar.gz) |
+
 ```sh
-# 1. create a wallet address
+# create a wallet first (or use the web wallet: https://cereblix.com/wallet/)
 cereblix-wallet new main
 
-# 2. point the miner at any node (the public seed by default)
-cereblix-miner -addr crb1YOURADDRESS            # uses all cores
-cereblix-miner -addr crb1YOURADDRESS -threads 4 # limit cores
+# then mine — pool (steady payouts) or solo (whole 50 CRB blocks):
+unm -o stratum+tcp://stratum.cereblix.com:3333 -u crb1YOURADDRESS    # pool
+unm -o stratum+tcp://stratum.cereblix.com:3334 -u crb1YOURADDRESS    # solo
 ```
+
+UNM needs **AVX2 + AES-NI** (any Intel Haswell+ / AMD Zen+, incl. EPYC/Ryzen/
+Threadripper). It uses one worker per **physical** core automatically — no thread
+tuning needed. Regions: `ru.cereblix.com` · `us.cereblix.com` · `asia.cereblix.com`
+(append `:3333` pool / `:3334` solo). Offline speed test: `unm -bench 10`. Mine to
+**your own node / bridge / proxy** by pointing `-o` at any Stratum host (see below).
 
 > Antivirus software often flags unsigned CPU miners as PUA - add an exclusion
 > for the miner file rather than disabling protection.
@@ -108,10 +127,10 @@ Hashing is verified byte-identical across amd64, arm64 and wasm
 ### Mine in a pool (steady rewards)
 
 Solo mining is a lottery; a pool pays a steady trickle proportional to your work.
-The stock miner works against the pool unchanged - just point `-node` at it:
+Just point UNM at the pool over Stratum:
 
 ```sh
-cereblix-miner -addr crb1YOURADDRESS -node https://cereblix.com/pool/api
+unm -o stratum+tcp://stratum.cereblix.com:3333 -u crb1YOURADDRESS
 ```
 
 On the pool the miner logs `share accepted` - those are *shares* (proofs of work
@@ -133,14 +152,13 @@ throttling), mine through our Moscow relay node instead - same chain, same pool,
 same payouts, just a direct route with no Cloudflare in the way:
 
 ```sh
-cereblix-miner -addr crb1YOURADDRESS -node https://ru.cereblix.com/pool/api   # pool
-cereblix-miner -addr crb1YOURADDRESS -node https://ru.cereblix.com/api        # solo
+unm -o stratum+tcp://ru.cereblix.com:3333 -u crb1YOURADDRESS   # pool
+unm -o stratum+tcp://ru.cereblix.com:3334 -u crb1YOURADDRESS   # solo
 ```
 
 ### Mine with XMRig (Stratum — for big multi-core CPUs)
 
-The native `cereblix-miner` is the simplest path, but on large many-core CPUs
-**XMRig** scales better. We ship an **official, fee-free** XMRig build — the
+UNM (above) is the fastest option on most CPUs. If you prefer **XMRig**, we ship one too. We ship an **official, fee-free** XMRig build — the
 developer donation is removed and the **GPLv3 source is included** — that speaks
 our **Stratum** endpoint:
 
