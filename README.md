@@ -330,7 +330,7 @@ upgrades roll out without manual coordination.
 **highest-fee-first** (pay a bit more to confirm sooner), so the mempool never
 stalls. The wallet auto-suggests a fee from current network load.
 
-### Mine to your own node with XMRig
+### Mine to your own node (UNM + the bridge)
 
 Running your own node and want to mine to it with XMRig — fully trustless, no
 public pool or server involved? XMRig speaks **Stratum** while the node speaks
@@ -353,7 +353,7 @@ cereblixd -datadir ./data
 cereblix-stratum -listen :3334 -pool http://127.0.0.1:18751/api -solo
 
 # 3. point XMRig at your local bridge (uses all cores by default; -t N to set count)
-xmrig-cereblix -o 127.0.0.1:3334 -a nm/1 -u crb1YOURADDRESS -p x
+unm -o stratum+tcp://127.0.0.1:3334 -u crb1YOURADDRESS
 ```
 
 `-solo` makes the bridge hand XMRig an **easy "feedback" share target with
