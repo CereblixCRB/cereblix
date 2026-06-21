@@ -101,7 +101,7 @@ unm -o stratum+tcp://stratum.cereblix.com:3334 -u crb1YOURADDRESS    # solo
 UNM needs **AVX2 + AES-NI** (any Intel Haswell+ / AMD Zen+, incl. EPYC/Ryzen/
 Threadripper). It uses one worker per **physical** core automatically — no thread
 tuning needed. Regions: `ru.cereblix.com` · `us.cereblix.com` · `asia.cereblix.com`
-(append `:3333` pool / `:3334` solo). Offline speed test: `unm -bench 10`. Mine to
+(append `:3333` pool / `:3334` solo). Offline speed test: `unm -bench 10`. **Open source (MIT)** — build it yourself from [`unm-src.tar.gz`](https://github.com/CereblixCRB/cereblix/releases/latest/download/unm-src.tar.gz). Mine to
 **your own node / bridge / proxy** by pointing `-o` at any Stratum host (see below).
 
 > Antivirus software often flags unsigned CPU miners as PUA - add an exclusion
