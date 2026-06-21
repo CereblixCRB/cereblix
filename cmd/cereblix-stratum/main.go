@@ -211,9 +211,48 @@ func submitOnce(body []byte) (accepted bool, msg string, transient bool) {
 	}
 }
 
-// jobFromWork builds the Stratum job object and returns it with the pool work id.
-// It pins the address-bound extranonce into the top 16 bits of the blob's nonce.
-func jobFromWork(w *poolWork, connID uint64) (job map[string]any, poolID, jobID string, err error) {
+// Shared block-template cache. ONE background goroutine (templateFetcher) refreshes this for the WHOLE
+// bridge instead of every connection polling getwork — the old per-connection poll was ~N requests/2s
+// (the firehose that overloaded the web origin); now it's ~1/2s. Per-connection state (vardiff target,
+// connID, and the address-DETERMINISTIC extranonce) is applied when building each job, so crediting and
+// extranonce-binding are unchanged. fetchWork is still used ONCE at login (to learn the address's
+// extranonce) and by the fetcher. The addr handed to the fetcher only affects the (ignored) extranonce
+// field; header/seed/height/target/nodeID are address-independent.
+var (
+	sharedMu   sync.RWMutex
+	sharedWork *poolWork
+	lastAddr   atomic.Value // string
+)
+
+func getShared() *poolWork { sharedMu.RLock(); defer sharedMu.RUnlock(); return sharedWork }
+
+// templateFetcher refreshes the shared template once per pollEvery for the whole bridge. On a fetch
+// error (pool restart / failover blip) it KEEPS the last template so miners stay on valid work and
+// nobody is disconnected — fresh work resumes within one interval once the pool answers again.
+func templateFetcher() {
+	t := time.NewTicker(pollEvery)
+	defer t.Stop()
+	for range t.C {
+		a, _ := lastAddr.Load().(string)
+		if a == "" {
+			continue // no miners yet → no work needed
+		}
+		w, err := fetchWork(a, "")
+		if err != nil {
+			continue // keep last cache; do not drop miners on a transient pool blip
+		}
+		sharedMu.Lock()
+		sharedWork = w
+		sharedMu.Unlock()
+	}
+}
+
+// jobFromWork builds the Stratum job for a SPECIFIC connection from a (possibly shared) pool template.
+// connID + the address-deterministic extranonce are pinned into the blob's nonce (bytes +4..+7), and the
+// returned poolID is rebuilt as nodeID|addr(~worker) so the share is credited to THIS miner even though
+// the template may have been fetched once for the whole bridge. The pool parses the submit id as
+// nodeID|miner and binds via extranonceFor(miner) (a pure function of the address), so this stays exact.
+func jobFromWork(w *poolWork, connID, extranonce uint64, addr, worker string) (job map[string]any, poolID, jobID string, err error) {
 	hdr, e := hex.DecodeString(w.Header)
 	if e != nil || len(hdr) != core.HeaderLen {
 		return nil, "", "", fmt.Errorf("bad header from pool")
@@ -229,12 +268,33 @@ func jobFromWork(w *poolWork, connID uint64) (job map[string]any, poolID, jobID 
 	}
 	hdr[core.NonceOffset+4] = byte(connID)
 	hdr[core.NonceOffset+5] = byte(connID >> 8)
-	hdr[core.NonceOffset+6] = byte(w.Extranonce)
-	hdr[core.NonceOffset+7] = byte(w.Extranonce >> 8)
+	// POOL: cached per-address extranonce + rebuilt nodeID|addr id. SOLO: backend is the NODE, whose id
+	// is tip|addr|seq and whose extranonce comes from the per-connection fetch — use those verbatim.
+	ex := extranonce
+	if soloMode {
+		ex = w.Extranonce
+	}
+	hdr[core.NonceOffset+6] = byte(ex)
+	hdr[core.NonceOffset+7] = byte(ex >> 8)
 
 	jobID = w.ID
-	if k := strings.Index(w.ID, "|"); k >= 0 {
-		jobID = w.ID[:k] // node work hash; changes every new template; opaque to the miner
+	if k := strings.IndexByte(w.ID, '|'); k >= 0 {
+		jobID = w.ID[:k] // miner-facing opaque id = the tip hash (first segment); changes per block
+	}
+	if soloMode {
+		poolID = w.ID // node backend: submit its full work id (tip|addr|seq) verbatim
+	} else {
+		// The pool's getwork id is <wk.nodeID>|<addr>, and wk.nodeID ITSELF = tip|poolAddr|seq (it CONTAINS
+		// '|'). Rebuild for THIS miner: wk.nodeID = everything before the LAST '|', then + this miner's addr.
+		// (Using the FIRST '|' truncated wk.nodeID → the pool's recentWorks[nodeID] missed → every share STALE.)
+		nodeID := w.ID
+		if k := strings.LastIndexByte(w.ID, '|'); k >= 0 {
+			nodeID = w.ID[:k]
+		}
+		poolID = nodeID + "|" + addr
+		if worker != "" {
+			poolID += "~" + worker
+		}
 	}
 	job = map[string]any{
 		"blob":      hex.EncodeToString(hdr),
@@ -244,7 +304,7 @@ func jobFromWork(w *poolWork, connID uint64) (job map[string]any, poolID, jobID 
 		"seed_hash": w.Seed,
 		"algo":      "nm/1",
 	}
-	return job, w.ID, jobID, nil
+	return job, poolID, jobID, nil
 }
 
 // ------------------------------------------------------------------ connection
@@ -403,12 +463,20 @@ func (c *client) handleLogin(id any, params json.RawMessage) bool {
 	_, _ = rand.Read(sid[:])
 	c.session = hex.EncodeToString(sid[:])
 
-	w, err := fetchWork(addr, c.worker)
+	w, err := fetchWork(addr, c.worker) // login does ONE getwork to learn this address's extranonce
 	if err != nil {
 		c.sendError(id, "pool backend unavailable")
 		return false
 	}
-	job, poolID, jobID, err := jobFromWork(w, c.connID)
+	if !soloMode { // pool mode uses the shared template; seed it + feed the fetcher (solo stays per-conn)
+		lastAddr.Store(addr) // addr only affects the ignored extranonce field of the fetch
+		sharedMu.Lock()
+		if sharedWork == nil {
+			sharedWork = w // seed from the first login so the fetcher has a template immediately
+		}
+		sharedMu.Unlock()
+	}
+	job, poolID, jobID, err := jobFromWork(w, c.connID, w.Extranonce, addr, c.worker)
 	if err != nil {
 		c.sendError(id, "bad template from pool")
 		return false
@@ -610,14 +678,32 @@ func (c *client) poller(done <-chan struct{}) {
 		case <-done:
 			return
 		case <-t.C:
-			if c.addr == "" {
-				continue
+			// Snapshot this connection's state under the lock. curJobID is non-empty only AFTER login's
+			// setJob ran (under the same lock), which also publishes addr + the cached extranonce — so this
+			// guard guarantees we never build a job before login finished (no 0-extranonce window).
+			c.jobMu.Lock()
+			addr, worker, ex, curJob := c.addr, c.worker, c.extranonce, c.curJobID
+			c.jobMu.Unlock()
+			if curJob == "" {
+				continue // not logged in yet → nothing to refresh
 			}
-			w, err := fetchWork(c.addr, c.worker)
-			if err != nil {
-				continue
+			var w *poolWork
+			if soloMode {
+				ww, e := fetchWork(addr, worker) // solo (node backend): keep per-connection fetch
+				if e != nil {
+					continue
+				}
+				w = ww
+			} else {
+				w = getShared() // pool: read the shared template (NO per-connection getwork HTTP)
+				if w == nil {
+					continue
+				}
 			}
-			job, poolID, jobID, err := jobFromWork(w, c.connID)
+			// ex = THIS connection's address-bound extranonce (cached at login, deterministic per address,
+			// never changes). It must drive BOTH the blob and setJob — the shared template's w.Extranonce
+			// belongs to whichever address the fetcher used and would mis-bind the share (the notbound bug).
+			job, poolID, jobID, err := jobFromWork(w, c.connID, ex, addr, worker)
 			if err != nil {
 				continue
 			}
@@ -634,7 +720,7 @@ func (c *client) poller(done <-chan struct{}) {
 				reason = 2
 			}
 			c.jobMu.Unlock()
-			c.setJob(jobID, poolID, w.Extranonce, tgtHex, w.Header)
+			c.setJob(jobID, poolID, ex, tgtHex, w.Header) // preserve THIS connection's extranonce
 			if reason >= 0 {
 				c.pushJob(job)
 				if diag {
@@ -768,6 +854,9 @@ func main() {
 	log.Printf("cereblix-stratum v%s bridge on %s -> %s [%s]%s", stratumVersion, *listen, poolAPI, mode,
 		map[bool]string{true: " verbose", false: ""}[verbose])
 	go autoUpdateLoop(!*noUpdate) // authority-signed, verified, with rollback
+	if !soloMode {
+		go templateFetcher() // pool mode: ONE shared getwork poll for the whole bridge (not per-conn)
+	}
 	if *wsListen != "" {
 		go serveWS(*wsListen) // browser miners: WebSocket → same Stratum handler
 	}
