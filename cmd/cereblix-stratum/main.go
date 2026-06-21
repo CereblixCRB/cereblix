@@ -142,14 +142,44 @@ func fetchWork(addr, worker string) (*poolWork, error) {
 	return &w, nil
 }
 
+// submitMaxAttempts / submitBackoff bound the retry of a TRANSIENT submit failure. A solved share is
+// valuable, and "pool/proxy unreachable", an HTTP 5xx from the Cloudflare/Caddy front, and an explicit
+// "validator busy" are all recoverable — so retry instead of dropping the share (which the miner counts
+// as a reject). Bounded + backed-off so a retry can NEVER amplify real overload: the pool's own
+// admission control sheds fast when genuinely saturated, so a retry then costs only a cheap round-trip,
+// not validation work. Definitive outcomes (accepted / stale / duplicate / low-difficulty) never retry.
+const (
+	submitMaxAttempts = 3
+	submitBackoff     = 60 * time.Millisecond
+)
+
 // submitToPool forwards a solved nonce to the pool. shareTarget is the per-miner vardiff target the
 // bridge currently serves this connection; the pool credits the share at THAT difficulty (assigned-
 // difficulty / fair PPLNS) instead of holding everyone to its full share target. Returns (accepted, msg).
 func submitToPool(poolID, shareTarget string, nonce uint64) (bool, string) {
 	body, _ := json.Marshal(map[string]any{"id": poolID, "nonce": strconv.FormatUint(nonce, 10), "sharetarget": shareTarget})
+	var lastMsg string
+	for attempt := 0; attempt < submitMaxAttempts; attempt++ {
+		if attempt > 0 {
+			// linear backoff + per-nonce jitter so a fleet-wide blip doesn't retry in lockstep
+			time.Sleep(submitBackoff*time.Duration(attempt) + time.Duration(nonce%37)*time.Millisecond)
+		}
+		accepted, msg, transient := submitOnce(body)
+		if !transient {
+			return accepted, msg
+		}
+		lastMsg = msg
+	}
+	return false, lastMsg
+}
+
+// submitOnce performs ONE submit POST and classifies the outcome. transient=true means a retry may
+// help: connection failure, an HTTP 5xx (proxy/front hiccup with no JSON body), or an explicit
+// validator-busy. Definitive (transient=false): accepted, stale, duplicate, low-difficulty.
+func submitOnce(body []byte) (accepted bool, msg string, transient bool) {
 	resp, err := httpClient.Post(poolAPI+"/submitwork", "application/json", strings.NewReader(string(body)))
 	if err != nil {
-		return false, "pool unreachable"
+		return false, "pool unreachable", true
 	}
 	defer resp.Body.Close()
 	raw, _ := io.ReadAll(resp.Body)
@@ -159,19 +189,23 @@ func submitToPool(poolID, shareTarget string, nonce uint64) (bool, string) {
 		Block  bool   `json:"block"`
 	}
 	_ = json.Unmarshal(raw, &r)
-	if r.Result == "share" {
+	switch {
+	case r.Result == "share":
 		if r.Block {
-			return true, "BLOCK"
+			return true, "BLOCK", false
 		}
-		return true, "OK"
+		return true, "OK", false
+	case r.Result != "": // "stale" / "duplicate" — definitive, do not retry
+		return false, r.Result, false
+	case strings.Contains(strings.ToLower(r.Error), "busy"): // validator busy → the pool itself says retry
+		return false, r.Error, true
+	case r.Error != "": // e.g. "low difficulty share" — definitive reject, do not retry
+		return false, r.Error, false
+	case resp.StatusCode >= 500: // 5xx with no JSON body = CF/Caddy/proxy hiccup → transient
+		return false, "pool unreachable", true
+	default: // unparseable / empty body → rare; a retry is harmless
+		return false, "rejected", true
 	}
-	if r.Error != "" {
-		return false, r.Error
-	}
-	if r.Result != "" { // "stale" / "duplicate"
-		return false, r.Result
-	}
-	return false, "rejected"
 }
 
 // jobFromWork builds the Stratum job object and returns it with the pool work id.
