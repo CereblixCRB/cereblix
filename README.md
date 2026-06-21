@@ -241,16 +241,16 @@ SRBMiner-MULTI --algorithm neuromorph --pool stratum.cereblix.com:3333 --wallet 
 # solo: port :3334   ·   RU/CIS: --pool ru.cereblix.com:3333   ·   name a rig: --worker RIGNAME
 ```
 
-### Run a farm through a proxy (xmrig-cereblix-proxy)
+### Run a farm through the Cereblix Proxy
 
-Running many rigs? Our **fee-free `xmrig-cereblix-proxy`** (a Stratum proxy) lets
+Running many rigs? Our **fee-free Cereblix Proxy** (a universal Stratum proxy that works with any miner) lets
 the whole farm share one connection and one config: point the proxy at the pool,
 then point every rig at the proxy.
 
 | Platform | Download |
 |---|---|
-| Windows x64 | [xmrig-cereblix-proxy-windows-x64.exe](https://github.com/CereblixCRB/cereblix/releases/download/xmrig/xmrig-cereblix-proxy-windows-x64.exe) |
-| Linux x64 | [xmrig-cereblix-proxy-linux-x64](https://github.com/CereblixCRB/cereblix/releases/download/xmrig/xmrig-cereblix-proxy-linux-x64) |
+| Windows x64 | [cereblix-proxy-windows-x64.exe](https://github.com/CereblixCRB/cereblix/releases/latest/download/cereblix-proxy-windows-x64.exe) |
+| Linux x64 | [cereblix-proxy-linux-x64](https://github.com/CereblixCRB/cereblix/releases/latest/download/cereblix-proxy-linux-x64) |
 | Source (GPLv3) | [xmrig-cereblix-proxy-src.tar.gz](https://github.com/CereblixCRB/cereblix/releases/download/xmrig/xmrig-cereblix-proxy-src.tar.gz) |
 
 ```sh
@@ -259,17 +259,17 @@ then point every rig at the proxy.
 { "mode": "simple", "pools": [ { "algo": "nm/1", "url": "stratum.cereblix.com:3333", "user": "crb1YOURADDRESS", "pass": "x", "keepalive": true } ], "bind": [ "0.0.0.0:3333" ] }
 
 # 2. run the proxy
-xmrig-cereblix-proxy -c config.json
+cereblix-proxy -c config.json
 
 # 3. point every rig at the proxy (not the pool):
-xmrig-cereblix -a nm/1 -o PROXY_IP:3333 -u crb1YOURADDRESS -p x
+unm -o stratum+tcp://PROXY_IP:3333 -u crb1YOURADDRESS
 ```
 
 The proxy's upstream must be the **pool** (`stratum.cereblix.com:3333`, or for
 RU/CIS `ru.cereblix.com:3333`). Your earnings still track per address on the pool
 dashboard.
 
-A ready-made [`config.json`](https://github.com/CereblixCRB/cereblix/releases/download/xmrig/xmrig-cereblix-proxy-config.json)
+A ready-made [`config.json`](https://github.com/CereblixCRB/cereblix/releases/latest/download/cereblix-proxy-config.json)
 is on the release - just put in your address.
 
 **Monitoring & per-rig stats.** The proxy has a built-in HTTP API. With the
@@ -289,7 +289,7 @@ is on the release:
 ```sh
 sudo useradd -r -s /usr/sbin/nologin cereblix          # once
 sudo mkdir -p /opt/cereblix-proxy
-sudo cp xmrig-cereblix-proxy config.json /opt/cereblix-proxy/
+sudo cp cereblix-proxy config.json /opt/cereblix-proxy/
 sudo cp cereblix-proxy.service /etc/systemd/system/
 sudo systemctl enable --now cereblix-proxy
 journalctl -u cereblix-proxy -f                        # watch it
