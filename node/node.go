@@ -470,6 +470,31 @@ func (n *Node) SyncLoop() {
 	}
 }
 
+// tipAhead reports whether a peer's announced tip is worth pulling: strictly more
+// cumulative work, or equal work whose tip wins the deterministic tie-break (smaller
+// hash). Pure mirror of syncWithPeer's early-return logic so the announce-dedup can
+// skip a sync that syncWithPeer would itself bail on.
+func tipAhead(cumWork, hash string, ourWork *big.Int, ourHash string) bool {
+	if len(cumWork) > 80 { // a 256-bit cumwork is ~64 hex; reject absurd values
+		return false
+	}
+	tw, ok := new(big.Int).SetString(cumWork, 16)
+	if !ok {
+		return false
+	}
+	switch tw.Cmp(ourWork) {
+	case 1:
+		return true // strictly more work
+	case 0:
+		return hash < ourHash // equal work: only the tie-break winner
+	}
+	return false // we have at least as much work
+}
+
+func (n *Node) peerAhead(tip tipInfo) bool {
+	return tipAhead(tip.CumWork, tip.Hash, n.Chain.CumWork(), n.Chain.Tip().Hash())
+}
+
 func (n *Node) syncWithPeer(peer string) {
 	defer func() {
 		if rec := recover(); rec != nil {
@@ -732,7 +757,14 @@ func (n *Node) subscribeLoop(peer string) {
 			continue
 		}
 		misses = 0
-		n.syncWithPeer(peer) // a block was announced (or the hold timed out): pull & adopt
+		// Dedup the N-way announce storm: /p2p/subscribe already gave us the peer's
+		// tip, so only pull when it is actually ahead. Otherwise every peer announcing
+		// the same new block triggers a redundant syncWithPeer round-trip after the
+		// first one already adopted it. SyncLoop still polls as a backstop, and the
+		// rare equal-work-fork pushTip is covered there.
+		if n.peerAhead(tip) {
+			n.syncWithPeer(peer) // a block was announced and the peer is ahead: pull & adopt
+		}
 	}
 }
 
