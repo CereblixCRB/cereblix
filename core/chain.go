@@ -47,6 +47,11 @@ type Chain struct {
 	// O(chain) full scan on every request (which was a DoS amplification vector).
 	totals map[string]*addrTotals
 
+	// addrTx indexes, per address, the (block,tx) positions of every tx touching
+	// it (sender or recipient), so History(addr) is O(results) not an O(whole-chain)
+	// scan (which dominated node CPU). Rebuilt on load/reorg, appended on extend.
+	addrTx map[string][]histRef
+
 	mempool     map[string]*Tx
 	bySender    map[string][]*Tx // per-sender nonce-ordered mempool index; lets validateMempoolTxLocked walk one sender in O(k) instead of sorting the whole mempool O(n log n) per AddTx. Kept in lockstep with mempool via mpAdd/mpDel ONLY.
 	verifiedPow map[string]bool
@@ -81,6 +86,7 @@ func NewChain(dir string) (*Chain, error) {
 		dir:         dir,
 		state:       State{},
 		totals:      map[string]*addrTotals{},
+		addrTx:      map[string][]histRef{},
 		cumWork:     new(big.Int),
 		mempool:     map[string]*Tx{},
 		bySender:    map[string][]*Tx{},
@@ -201,6 +207,7 @@ func (c *Chain) rebuildDerived() {
 	c.recomputeSupplyLocked()
 	c.lwmaActivationC(c.blocks)      // populate the sticky activation cache once at (re)build
 	c.feeMarketActivationC(c.blocks) // (both no-op if not yet buried below the reorg horizon)
+	c.reindexAddrTxLocked()          // rebuild the per-address history index from the full chain
 }
 
 const maxVerifiedPow = 8192
@@ -347,6 +354,40 @@ func applyBlockToTotals(tot map[string]*addrTotals, b *Block) {
 			to.Received += t.Amount
 			to.Txn++
 		}
+	}
+}
+
+// histRef points at a transaction by position: c.blocks[bi].Txs[ti].
+type histRef struct{ bi, ti int }
+
+// indexBlockLocked appends block b's transactions to the per-address index, by
+// sender AND recipient (once for a self-send, matching History's "one row per tx").
+// Coinbase is indexed by recipient only. bi == b.Height (c.blocks is height-indexed).
+func (c *Chain) indexBlockLocked(b *Block) {
+	bi := int(b.Height)
+	for ti, t := range b.Txs {
+		ref := histRef{bi: bi, ti: ti}
+		if t.IsCoinbase() {
+			c.addrTx[t.To] = append(c.addrTx[t.To], ref)
+			continue
+		}
+		from, err := t.FromAddr()
+		if err != nil {
+			continue
+		}
+		c.addrTx[from] = append(c.addrTx[from], ref)
+		if t.To != from {
+			c.addrTx[t.To] = append(c.addrTx[t.To], ref)
+		}
+	}
+}
+
+// reindexAddrTxLocked rebuilds the whole per-address index from c.blocks. Used on
+// load and after a reorg (rare); the extend paths append incrementally.
+func (c *Chain) reindexAddrTxLocked() {
+	c.addrTx = make(map[string][]histRef, len(c.addrTx))
+	for _, b := range c.blocks {
+		c.indexBlockLocked(b)
 	}
 }
 
@@ -680,6 +721,7 @@ func (c *Chain) AddBlock(b *Block) error {
 		return err
 	}
 	c.blocks = append(c.blocks, b)
+	c.indexBlockLocked(b)
 	applyBlockToState(c.state, b)
 	applyBlockToTotals(c.totals, b)
 	c.recomputeSupplyLocked()
@@ -801,6 +843,9 @@ func (c *Chain) TryAdoptChain(startHeight uint64, newBlocks []*Block) error {
 			applyBlockToTotals(tot, b)
 		}
 		c.blocks = candidate
+		for _, b := range newBlocks {
+			c.indexBlockLocked(b)
+		}
 		c.state = st
 		c.totals = tot
 		c.cumWork = candWork
@@ -843,6 +888,7 @@ func (c *Chain) TryAdoptChain(startHeight uint64, newBlocks []*Block) error {
 		applyBlockToTotals(tot, b)
 	}
 	c.blocks = candidate
+	c.reindexAddrTxLocked() // blocks above the fork changed -> rebuild the address index
 	c.state = st
 	c.totals = tot
 	c.cumWork = candWork
@@ -1461,29 +1507,42 @@ func (c *Chain) History(addr string, limit, offset int) []HistoryItem {
 	if offset < 0 {
 		offset = 0
 	}
-	var out []HistoryItem
+	refs := c.addrTx[addr] // ascending (block, tx) order; pre-filtered to this address
+	out := make([]HistoryItem, 0, limit)
 	skipped := 0
-	for i := len(c.blocks) - 1; i >= 0 && len(out) < limit; i-- {
-		b := c.blocks[i]
-		for _, t := range b.Txs {
+	// Walk blocks newest-first but emit each block's txs in ascending order, so the
+	// result is byte-identical to the former full-chain scan (newest block first,
+	// tx[0..n] within a block) — now O(results+offset) instead of O(whole chain).
+	for j := len(refs) - 1; j >= 0 && len(out) < limit; {
+		bi := refs[j].bi
+		k := j
+		for k >= 0 && refs[k].bi == bi { // refs[k+1..j] all belong to block bi
+			k--
+		}
+		for m := k + 1; m <= j && len(out) < limit; m++ {
+			r := refs[m]
+			if r.bi < 0 || r.bi >= len(c.blocks) {
+				continue
+			}
+			b := c.blocks[r.bi]
+			if r.ti < 0 || r.ti >= len(b.Txs) {
+				continue
+			}
+			if skipped < offset {
+				skipped++
+				continue
+			}
+			t := b.Txs[r.ti]
 			from := "coinbase"
 			if !t.IsCoinbase() {
 				from, _ = t.FromAddr()
 			}
-			if from == addr || t.To == addr {
-				if skipped < offset {
-					skipped++
-					continue
-				}
-				out = append(out, HistoryItem{
-					TxID: t.ID(), Height: b.Height, Time: b.Time,
-					From: from, To: t.To, Amount: t.Amount, Fee: t.Fee,
-				})
-				if len(out) >= limit {
-					break
-				}
-			}
+			out = append(out, HistoryItem{
+				TxID: t.ID(), Height: b.Height, Time: b.Time,
+				From: from, To: t.To, Amount: t.Amount, Fee: t.Fee,
+			})
 		}
+		j = k
 	}
 	return out
 }
