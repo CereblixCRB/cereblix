@@ -260,6 +260,26 @@ type addrTotals struct {
 	Txn      int
 }
 
+// clone deep-copies the account map so a candidate can be validated/applied
+// without mutating the live state until it is committed (fast-path atomicity).
+func (s State) clone() State {
+	cp := make(State, len(s))
+	for k, v := range s {
+		a := *v
+		cp[k] = &a
+	}
+	return cp
+}
+
+func cloneTotals(t map[string]*addrTotals) map[string]*addrTotals {
+	cp := make(map[string]*addrTotals, len(t))
+	for k, v := range t {
+		a := *v
+		cp[k] = &a
+	}
+	return cp
+}
+
 // applyBlockToTotals folds one block's transactions into the running totals map,
 // mirroring the per-tx accounting AddrTotals used to compute by full scan.
 func applyBlockToTotals(tot map[string]*addrTotals, b *Block) {
@@ -618,18 +638,93 @@ func (c *Chain) TryAdoptChain(startHeight uint64, newBlocks []*Block) error {
 		}
 	}
 
+	// Cheap header-only candidate work (NO state replay): start from our cumWork,
+	// subtract the blocks we would disconnect, add the candidate's. This equals a
+	// full replay's work sum EXACTLY (same WorkOf terms), so the fork-choice is
+	// identical — but O(depth+newBlocks) instead of O(chain). Redundant/losing
+	// adopts (the common case: many peers re-offer the block we just took) bail
+	// here before any expensive work.
+	candWork := new(big.Int).Set(c.cumWork)
+	for i := startHeight; i < uint64(len(c.blocks)); i++ {
+		t, _ := c.blocks[i].TargetInt()
+		candWork.Sub(candWork, WorkOf(t))
+	}
+	for _, b := range newBlocks {
+		t, _ := b.TargetInt()
+		candWork.Add(candWork, WorkOf(t))
+	}
+	// Decentralized 51% guard #2: a candidate must always have more work, and for
+	// deeper reorgs it must have *disproportionately* more (penalty).
+	threshold := new(big.Int).Set(c.cumWork)
+	if c.ReorgPenaltyPermille > 0 && depth > 1 {
+		extra := new(big.Int).Mul(c.cumWork, big.NewInt(int64(depth*c.ReorgPenaltyPermille)))
+		extra.Div(extra, big.NewInt(1000))
+		threshold.Add(threshold, extra)
+	}
+	if candWork.Cmp(threshold) <= 0 {
+		// Deterministic equal-work tie-break (depth-1, same height only): adopt a
+		// competing equal-work tip iff its block hash is smaller, so a same-height
+		// fork collapses deterministically in one round. MaxReorgDepth/checkpoint
+		// guards (checked earlier) still bound this.
+		candTip := newBlocks[len(newBlocks)-1]
+		curTip := c.blocks[len(c.blocks)-1]
+		tieBreakWin := depth == 1 &&
+			candWork.Cmp(c.cumWork) == 0 &&
+			candTip.Height == curTip.Height &&
+			candTip.Hash() < curTip.Hash()
+		if !tieBreakWin {
+			return errors.New("candidate chain lacks sufficient work for its reorg depth")
+		}
+	}
+
+	if depth == 0 {
+		// FAST PATH — pure tip extension (the overwhelmingly common sync case).
+		// Validate the new blocks against a COPY of the live state and apply them
+		// incrementally (like AddBlock), then APPEND to disk. No genesis replay and
+		// no full-file rewrite. The copy gives atomicity: if any block fails, the
+		// live state is untouched.
+		st := c.state.clone()
+		tot := cloneTotals(c.totals)
+		candidate := append(make([]*Block, 0, len(c.blocks)+len(newBlocks)), c.blocks...)
+		for _, b := range newBlocks {
+			if err := c.validateBlock(candidate, st, b); err != nil {
+				return fmt.Errorf("candidate block %d: %w", b.Height, err)
+			}
+			candidate = append(candidate, b)
+			applyBlockToState(st, b)
+			applyBlockToTotals(tot, b)
+		}
+		c.blocks = candidate
+		c.state = st
+		c.totals = tot
+		c.cumWork = candWork
+		c.recomputeSupplyLocked()
+		for _, b := range newBlocks {
+			for _, tx := range b.Txs {
+				delete(c.mempool, tx.ID())
+			}
+		}
+		c.pruneMempoolLocked()
+		var derr error
+		for _, b := range newBlocks {
+			if e := c.appendToDisk(b); e != nil {
+				derr = e
+			}
+		}
+		return derr
+	}
+
+	// REORG (depth>0, rare, bounded by MaxReorgDepth): rebuild candidate state from
+	// the fork point. Correct and simple; deep reorgs are infrequent so the O(n)
+	// replay here is acceptable (vs the complexity/risk of full undo logs). vmCache
+	// stays content-keyed (vmFor), so it is not cleared.
 	candidate := make([]*Block, startHeight, startHeight+uint64(len(newBlocks)))
 	copy(candidate, c.blocks[:startHeight])
-
-	// Replay state up to the fork point.
 	st := State{}
 	tot := map[string]*addrTotals{}
-	work := new(big.Int)
 	for _, b := range candidate {
 		applyBlockToState(st, b)
 		applyBlockToTotals(tot, b)
-		t, _ := b.TargetInt()
-		work.Add(work, WorkOf(t))
 	}
 	for _, b := range newBlocks {
 		if err := c.validateBlock(candidate, st, b); err != nil {
@@ -638,44 +733,12 @@ func (c *Chain) TryAdoptChain(startHeight uint64, newBlocks []*Block) error {
 		candidate = append(candidate, b)
 		applyBlockToState(st, b)
 		applyBlockToTotals(tot, b)
-		t, _ := b.TargetInt()
-		work.Add(work, WorkOf(t))
-	}
-	// Decentralized 51% guard #2: a candidate must always have more work, and
-	// for deeper reorgs it must have *disproportionately* more (penalty), so a
-	// brief 51% burst can't cheaply rewrite many confirmed blocks.
-	threshold := new(big.Int).Set(c.cumWork)
-	if c.ReorgPenaltyPermille > 0 && depth > 1 {
-		extra := new(big.Int).Mul(c.cumWork, big.NewInt(int64(depth*c.ReorgPenaltyPermille)))
-		extra.Div(extra, big.NewInt(1000))
-		threshold.Add(threshold, extra)
-	}
-	if work.Cmp(threshold) <= 0 {
-		// Deterministic equal-work tie-break (depth-1, same height only): when a
-		// competing tip has EXACTLY equal cumulative work, adopt it iff its block
-		// hash is smaller. Every node computes the same winner, so a same-height
-		// fork collapses in one sync round instead of persisting until work
-		// randomly diverges. Anything heavier already took the branch above; the
-		// MaxReorgDepth and checkpoint guards (checked earlier) still bound this.
-		candTip := candidate[len(candidate)-1]
-		curTip := c.blocks[len(c.blocks)-1]
-		tieBreakWin := depth == 1 &&
-			work.Cmp(c.cumWork) == 0 &&
-			candTip.Height == curTip.Height &&
-			candTip.Hash() < curTip.Hash()
-		if !tieBreakWin {
-			return errors.New("candidate chain lacks sufficient work for its reorg depth")
-		}
 	}
 	c.blocks = candidate
 	c.state = st
 	c.totals = tot
-	c.cumWork = work
+	c.cumWork = candWork
 	c.recomputeSupplyLocked()
-	// NOTE: vmCache/paramsCache are intentionally NOT cleared here — vmFor is
-	// content-keyed by the epoch seed (boundary block hash), so a reorg that
-	// changes a boundary block rebuilds the affected epoch's VM on demand while
-	// unchanged epochs stay cached (no needless VM re-alloc / dataset regen).
 	c.pruneMempoolLocked()
 	return c.saveAll()
 }
