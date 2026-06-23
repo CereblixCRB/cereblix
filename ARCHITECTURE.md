@@ -374,10 +374,14 @@ often the fastest.
   reconstructs the full 64-bit nonce.
 - **Solo vardiff (`-solo`).** In solo the node's full network target means a normal
   CPU almost never produces a share, so the miner looks dead. With `-solo` the
-  bridge instead serves an **easy share target with auto-vardiff**: the default
-  equals the pool's difficulty (`netTarget << 12`) and it auto-tunes per miner
-  toward ~one share / 12 s from the observed rate, bounded by the network
-  difficulty - so it tracks both the miner's hashrate and the network. A miner can
+  bridge instead serves an **easy share target with auto-vardiff**: a new connection starts at the
+  easiest difficulty (~4096) for a fast first share, then a **rate-based controller**
+  (v1.6, NOMP/CKPool-style) tunes it toward ~one share / 12 s. It estimates hashrate
+  as Σ(difficulty of the last 24 shares) / span and sets target = hashrate × 12 s,
+  with a **30% dead-band** (it ignores the ~20% Poisson share-jitter and SETTLES +
+  HOLDS instead of dancing), a ≤4× per-step clamp, and bounds [easiest .. network
+  difficulty]. (This replaced an older per-share EMA that nudged the diff ×2 every
+  share and never settled.) A miner can
   pin a fixed difficulty with `-p diff=N` or login `crb1...+N`. **The node remains
   the sole authority on what is a block:** every submit is still forwarded; a
   sub-target nonce ("insufficient proof of work") is surfaced to the miner as an
