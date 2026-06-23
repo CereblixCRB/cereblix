@@ -237,6 +237,7 @@ func safePeerTransport() *http.Transport {
 	return &http.Transport{
 		DialContext:           dialer.DialContext,
 		MaxIdleConns:          64,
+		MaxIdleConnsPerHost:   8,
 		IdleConnTimeout:       60 * time.Second,
 		TLSHandshakeTimeout:   10 * time.Second,
 		ExpectContinueTimeout: 2 * time.Second,
@@ -443,18 +444,28 @@ func (n *Node) myTip() tipInfo {
 }
 
 func (n *Node) SyncLoop() {
+	tick := 0
 	for {
 		select {
 		case <-n.stop:
 			return
 		case <-time.After(syncInterval):
 		}
+		tick++
+		// Block sync runs every interval (must stay fast); peer discovery and
+		// checkpoint pulls change rarely, so run them ~10x less often to cut
+		// steady-state gossip chatter (O(peers) HTTP requests per tick).
+		slow := tick%10 == 0
 		for _, p := range n.peerList() {
 			n.syncWithPeer(p)
-			n.fetchCheckpoint(p)
+			if slow {
+				n.fetchCheckpoint(p)
+			}
 		}
 		n.savePeers()
-		n.discoverPeers()
+		if slow {
+			n.discoverPeers()
+		}
 		n.checkConcentration()
 	}
 }
@@ -1007,7 +1018,7 @@ func (n *Node) RPCHandler() http.Handler {
 			"target":            tip.Target,
 			"difficulty":        diff.String(),
 			"supply":            n.Chain.Supply(),
-			"mempool":           len(n.Chain.MempoolTxs()),
+			"mempool":           n.Chain.MempoolLen(),
 			"peers":             len(n.peerList()),
 			"epoch":             epoch,
 			"reward":            core.BlockSubsidy(tip.Height + 1),

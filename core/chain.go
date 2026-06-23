@@ -39,6 +39,7 @@ type Chain struct {
 	blocks  []*Block
 	state   State
 	cumWork *big.Int
+	supply  uint64 // running Σ balances, refreshed under the write lock per block (Supply() O(1))
 
 	// totals is a running per-address lifetime ledger (received/mined/sent/txn)
 	// kept in sync with state so /api/balance answers in O(1) instead of an
@@ -179,6 +180,7 @@ func (c *Chain) rebuildDerived() {
 	c.state = st
 	c.totals = tot
 	c.cumWork = work
+	c.recomputeSupplyLocked()
 }
 
 // ------------------------------------------------------------ state rules
@@ -562,6 +564,7 @@ func (c *Chain) AddBlock(b *Block) error {
 	c.blocks = append(c.blocks, b)
 	applyBlockToState(c.state, b)
 	applyBlockToTotals(c.totals, b)
+	c.recomputeSupplyLocked()
 	t, _ := b.TargetInt()
 	c.cumWork.Add(c.cumWork, WorkOf(t))
 	for _, tx := range b.Txs {
@@ -658,6 +661,7 @@ func (c *Chain) TryAdoptChain(startHeight uint64, newBlocks []*Block) error {
 	c.state = st
 	c.totals = tot
 	c.cumWork = work
+	c.recomputeSupplyLocked()
 	c.vmCache = map[uint64]*nm.VM{}
 	c.paramsCache = map[uint64]*nm.Params{}
 	c.pruneMempoolLocked()
@@ -1091,19 +1095,34 @@ func (c *Chain) SpendableBalance(addr string) uint64 {
 }
 
 func (c *Chain) MempoolTxs() []*Tx {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 	return c.sortedMempoolLocked()
+}
+
+// MempoolLen returns the pending-tx count without sorting — cheap for status
+// polls (which only need the number, not the sorted list).
+func (c *Chain) MempoolLen() int {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return len(c.mempool)
 }
 
 func (c *Chain) Supply() uint64 {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
+	return c.supply
+}
+
+// recomputeSupplyLocked refreshes the cached total supply (Σ balances). Called
+// under the write lock whenever state changes, so Supply() is O(1) on the hot
+// /api/status path instead of an O(addresses) scan per request.
+func (c *Chain) recomputeSupplyLocked() {
 	var s uint64
 	for _, a := range c.state {
 		s += a.Balance
 	}
-	return s
+	c.supply = s
 }
 
 // minFeeFor computes the cheap, self-adjusting fee floor (synapses) from how
