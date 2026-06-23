@@ -51,6 +51,7 @@ type Chain struct {
 
 	paramsCache map[uint64]*nm.Params // epoch -> params
 	vmCache     map[uint64]*nm.VM     // epoch -> validation VM
+	vmSeed      map[uint64]string     // epoch -> seed(hex) the cached VM/params were built for; guards a reorg that changes a boundary block's hash (→ a new epoch seed)
 
 	// 51%-resistance knobs (decentralized, no trusted party).
 	// MaxReorgDepth rejects any reorg that would replace more than this many
@@ -81,6 +82,7 @@ func NewChain(dir string) (*Chain, error) {
 		verifiedPow: map[string]bool{},
 		paramsCache: map[uint64]*nm.Params{},
 		vmCache:     map[uint64]*nm.VM{},
+		vmSeed:      map[uint64]string{},
 		// Sane defaults: cap deep rewrites at 100 blocks (~1h40m at 60s),
 		// no work penalty, no checkpoints. All overridable by the node.
 		MaxReorgDepth:        100,
@@ -422,18 +424,26 @@ func epochSeedFor(blocks []*Block, height uint64) ([]byte, uint64) {
 
 func (c *Chain) vmFor(blocks []*Block, height uint64) *nm.VM {
 	seed, epoch := epochSeedFor(blocks, height)
-	if vm, ok := c.vmCache[epoch]; ok {
+	sk := hex.EncodeToString(seed)
+	// Cache hit ONLY if the cached entry was built for the SAME seed. The seed is
+	// the boundary block's hash, so a reorg that replaces a boundary block changes
+	// the seed → the stale entry is rebuilt. This content-key makes the cache
+	// correct without clearing it on every adopt (which forced needless VM
+	// re-allocation, and risked a 64MiB dataset regen).
+	if vm, ok := c.vmCache[epoch]; ok && c.vmSeed[epoch] == sk {
 		return vm
 	}
 	p := nm.DeriveParams(seed)
 	vm := nm.NewVM(p)
 	c.paramsCache[epoch] = p
 	c.vmCache[epoch] = vm
+	c.vmSeed[epoch] = sk
 	if len(c.vmCache) > 3 { // keep only recent epochs
 		for e := range c.vmCache {
 			if e+2 < epoch {
 				delete(c.vmCache, e)
 				delete(c.paramsCache, e)
+				delete(c.vmSeed, e)
 			}
 		}
 	}
@@ -662,8 +672,10 @@ func (c *Chain) TryAdoptChain(startHeight uint64, newBlocks []*Block) error {
 	c.totals = tot
 	c.cumWork = work
 	c.recomputeSupplyLocked()
-	c.vmCache = map[uint64]*nm.VM{}
-	c.paramsCache = map[uint64]*nm.Params{}
+	// NOTE: vmCache/paramsCache are intentionally NOT cleared here — vmFor is
+	// content-keyed by the epoch seed (boundary block hash), so a reorg that
+	// changes a boundary block rebuilds the affected epoch's VM on demand while
+	// unchanged epochs stay cached (no needless VM re-alloc / dataset regen).
 	c.pruneMempoolLocked()
 	return c.saveAll()
 }
