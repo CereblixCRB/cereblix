@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"math/big"
 	"os"
 	"path/filepath"
@@ -131,6 +132,17 @@ func (c *Chain) load() error {
 	}
 	if c.blocks[0].Hash() != GenesisBlock().Hash() {
 		return errors.New("block store has wrong genesis")
+	}
+	// Verify on-disk linkage and TRUNCATE at the first break instead of loading a
+	// corrupt chain. A gap (partial batch append, truncated/edited blocks.jsonl,
+	// disk corruption) would otherwise load as a different, invalid chain. Keeping
+	// the valid prefix lets the node self-heal by re-syncing forward.
+	for i := 1; i < len(c.blocks); i++ {
+		if c.blocks[i].Height != uint64(i) || c.blocks[i].PrevHash != c.blocks[i-1].Hash() {
+			log.Printf("load: block store breaks linkage at height %d — truncating to %d valid blocks; will re-sync forward", i, i)
+			c.blocks = c.blocks[:i]
+			break
+		}
 	}
 	c.rebuildDerived()
 	return nil
@@ -655,11 +667,20 @@ func (c *Chain) TryAdoptChain(startHeight uint64, newBlocks []*Block) error {
 	// here before any expensive work.
 	candWork := new(big.Int).Set(c.cumWork)
 	for i := startHeight; i < uint64(len(c.blocks)); i++ {
-		t, _ := c.blocks[i].TargetInt()
+		t, err := c.blocks[i].TargetInt()
+		if err != nil { // our stored blocks are pre-validated; defensive
+			return fmt.Errorf("stored block %d has bad target: %w", i, err)
+		}
 		candWork.Sub(candWork, WorkOf(t))
 	}
 	for _, b := range newBlocks {
-		t, _ := b.TargetInt()
+		// Reject a malformed candidate target HERE: this pre-check runs before
+		// validateBlock, and WorkOf(nil) would panic on an undecodable target fed
+		// by a peer (remote sync-stall). Cheap structural rejection instead.
+		t, err := b.TargetInt()
+		if err != nil {
+			return fmt.Errorf("candidate block %d: bad target encoding", b.Height)
+		}
 		candWork.Add(candWork, WorkOf(t))
 	}
 	// Decentralized 51% guard #2: a candidate must always have more work, and for
@@ -714,13 +735,15 @@ func (c *Chain) TryAdoptChain(startHeight uint64, newBlocks []*Block) error {
 			}
 		}
 		c.pruneMempoolLocked()
-		var derr error
 		for _, b := range newBlocks {
-			if e := c.appendToDisk(b); e != nil {
-				derr = e
+			if err := c.appendToDisk(b); err != nil {
+				// A partial batch append leaves a GAP on disk that would load as a
+				// corrupt chain. State is already committed in memory, so rewrite the
+				// whole file atomically (tmp+rename) to match memory exactly.
+				return c.saveAll()
 			}
 		}
-		return derr
+		return nil
 	}
 
 	// REORG (depth>0, rare, bounded by MaxReorgDepth): rebuild candidate state from
