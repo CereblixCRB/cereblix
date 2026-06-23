@@ -71,6 +71,7 @@ func main() {
 		}
 	}
 	node.SetTrustedSubnets(*trustSub) // before New: addPeer() consults the trusted set
+	node.SetOwnIPs(*public)           // before New: the dialer refuses to connect to our own IPs (kills seed round-robin self-dials)
 	n := node.New(chain, *datadir, *public, seeds)
 	n.Version = nodeVersion
 	log.Printf("node software v%s (consensus v%d)", nodeVersion, core.NodeConsensusVersion)

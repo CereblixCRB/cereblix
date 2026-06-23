@@ -214,6 +214,16 @@ func safePeerTransport() *http.Transport {
 			if ip == nil {
 				return fmt.Errorf("refusing dial to unresolved address %q", address)
 			}
+			if ipIsOwn(ip) {
+				// Never dial ourselves. seed.cereblix.com is a round-robin that
+				// lists this node, so a dial-by-hostname can resolve back to our
+				// own IP; a self-connection is a pure no-op (same chain + mempool)
+				// that only churns connections. Refusing here lets the dialer fall
+				// through to the next resolved address (e.g. the other seed), so
+				// connectivity is unaffected. Checked before the trusted-subnet
+				// exemption so a self-dial over the WG mesh is caught too.
+				return fmt.Errorf("refusing dial to own address %s", ip)
+			}
 			if ipTrusted(ip) {
 				return nil // operator-declared trusted subnet (e.g. the WG mesh)
 			}
@@ -300,6 +310,46 @@ func ipTrusted(ip net.IP) bool {
 	}
 	return false
 }
+
+// ownIPs holds this node's own addresses (every local interface IP plus the
+// advertised public host's resolved IPs). A node must never dial itself:
+// seed.cereblix.com is a round-robin that lists this node, so a dial by hostname
+// can resolve back to our own IP, and the string self-check in addPeer only
+// catches the exact -public literal. ipIsOwn catches every other form (hostname,
+// WG, loopback) at connect time. Written once at startup, read-only thereafter.
+var ownIPs = map[string]bool{}
+
+// SetOwnIPs records this node's own addresses so the dialer can refuse to
+// connect to itself. Call once, before node.New. publicURL may be empty.
+func SetOwnIPs(publicURL string) {
+	add := func(ip net.IP) {
+		if ip != nil {
+			ownIPs[ip.String()] = true
+		}
+	}
+	if addrs, err := net.InterfaceAddrs(); err == nil {
+		for _, a := range addrs {
+			if ipn, ok := a.(*net.IPNet); ok {
+				add(ipn.IP)
+			}
+		}
+	}
+	if publicURL != "" {
+		if u, err := url.Parse(publicURL); err == nil && u.Hostname() != "" {
+			if ip := net.ParseIP(u.Hostname()); ip != nil {
+				add(ip)
+			} else if ips, err := net.LookupIP(u.Hostname()); err == nil {
+				for _, ip := range ips {
+					add(ip)
+				}
+			}
+		}
+	}
+	log.Printf("self-dial guard: %d own address(es) will be refused as peers", len(ownIPs))
+}
+
+// ipIsOwn reports whether ip is one of this node's own addresses.
+func ipIsOwn(ip net.IP) bool { return ip != nil && ownIPs[ip.String()] }
 
 func (n *Node) peerList() []string {
 	n.peersMu.Lock()
