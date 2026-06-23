@@ -48,6 +48,7 @@ type Chain struct {
 	totals map[string]*addrTotals
 
 	mempool     map[string]*Tx
+	bySender    map[string][]*Tx // per-sender nonce-ordered mempool index; lets validateMempoolTxLocked walk one sender in O(k) instead of sorting the whole mempool O(n log n) per AddTx. Kept in lockstep with mempool via mpAdd/mpDel ONLY.
 	verifiedPow map[string]bool
 
 	paramsCache map[uint64]*nm.Params // epoch -> params
@@ -80,6 +81,7 @@ func NewChain(dir string) (*Chain, error) {
 		totals:      map[string]*addrTotals{},
 		cumWork:     new(big.Int),
 		mempool:     map[string]*Tx{},
+		bySender:    map[string][]*Tx{},
 		verifiedPow: map[string]bool{},
 		paramsCache: map[uint64]*nm.Params{},
 		vmCache:     map[uint64]*nm.VM{},
@@ -636,7 +638,7 @@ func (c *Chain) AddBlock(b *Block) error {
 	t, _ := b.TargetInt()
 	c.cumWork.Add(c.cumWork, WorkOf(t))
 	for _, tx := range b.Txs {
-		delete(c.mempool, tx.ID())
+		c.mpDel(tx.ID())
 	}
 	c.pruneMempoolLocked()
 	err := c.appendToDisk(b)
@@ -757,7 +759,7 @@ func (c *Chain) TryAdoptChain(startHeight uint64, newBlocks []*Block) error {
 		c.recomputeSupplyLocked()
 		for _, b := range newBlocks {
 			for _, tx := range b.Txs {
-				delete(c.mempool, tx.ID())
+				c.mpDel(tx.ID())
 			}
 		}
 		c.pruneMempoolLocked()
@@ -830,12 +832,12 @@ func (c *Chain) AddTx(t *Tx) error {
 			if t.Fee < minFee {
 				return fmt.Errorf("replace-by-fee: fee %d must be >= %d (old fee + 10%%)", t.Fee, minFee)
 			}
-			delete(c.mempool, id) // drop the old, validate the new in its slot
+			c.mpDel(id) // drop the old, validate the new in its slot
 			if err := c.validateMempoolTxLocked(t); err != nil {
-				c.mempool[id] = m // restore on failure
+				c.mpAdd(m) // restore on failure
 				return err
 			}
-			c.mempool[t.ID()] = t
+			c.mpAdd(t)
 			return nil
 		}
 	}
@@ -845,7 +847,7 @@ func (c *Chain) AddTx(t *Tx) error {
 	if err := c.validateMempoolTxLocked(t); err != nil {
 		return err
 	}
-	c.mempool[t.ID()] = t
+	c.mpAdd(t)
 	return nil
 }
 
@@ -874,10 +876,7 @@ func (c *Chain) validateMempoolTxLocked(t *Tx) error {
 	nonce := acc.Nonce
 	spent := uint64(0)
 	held := 0
-	for _, m := range c.sortedMempoolLocked() {
-		if mf, _ := m.FromAddr(); mf != from {
-			continue
-		}
+	for _, m := range c.bySender[from] { // nonce-ordered, this sender only — no full-mempool sort
 		held++
 		if m.Nonce == nonce {
 			nonce++
@@ -932,16 +931,57 @@ func (c *Chain) sortedMempoolLocked() []*Tx {
 	return txs
 }
 
+// mpAdd inserts t into the mempool AND the per-sender nonce-ordered index. The
+// ONLY way (with mpDel) the mempool is mutated, so bySender never drifts.
+func (c *Chain) mpAdd(t *Tx) {
+	c.mempool[t.ID()] = t
+	from, err := t.FromAddr()
+	if err != nil {
+		return // unaddressable tx isn't indexed (shouldn't reach the mempool)
+	}
+	lst := c.bySender[from]
+	i := sort.Search(len(lst), func(i int) bool { return lst[i].Nonce >= t.Nonce })
+	lst = append(lst, nil)
+	copy(lst[i+1:], lst[i:])
+	lst[i] = t
+	c.bySender[from] = lst
+}
+
+// mpDel removes the tx with id from the mempool AND the per-sender index.
+func (c *Chain) mpDel(id string) {
+	t, ok := c.mempool[id]
+	if !ok {
+		return
+	}
+	delete(c.mempool, id)
+	from, err := t.FromAddr()
+	if err != nil {
+		return
+	}
+	lst := c.bySender[from]
+	for i, m := range lst {
+		if m.ID() == id {
+			lst = append(lst[:i], lst[i+1:]...)
+			break
+		}
+	}
+	if len(lst) == 0 {
+		delete(c.bySender, from)
+	} else {
+		c.bySender[from] = lst
+	}
+}
+
 func (c *Chain) pruneMempoolLocked() {
 	for id, t := range c.mempool {
 		from, err := t.FromAddr()
 		if err != nil {
-			delete(c.mempool, id)
+			c.mpDel(id)
 			continue
 		}
 		acc := c.state.get(from)
 		if t.Nonce < acc.Nonce || acc.Balance < t.Amount+t.Fee {
-			delete(c.mempool, id)
+			c.mpDel(id)
 		}
 	}
 }
