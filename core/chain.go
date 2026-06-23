@@ -107,7 +107,7 @@ func (c *Chain) load() error {
 	if errors.Is(err, os.ErrNotExist) {
 		g := GenesisBlock()
 		c.blocks = []*Block{g}
-		c.verifiedPow[g.Hash()] = true
+		c.markPowVerified(g.Hash())
 		c.rebuildDerived()
 		return c.saveAll()
 	}
@@ -123,12 +123,12 @@ func (c *Chain) load() error {
 			return fmt.Errorf("corrupt block store: %w", err)
 		}
 		c.blocks = append(c.blocks, &b)
-		c.verifiedPow[b.Hash()] = true // trusted: we validated before writing
+		c.markPowVerified(b.Hash()) // trusted: we validated before writing
 	}
 	if len(c.blocks) == 0 {
 		g := GenesisBlock()
 		c.blocks = []*Block{g}
-		c.verifiedPow[g.Hash()] = true
+		c.markPowVerified(g.Hash())
 	}
 	if c.blocks[0].Hash() != GenesisBlock().Hash() {
 		return errors.New("block store has wrong genesis")
@@ -195,6 +195,27 @@ func (c *Chain) rebuildDerived() {
 	c.totals = tot
 	c.cumWork = work
 	c.recomputeSupplyLocked()
+}
+
+const maxVerifiedPow = 8192
+
+// markPowVerified records a block hash as PoW-verified, bounding the cache so a
+// long-running node can't grow it without limit. Eviction is harmless: a block
+// re-validated after eviction is simply re-hashed (correct, only slower).
+func (c *Chain) markPowVerified(h string) {
+	if _, ok := c.verifiedPow[h]; ok {
+		return
+	}
+	if len(c.verifiedPow) >= maxVerifiedPow {
+		drop := maxVerifiedPow / 2
+		for k := range c.verifiedPow {
+			delete(c.verifiedPow, k)
+			if drop--; drop <= 0 {
+				break
+			}
+		}
+	}
+	c.verifiedPow[h] = true
 }
 
 // ------------------------------------------------------------ state rules
@@ -528,6 +549,20 @@ func (c *Chain) validateBlock(prefix []*Block, st State, b *Block) error {
 	if want.Cmp(got) != 0 {
 		return errors.New("wrong difficulty target")
 	}
+	// Proof of work — verified BEFORE the O(txs) txroot/coinbase checks and the
+	// expensive per-tx signature loop, so a junk block (valid public header fields
+	// but bad PoW) is rejected after a SINGLE hash instead of paying ~200 sig
+	// verifies first. PoW commits to the body via TxRoot (confirmed to match the
+	// txs below). Consensus outcome is unchanged — a block is accepted iff ALL
+	// checks pass, regardless of order.
+	if !c.verifiedPow[b.Hash()] {
+		vm := c.vmFor(prefix, b.Height)
+		pow := vm.Hash(b.HeaderBytes(), b.Height)
+		if !HashMeetsTarget(pow, got) {
+			return errors.New("insufficient proof of work")
+		}
+		c.markPowVerified(b.Hash())
+	}
 	if len(b.Txs) == 0 || len(b.Txs) > MaxBlockTxs {
 		return errors.New("bad tx count")
 	}
@@ -579,15 +614,6 @@ func (c *Chain) validateBlock(prefix []*Block, st State, b *Block) error {
 		acc.Balance -= t.Amount + t.Fee
 		acc.Nonce++
 		work.get(t.To).Balance += t.Amount
-	}
-	// Proof of work.
-	if !c.verifiedPow[b.Hash()] {
-		vm := c.vmFor(prefix, b.Height)
-		pow := vm.Hash(b.HeaderBytes(), b.Height)
-		if !HashMeetsTarget(pow, got) {
-			return errors.New("insufficient proof of work")
-		}
-		c.verifiedPow[b.Hash()] = true
 	}
 	return nil
 }
@@ -1395,8 +1421,8 @@ func txToLocation(t *Tx) TxLocation {
 
 // FindTx locates a transaction by id in the chain or mempool.
 func (c *Chain) FindTx(id string) TxLocation {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 	for i := len(c.blocks) - 1; i >= 0; i-- {
 		b := c.blocks[i]
 		for _, t := range b.Txs {

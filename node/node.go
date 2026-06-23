@@ -1087,9 +1087,15 @@ func (n *Node) RPCHandler() http.Handler {
 		out := make([]map[string]any, 0, len(blocks))
 		for i := len(blocks) - 1; i >= 0; i-- {
 			b := blocks[i]
+			var miner string
+			var reward uint64
+			if len(b.Txs) > 0 { // guard: a malformed/empty-tx block must not panic the RPC
+				miner = b.Txs[0].To
+				reward = b.Txs[0].Amount
+			}
 			out = append(out, map[string]any{
 				"height": b.Height, "hash": b.Hash(), "time": b.Time,
-				"txs": len(b.Txs), "miner": b.Txs[0].To, "reward": b.Txs[0].Amount,
+				"txs": len(b.Txs), "miner": miner, "reward": reward,
 			})
 		}
 		writeJSON(w, out)
