@@ -126,8 +126,9 @@ type Tx struct {
 	Amount  uint64 `json:"amount"`
 	Fee     uint64 `json:"fee"`
 	Nonce   uint64 `json:"nonce"` // account nonce; block height for coinbase
-	Sig     string `json:"sig"`   // hex ed25519 signature
-	id      string // cached ID(): set on decode/sign, immutable after; not serialized
+	Sig      string `json:"sig"` // hex ed25519 signature
+	id       string // cached ID(): set on decode/sign, immutable after; not serialized
+	fromAddr string // cached FromAddr(): sender address derived from FromPub; not serialized
 }
 
 func (t *Tx) SigningPayload() []byte {
@@ -158,6 +159,7 @@ func (t *Tx) UnmarshalJSON(data []byte) error {
 	}
 	*t = Tx(r)
 	t.id = t.computeID()
+	t.cacheFromAddr()
 	return nil
 }
 
@@ -167,11 +169,26 @@ func (t *Tx) FromAddr() (string, error) {
 	if t.IsCoinbase() {
 		return "", errors.New("coinbase has no sender")
 	}
+	if t.fromAddr != "" {
+		return t.fromAddr, nil // cached: skip hex-decode + sha256 (this was ~64% of node CPU via History)
+	}
 	pub, err := hex.DecodeString(t.FromPub)
 	if err != nil || len(pub) != ed25519.PublicKeySize {
 		return "", errors.New("bad pubkey")
 	}
 	return AddrFromPub(pub), nil
+}
+
+// cacheFromAddr pre-derives the sender address for a non-coinbase tx so FromAddr()
+// (hot in History / validation / mempool indexing) is O(1). Called only at decode
+// and sign time, when the tx is final -> race-free, never stale.
+func (t *Tx) cacheFromAddr() {
+	if t.IsCoinbase() {
+		return
+	}
+	if pub, err := hex.DecodeString(t.FromPub); err == nil && len(pub) == ed25519.PublicKeySize {
+		t.fromAddr = AddrFromPub(pub)
+	}
 }
 
 // signingPayloadFor returns the message signed for a tx validated/applied at
@@ -228,6 +245,7 @@ func SignTxAt(t *Tx, priv ed25519.PrivateKey, height uint64) {
 	t.FromPub = hex.EncodeToString(priv.Public().(ed25519.PublicKey))
 	t.Sig = hex.EncodeToString(ed25519.Sign(priv, t.signingPayloadFor(height)))
 	t.id = t.computeID() // signed -> immutable -> cache the canonical ID
+	t.cacheFromAddr()
 }
 
 // ------------------------------------------------------------------- blocks

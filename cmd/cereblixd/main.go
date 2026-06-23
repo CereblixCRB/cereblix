@@ -4,6 +4,8 @@ package main
 import (
 	"flag"
 	"log"
+	"net/http"
+	_ "net/http/pprof" // registers /debug/pprof on DefaultServeMux; only served if CEREBLIX_PPROF is set
 	"os"
 	"os/signal"
 	"strings"
@@ -34,6 +36,13 @@ func main() {
 	)
 	flag.Parse()
 	log.SetFlags(log.LstdFlags)
+
+	// Optional profiling endpoint, OFF unless CEREBLIX_PPROF is set (intended for a
+	// loopback address like 127.0.0.1:6060). Never exposed by default.
+	if addr := os.Getenv("CEREBLIX_PPROF"); addr != "" {
+		go func() { log.Printf("pprof listener exited: %v", http.ListenAndServe(addr, nil)) }()
+		log.Printf("pprof: serving /debug/pprof on %s", addr)
+	}
 
 	if *doUpdate {
 		runUpdateOnce()
