@@ -50,6 +50,8 @@ type Chain struct {
 	mempool     map[string]*Tx
 	bySender    map[string][]*Tx // per-sender nonce-ordered mempool index; lets validateMempoolTxLocked walk one sender in O(k) instead of sorting the whole mempool O(n log n) per AddTx. Kept in lockstep with mempool via mpAdd/mpDel ONLY.
 	verifiedPow map[string]bool
+	feeAct      uint64 // cached fee-market activation height (0 = not yet). Set ONLY once buried below the reorg horizon -> immutable -> byte-identical to feeMarketActivation(). Written under the write lock; read-only under RLock.
+	lwmaAct     uint64 // cached LWMA activation height (same contract as feeAct).
 
 	paramsCache map[uint64]*nm.Params // epoch -> params
 	vmCache     map[uint64]*nm.VM     // epoch -> validation VM
@@ -197,6 +199,8 @@ func (c *Chain) rebuildDerived() {
 	c.totals = tot
 	c.cumWork = work
 	c.recomputeSupplyLocked()
+	c.lwmaActivationC(c.blocks)      // populate the sticky activation cache once at (re)build
+	c.feeMarketActivationC(c.blocks) // (both no-op if not yet buried below the reorg horizon)
 }
 
 const maxVerifiedPow = 8192
@@ -357,10 +361,54 @@ var bigTwo256 = new(big.Int).Lsh(big.NewInt(1), 256)
 // windowed-average retarget - byte-for-byte unchanged so pre-activation history
 // and blocks stay valid on every node.
 func expectedTarget(blocks []*Block) *big.Int {
-	if lwmaActiveAt(blocks, uint64(len(blocks))) {
+	return expectedTargetActive(blocks, lwmaActiveAt(blocks, uint64(len(blocks))))
+}
+
+// expectedTargetActive is the activation-parameterized core, so the cached path
+// can supply the activation decision instead of re-scanning for it every call.
+func expectedTargetActive(blocks []*Block, lwmaActive bool) *big.Int {
+	if lwmaActive {
 		return lwmaTarget(blocks)
 	}
 	return legacyTarget(blocks)
+}
+
+// lwmaActivationC / feeMarketActivationC return the activation height, caching the
+// result ONLY once it is buried at least MaxReorgDepth below the tip — so no reorg
+// can ever change it and the cached value is provably identical to a fresh scan.
+// The live (post-activation) chain caches at load and is O(1) thereafter; a node
+// crossing activation rescans for ~MaxReorgDepth blocks, then locks in. MUST be
+// called under the write lock (may write the cache).
+func (c *Chain) lwmaActivationC(blocks []*Block) uint64 {
+	if c.lwmaAct != 0 {
+		return c.lwmaAct
+	}
+	a := lwmaActivation(blocks)
+	if a != 0 && uint64(len(blocks)) >= a+c.MaxReorgDepth {
+		c.lwmaAct = a
+	}
+	return a
+}
+
+func (c *Chain) feeMarketActivationC(blocks []*Block) uint64 {
+	if c.feeAct != 0 {
+		return c.feeAct
+	}
+	a := feeMarketActivation(blocks)
+	if a != 0 && uint64(len(blocks)) >= a+c.MaxReorgDepth {
+		c.feeAct = a
+	}
+	return a
+}
+
+func (c *Chain) expectedTargetC(blocks []*Block) *big.Int {
+	a := c.lwmaActivationC(blocks)
+	return expectedTargetActive(blocks, a != 0 && uint64(len(blocks)) >= a)
+}
+
+func (c *Chain) minFeeForC(blocks []*Block) uint64 {
+	a := c.feeMarketActivationC(blocks)
+	return minFeeForActive(blocks, a != 0 && uint64(len(blocks)) >= a)
 }
 
 // legacyTarget is the original windowed-average retarget (before LWMA activation).
@@ -543,7 +591,7 @@ func (c *Chain) validateBlock(prefix []*Block, st State, b *Block) error {
 	if b.Time > uint64(time.Now().Unix()+MaxFutureDrift) {
 		return errors.New("timestamp too far in future")
 	}
-	want := expectedTarget(prefix)
+	want := c.expectedTargetC(prefix)
 	got, err := b.TargetInt()
 	if err != nil {
 		return err
@@ -594,7 +642,7 @@ func (c *Chain) validateBlock(prefix []*Block, st State, b *Block) error {
 	imm := immatureCoinbase(prefix, b.Height)
 	var minfee uint64
 	if b.Height >= MinFeeHeight {
-		minfee = minFeeFor(prefix)
+		minfee = c.minFeeForC(prefix)
 	}
 	seen := map[string]bool{}
 	for _, t := range b.Txs[1:] {
@@ -863,7 +911,7 @@ func (c *Chain) validateMempoolTxLocked(t *Tx) error {
 		return err
 	}
 	if uint64(len(c.blocks)) >= MinFeeHeight {
-		if m := minFeeFor(c.blocks); t.Fee < m {
+		if m := c.minFeeForC(c.blocks); t.Fee < m {
 			return fmt.Errorf("fee %d below minimum %d synapses", t.Fee, m)
 		}
 	}
@@ -1087,7 +1135,7 @@ func (c *Chain) BuildTemplate(coinbase string) (*Block, error) {
 	imm := immatureCoinbase(c.blocks, height)
 	var minfee uint64
 	if height >= MinFeeHeight {
-		minfee = minFeeFor(c.blocks)
+		minfee = c.minFeeForC(c.blocks)
 	}
 	// Bitcoin-style fee market: repeatedly include the HIGHEST-fee tx that is the
 	// next valid nonce for its sender (per-sender nonce order is mandatory). Under
@@ -1164,7 +1212,7 @@ func (c *Chain) BuildTemplate(coinbase string) (*Block, error) {
 		Time:     now,
 		PrevHash: prev.Hash(),
 		TxRoot:   ComputeTxRoot(txs),
-		Target:   TargetToHex(expectedTarget(c.blocks)),
+		Target:   TargetToHex(c.expectedTargetC(c.blocks)),
 		Nonce:    0,
 		Txs:      txs,
 	}
@@ -1303,6 +1351,12 @@ func (c *Chain) recomputeSupplyLocked() {
 // fill toward the cap it rises to ration space. Deterministic over the supplied
 // prefix, so it doubles as the consensus minimum from MinFeeHeight on.
 func minFeeFor(blocks []*Block) uint64 {
+	return minFeeForActive(blocks, feeMarketActiveAt(blocks, uint64(len(blocks))))
+}
+
+// minFeeForActive is the activation-parameterized core of minFeeFor, so the cached
+// path supplies the fee-market decision instead of re-scanning for activation.
+func minFeeForActive(blocks []*Block, feeActive bool) uint64 {
 	const floor = 1000      // 0.00001 CRB while the network is idle
 	const fullMult = 1000.0 // completely full blocks -> ~floor*1000 (still cheap)
 	n := 20
@@ -1320,7 +1374,7 @@ func minFeeFor(blocks []*Block) uint64 {
 		}
 	}
 	fill := float64(txs) / float64(capacity) // 0..1
-	if !feeMarketActiveAt(blocks, uint64(len(blocks))) {
+	if !feeActive {
 		// legacy self-adjusting curve - kept byte-for-byte so nodes agree on
 		// history and on new blocks until the fee market locks in (readiness-
 		// gated at/after FeeMarketHeight; see core/upgrade.go).
@@ -1342,8 +1396,9 @@ func minFeeFor(blocks []*Block) uint64 {
 func (c *Chain) SuggestedFee() uint64 {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	floor := minFeeFor(c.blocks)
-	if !feeMarketActiveAt(c.blocks, uint64(len(c.blocks))) {
+	feeActive := c.feeAct != 0 && uint64(len(c.blocks)) >= c.feeAct // read-only (RLock); cache filled under the write lock
+	floor := minFeeForActive(c.blocks, feeActive)
+	if !feeActive {
 		return floor
 	}
 	fees := make([]uint64, 0, len(c.mempool))
@@ -1381,7 +1436,8 @@ func suggestFee(memFees []uint64, floor uint64) uint64 {
 func (c *Chain) FeeFloor() uint64 {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	return minFeeFor(c.blocks)
+	feeActive := c.feeAct != 0 && uint64(len(c.blocks)) >= c.feeAct // read-only (RLock)
+	return minFeeForActive(c.blocks, feeActive)
 }
 
 // HistoryItem is a wallet-facing view of a confirmed transaction.
