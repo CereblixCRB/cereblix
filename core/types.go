@@ -9,6 +9,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
@@ -126,6 +127,7 @@ type Tx struct {
 	Fee     uint64 `json:"fee"`
 	Nonce   uint64 `json:"nonce"` // account nonce; block height for coinbase
 	Sig     string `json:"sig"`   // hex ed25519 signature
+	id      string // cached ID(): set on decode/sign, immutable after; not serialized
 }
 
 func (t *Tx) SigningPayload() []byte {
@@ -134,8 +136,29 @@ func (t *Tx) SigningPayload() []byte {
 }
 
 func (t *Tx) ID() string {
+	if t.id != "" {
+		return t.id
+	}
+	return t.computeID()
+}
+
+func (t *Tx) computeID() string {
 	h := sha256.Sum256([]byte(string(t.SigningPayload()) + "|" + t.Sig))
 	return hex.EncodeToString(h[:])
+}
+
+// UnmarshalJSON decodes a Tx and eagerly caches its ID. A decoded tx is immutable
+// (it's already signed), so the cache can never go stale. Wire format unchanged
+// (the cache is an unexported field, never serialized).
+func (t *Tx) UnmarshalJSON(data []byte) error {
+	type raw Tx
+	var r raw
+	if err := json.Unmarshal(data, &r); err != nil {
+		return err
+	}
+	*t = Tx(r)
+	t.id = t.computeID()
+	return nil
 }
 
 func (t *Tx) IsCoinbase() bool { return t.FromPub == "" }
@@ -204,6 +227,7 @@ func SignTx(t *Tx, priv ed25519.PrivateKey) {
 func SignTxAt(t *Tx, priv ed25519.PrivateKey, height uint64) {
 	t.FromPub = hex.EncodeToString(priv.Public().(ed25519.PublicKey))
 	t.Sig = hex.EncodeToString(ed25519.Sign(priv, t.signingPayloadFor(height)))
+	t.id = t.computeID() // signed -> immutable -> cache the canonical ID
 }
 
 // ------------------------------------------------------------------- blocks
@@ -217,6 +241,7 @@ type Block struct {
 	Target   string `json:"target"` // 64-hex big-endian target
 	Nonce    uint64 `json:"nonce"`
 	Txs      []*Tx  `json:"txs"`
+	hash     string // cached Hash(): set on decode, immutable after; not serialized
 }
 
 const HeaderLen = 4 + 8 + 8 + 32 + 32 + 32 + 8
@@ -239,8 +264,31 @@ func (b *Block) HeaderBytes() []byte {
 
 // Hash is the block id: sha256 of the serialized header.
 func (b *Block) Hash() string {
+	if b.hash != "" {
+		return b.hash
+	}
+	return b.computeHash()
+}
+
+func (b *Block) computeHash() string {
 	h := sha256.Sum256(b.HeaderBytes())
 	return hex.EncodeToString(h[:])
+}
+
+// UnmarshalJSON decodes a Block (its Txs cache their own IDs) and eagerly caches
+// the block hash. Received/loaded blocks are never re-mined, so the cache can't go
+// stale; a freshly-built template (constructed in code, not decoded) keeps hash=""
+// and computes on demand, so the miner's nonce search never sees a stale hash.
+// Wire format unchanged (the cache is an unexported field, never serialized).
+func (b *Block) UnmarshalJSON(data []byte) error {
+	type raw Block
+	var r raw
+	if err := json.Unmarshal(data, &r); err != nil {
+		return err
+	}
+	*b = Block(r)
+	b.hash = b.computeHash()
+	return nil
 }
 
 func ComputeTxRoot(txs []*Tx) string {
