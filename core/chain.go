@@ -629,10 +629,19 @@ func (c *Chain) TryAdoptChain(startHeight uint64, newBlocks []*Block) error {
 		return fmt.Errorf("reorg too deep: %d blocks (cap %d)", depth, c.MaxReorgDepth)
 	}
 
-	// Break-glass guard: never reorg below or across a configured checkpoint.
+	// Break-glass guard: refuse only a SHORTENING attack — a reorg that would
+	// DISCARD a checkpointed block we currently hold (forks at/below it) WITHOUT
+	// the candidate reaching that height to re-supply it. A candidate that DOES
+	// cover the checkpoint height is matched hash-for-hash in validateBlock (which
+	// rejects a wrong block at a checkpoint height), so initial and forward sync
+	// ACROSS a checkpoint are allowed. The old coarse "h >= startHeight" form
+	// blocked all forward sync, permanently wedging a node that lost its blocks but
+	// kept a non-empty checkpoints.json (every adopt from height 1 was rejected).
 	if len(c.Checkpoints) > 0 {
+		ourTipH := uint64(len(c.blocks)) - 1
+		newTipH := startHeight + uint64(len(newBlocks)) - 1
 		for h := range c.Checkpoints {
-			if h >= startHeight {
+			if h >= startHeight && h <= ourTipH && h > newTipH {
 				return fmt.Errorf("reorg conflicts with checkpoint at height %d", h)
 			}
 		}
