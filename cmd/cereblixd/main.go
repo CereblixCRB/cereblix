@@ -33,7 +33,7 @@ func main() {
 		doUpdate = flag.Bool("update", false, "update to the latest released node (if newer) and exit")
 		doDiag   = flag.Bool("diagnose", false, "print a self-diagnosis (environment, update state, recent boots) and exit")
 		autoUpd  = flag.String("autoupdate", "", "persist auto-update preference: 'on' or 'off', then exit")
-		store    = flag.String("store", "bbolt", "chain store backend: bbolt (default, 2.3.0; re-syncs from peers on first start) | jsonl")
+		store    = flag.String("store", "jsonl", "chain store backend: jsonl (default) | bbolt (2.3.0; re-syncs from peers on first start). NOTE: cereblix-pool reads blocks.jsonl directly, so pool nodes must stay jsonl until the pool reads via the node API")
 		expJSONL = flag.Bool("export-jsonl", false, "export the bbolt store to blocks.jsonl (rollback to jsonl), then exit")
 		impJSONL = flag.Bool("import-jsonl", false, "on first bbolt start, import an existing blocks.jsonl instead of re-syncing from peers (faster; for a trusted local chain)")
 	)
