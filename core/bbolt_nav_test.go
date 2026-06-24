@@ -61,7 +61,7 @@ func TestBboltServesNavigationLikeJSONL(t *testing.T) {
 	}
 	wantFind := c.FindTx(someTxID)
 
-	c2, err := OpenChain(dir, true) // bbolt: serves navigation from the DB
+	c2, err := OpenChain(dir, true, true) // import jsonl; then serves navigation from the DB
 	if err != nil {
 		t.Fatal(err)
 	}

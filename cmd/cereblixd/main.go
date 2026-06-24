@@ -33,8 +33,9 @@ func main() {
 		doUpdate = flag.Bool("update", false, "update to the latest released node (if newer) and exit")
 		doDiag   = flag.Bool("diagnose", false, "print a self-diagnosis (environment, update state, recent boots) and exit")
 		autoUpd  = flag.String("autoupdate", "", "persist auto-update preference: 'on' or 'off', then exit")
-		store    = flag.String("store", "jsonl", "chain store backend: jsonl (default) | bbolt (2.3.0, migrates blocks.jsonl on first start)")
+		store    = flag.String("store", "bbolt", "chain store backend: bbolt (default, 2.3.0; re-syncs from peers on first start) | jsonl")
 		expJSONL = flag.Bool("export-jsonl", false, "export the bbolt store to blocks.jsonl (rollback to jsonl), then exit")
+		impJSONL = flag.Bool("import-jsonl", false, "on first bbolt start, import an existing blocks.jsonl instead of re-syncing from peers (faster; for a trusted local chain)")
 	)
 	flag.Parse()
 	log.SetFlags(log.LstdFlags)
@@ -75,11 +76,12 @@ func main() {
 	}
 	bootGuard(*datadir, *p2pAddr, *rpcAddr)
 
-	chain, err := core.OpenChain(*datadir, strings.EqualFold(strings.TrimSpace(*store), "bbolt"))
+	useBolt := !strings.EqualFold(strings.TrimSpace(*store), "jsonl") // default bbolt; only explicit "jsonl" opts out
+	chain, err := core.OpenChain(*datadir, useBolt, *impJSONL)
 	if err != nil {
 		log.Fatalf("chain init: %v", err)
 	}
-	log.Printf("chain store: %s", map[bool]string{true: "bbolt", false: "jsonl"}[strings.EqualFold(strings.TrimSpace(*store), "bbolt")])
+	log.Printf("chain store: %s (requested %q)", map[bool]string{true: "bbolt", false: "jsonl"}[chain.UsingBolt()], *store)
 	chain.MaxReorgDepth = *maxReorg
 	chain.ReorgPenaltyPermille = *reorgPen
 	log.Printf("cereblixd starting | height %d | tip %s | maxreorg %d", chain.Height(), chain.Tip().Hash()[:16], *maxReorg)

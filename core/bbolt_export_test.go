@@ -11,7 +11,7 @@ func TestBboltExportRoundtrip(t *testing.T) {
 	addr := "crb1" + strings.Repeat("d", 40)
 	dir := t.TempDir()
 
-	c, err := OpenChain(dir, true) // fresh bbolt
+	c, err := OpenChain(dir, true, false) // fresh bbolt
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -35,7 +35,7 @@ func TestBboltChainEquivalenceAndPersist(t *testing.T) {
 	wantHist := c1.History(addr, 50, 0)
 
 	// Reopen the SAME dir on bbolt -> migrates blocks.jsonl -> bbolt, loads.
-	c2, err := OpenChain(dir, true)
+	c2, err := OpenChain(dir, true, true) // import the jsonl we just built
 	if err != nil {
 		t.Fatalf("OpenChain bbolt: %v", err)
 	}
@@ -72,7 +72,7 @@ func TestBboltChainEquivalenceAndPersist(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	c3, err := OpenChain(dir, true)
+	c3, err := OpenChain(dir, true, false) // bbolt already populated
 	if err != nil {
 		t.Fatalf("reopen bbolt: %v", err)
 	}

@@ -77,22 +77,25 @@ type Chain struct {
 
 	OnNewBlock func(b *Block) // called outside lock after a block is adopted
 
-	useBolt bool        // 2.3.0: persist via the bbolt store instead of blocks.jsonl
-	store   *blockStore // nil in jsonl mode
+	useBolt     bool        // 2.3.0: persist via the bbolt store instead of blocks.jsonl
+	importJSONL bool        // opt-in: import an existing blocks.jsonl on first bbolt start instead of re-syncing
+	store       *blockStore // nil in jsonl mode
 }
 
-func NewChain(dir string) (*Chain, error) { return OpenChain(dir, false) }
+func NewChain(dir string) (*Chain, error) { return OpenChain(dir, false, false) }
 
-// OpenChain opens the chain at dir. useBolt selects the bbolt store (2.3.0);
-// false keeps the legacy blocks.jsonl path. NewChain stays jsonl for all existing
-// callers/tests; only the daemon opts into bbolt via -store.
-func OpenChain(dir string, useBolt bool) (*Chain, error) {
+// OpenChain opens the chain at dir. useBolt selects the bbolt store (2.3.0; on an
+// empty DB the node RE-SYNCS from peers rather than migrating blocks.jsonl, unless
+// importJSONL is set). On any bbolt failure it auto-falls-back to jsonl so a node is
+// never bricked by a storage problem. NewChain stays jsonl for existing callers/tests.
+func OpenChain(dir string, useBolt, importJSONL bool) (*Chain, error) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return nil, err
 	}
 	c := &Chain{
 		dir:         dir,
 		useBolt:     useBolt,
+		importJSONL: importJSONL,
 		state:       State{},
 		totals:      map[string]*addrTotals{},
 		addrTx:      map[string][]histRef{},
@@ -208,17 +211,25 @@ func (c *Chain) appendToDisk(b *Block) error {
 func (c *Chain) loadBolt() error {
 	st, err := openBlockStore(filepath.Join(c.dir, "chain.db"))
 	if err != nil {
-		return err
+		log.Printf("store: bbolt open failed (%v) — auto-fallback to jsonl", err)
+		return c.fallbackToJSONL()
 	}
 	c.store = st
-	if _, ok := st.tipHeight(); !ok {
+	// OPT-IN fast path (-import-jsonl): trust + import an existing blocks.jsonl once.
+	// DEFAULT: leave the DB empty so the node RE-SYNCS the chain from peers — no
+	// per-node migration code to go wrong on a third party's data. Either way the
+	// blocks.jsonl is left intact as a rollback artifact.
+	if _, ok := st.tipHeight(); !ok && c.importJSONL {
 		if jsonl := c.blocksFile(); fileExists(jsonl) {
 			n, e := st.migrateFromJSONL(jsonl)
 			if e != nil {
-				return fmt.Errorf("jsonl->bbolt migration: %w", e)
+				log.Printf("store: jsonl import failed (%v) — auto-fallback to jsonl", e)
+				st.close()
+				c.store, c.blocks = nil, nil
+				return c.fallbackToJSONL()
 			}
-			log.Printf("store: migrated %d blocks from blocks.jsonl to bbolt", n)
-			_ = os.Rename(jsonl, jsonl+".migrated") // keep as backup for rollback
+			log.Printf("store: imported %d blocks from blocks.jsonl", n)
+			_ = os.Rename(jsonl, jsonl+".imported")
 		}
 	}
 	if e := st.forEachBlock(func(b *Block) error {
@@ -226,14 +237,23 @@ func (c *Chain) loadBolt() error {
 		c.markPowVerified(b.Hash())
 		return nil
 	}); e != nil {
-		return e
+		log.Printf("store: bbolt read failed (%v) — auto-fallback to jsonl", e)
+		st.close()
+		c.store, c.blocks = nil, nil
+		return c.fallbackToJSONL()
 	}
 	if len(c.blocks) == 0 {
+		// Empty DB (default upgrade path / fresh node): start at genesis; the node
+		// syncs the chain from peers into bbolt. blocks.jsonl (if any) stays untouched.
 		g := GenesisBlock()
 		c.blocks = []*Block{g}
 		c.markPowVerified(g.Hash())
 		c.rebuildDerived()
-		return st.rebuild(c.blocks, c.cumWork)
+		if e := st.rebuild(c.blocks, c.cumWork); e != nil {
+			return e
+		}
+		log.Printf("store: bbolt empty — syncing the chain from peers")
+		return nil
 	}
 	if c.blocks[0].Hash() != GenesisBlock().Hash() {
 		return errors.New("block store has wrong genesis")
@@ -249,9 +269,18 @@ func (c *Chain) loadBolt() error {
 	}
 	c.rebuildDerived()
 	if truncated {
-		return st.rebuild(c.blocks, c.cumWork) // persist the self-heal
+		return c.store.rebuild(c.blocks, c.cumWork) // persist the self-heal
 	}
 	return nil
+}
+
+// fallbackToJSONL switches to the jsonl store after a bbolt failure so a node is
+// never bricked by a storage problem — it just runs on blocks.jsonl.
+func (c *Chain) fallbackToJSONL() error {
+	c.useBolt = false
+	c.store = nil
+	c.blocks = nil
+	return c.load() // useBolt is now false -> jsonl path
 }
 
 func fileExists(p string) bool { _, err := os.Stat(p); return err == nil }
@@ -269,6 +298,10 @@ func (c *Chain) commitExtend(newBlocks []*Block) error {
 	}
 	return nil
 }
+
+// UsingBolt reports whether the chain is on the bbolt store (false after an
+// auto-fallback to jsonl).
+func (c *Chain) UsingBolt() bool { return c.store != nil }
 
 // commitRebuild persists the full current chain (reorg / genesis init).
 func (c *Chain) commitRebuild() error {
