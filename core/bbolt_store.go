@@ -7,9 +7,44 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"path/filepath"
 
 	bolt "go.etcd.io/bbolt"
 )
+
+// ExportBoltToJSONL dumps the bbolt store's blocks back to blocks.jsonl so an
+// operator can roll back to the legacy jsonl binary. 2.3.0 rollback path.
+func ExportBoltToJSONL(dir string) (int, error) {
+	st, err := openBlockStore(filepath.Join(dir, "chain.db"))
+	if err != nil {
+		return 0, err
+	}
+	defer st.close()
+	f, err := os.Create(filepath.Join(dir, "blocks.jsonl"))
+	if err != nil {
+		return 0, err
+	}
+	defer f.Close()
+	w := bufio.NewWriter(f)
+	n := 0
+	if err := st.forEachBlock(func(b *Block) error {
+		raw, e := json.Marshal(b)
+		if e != nil {
+			return e
+		}
+		if _, e := w.Write(raw); e != nil {
+			return e
+		}
+		if e := w.WriteByte('\n'); e != nil {
+			return e
+		}
+		n++
+		return nil
+	}); err != nil {
+		return n, err
+	}
+	return n, w.Flush()
+}
 
 // blockStore is the bbolt-backed chain storage for the 2.3.0 migration off
 // blocks.jsonl. Schema is laid out CONTRACT-READY now (state/code/storage buckets
@@ -128,6 +163,69 @@ func putBlockTx(tx *bolt.Tx, b *Block) error {
 		}
 	}
 	return nil
+}
+
+// putMeta stamps tip (= last block height key) and cumwork in the meta bucket.
+func putMeta(tx *bolt.Tx, cumwork *big.Int) error {
+	m := tx.Bucket(bkMeta)
+	if k, _ := tx.Bucket(bkBlocks).Cursor().Last(); k != nil {
+		if e := m.Put([]byte("tip"), append([]byte(nil), k...)); e != nil {
+			return e
+		}
+	}
+	return m.Put([]byte("cumwork"), cumwork.Bytes())
+}
+
+// appendBlocks writes new blocks + their indexes + meta in ONE transaction (the
+// common tip-extension path). Atomic: block and indexes commit together.
+func (s *blockStore) appendBlocks(blocks []*Block, cumwork *big.Int) error {
+	return s.db.Update(func(tx *bolt.Tx) error {
+		for _, b := range blocks {
+			if err := putBlockTx(tx, b); err != nil {
+				return err
+			}
+		}
+		return putMeta(tx, cumwork)
+	})
+}
+
+// rebuild clears the block + index buckets and rewrites the full chain in one
+// transaction. Used on reorg (rare) and genesis init. state/code/storage/meta-schema
+// are left untouched.
+func (s *blockStore) rebuild(blocks []*Block, cumwork *big.Int) error {
+	return s.db.Update(func(tx *bolt.Tx) error {
+		for _, name := range [][]byte{bkBlocks, bkBlockHash, bkTxIndex, bkAddrTx} {
+			if err := tx.DeleteBucket(name); err != nil && err != bolt.ErrBucketNotFound {
+				return err
+			}
+			if _, err := tx.CreateBucket(name); err != nil {
+				return err
+			}
+		}
+		for _, b := range blocks {
+			if err := putBlockTx(tx, b); err != nil {
+				return err
+			}
+		}
+		return putMeta(tx, cumwork)
+	})
+}
+
+// forEachBlock iterates stored blocks in ascending height order in one read txn.
+func (s *blockStore) forEachBlock(fn func(*Block) error) error {
+	return s.db.View(func(tx *bolt.Tx) error {
+		cur := tx.Bucket(bkBlocks).Cursor()
+		for k, v := cur.First(); k != nil; k, v = cur.Next() {
+			var b Block
+			if err := json.Unmarshal(v, &b); err != nil {
+				return err
+			}
+			if err := fn(&b); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
 func (s *blockStore) getBlock(height uint64) (*Block, error) {

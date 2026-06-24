@@ -76,14 +76,23 @@ type Chain struct {
 	Checkpoints map[uint64]string
 
 	OnNewBlock func(b *Block) // called outside lock after a block is adopted
+
+	useBolt bool        // 2.3.0: persist via the bbolt store instead of blocks.jsonl
+	store   *blockStore // nil in jsonl mode
 }
 
-func NewChain(dir string) (*Chain, error) {
+func NewChain(dir string) (*Chain, error) { return OpenChain(dir, false) }
+
+// OpenChain opens the chain at dir. useBolt selects the bbolt store (2.3.0);
+// false keeps the legacy blocks.jsonl path. NewChain stays jsonl for all existing
+// callers/tests; only the daemon opts into bbolt via -store.
+func OpenChain(dir string, useBolt bool) (*Chain, error) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return nil, err
 	}
 	c := &Chain{
 		dir:         dir,
+		useBolt:     useBolt,
 		state:       State{},
 		totals:      map[string]*addrTotals{},
 		addrTx:      map[string][]histRef{},
@@ -113,6 +122,9 @@ func NewChain(dir string) (*Chain, error) {
 func (c *Chain) blocksFile() string { return filepath.Join(c.dir, "blocks.jsonl") }
 
 func (c *Chain) load() error {
+	if c.useBolt {
+		return c.loadBolt()
+	}
 	f, err := os.Open(c.blocksFile())
 	if errors.Is(err, os.ErrNotExist) {
 		g := GenesisBlock()
@@ -188,6 +200,82 @@ func (c *Chain) appendToDisk(b *Block) error {
 	raw = append(raw, '\n')
 	_, err = f.Write(raw)
 	return err
+}
+
+// loadBolt loads the chain from the bbolt store (2.3.0). One-time-migrates an
+// existing blocks.jsonl on first run. Blocks are read into c.blocks (the consensus
+// path still works on the in-RAM slice); navigation indexes already live in the DB.
+func (c *Chain) loadBolt() error {
+	st, err := openBlockStore(filepath.Join(c.dir, "chain.db"))
+	if err != nil {
+		return err
+	}
+	c.store = st
+	if _, ok := st.tipHeight(); !ok {
+		if jsonl := c.blocksFile(); fileExists(jsonl) {
+			n, e := st.migrateFromJSONL(jsonl)
+			if e != nil {
+				return fmt.Errorf("jsonl->bbolt migration: %w", e)
+			}
+			log.Printf("store: migrated %d blocks from blocks.jsonl to bbolt", n)
+			_ = os.Rename(jsonl, jsonl+".migrated") // keep as backup for rollback
+		}
+	}
+	if e := st.forEachBlock(func(b *Block) error {
+		c.blocks = append(c.blocks, b)
+		c.markPowVerified(b.Hash())
+		return nil
+	}); e != nil {
+		return e
+	}
+	if len(c.blocks) == 0 {
+		g := GenesisBlock()
+		c.blocks = []*Block{g}
+		c.markPowVerified(g.Hash())
+		c.rebuildDerived()
+		return st.rebuild(c.blocks, c.cumWork)
+	}
+	if c.blocks[0].Hash() != GenesisBlock().Hash() {
+		return errors.New("block store has wrong genesis")
+	}
+	truncated := false
+	for i := 1; i < len(c.blocks); i++ {
+		if c.blocks[i].Height != uint64(i) || c.blocks[i].PrevHash != c.blocks[i-1].Hash() {
+			log.Printf("loadBolt: linkage breaks at height %d — truncating to %d; will re-sync forward", i, i)
+			c.blocks = c.blocks[:i]
+			truncated = true
+			break
+		}
+	}
+	c.rebuildDerived()
+	if truncated {
+		return st.rebuild(c.blocks, c.cumWork) // persist the self-heal
+	}
+	return nil
+}
+
+func fileExists(p string) bool { _, err := os.Stat(p); return err == nil }
+
+// commitExtend persists newly appended tip blocks. bbolt: one atomic txn
+// (block+indexes+meta). jsonl: append, with a whole-file-rewrite fallback.
+func (c *Chain) commitExtend(newBlocks []*Block) error {
+	if c.store != nil {
+		return c.store.appendBlocks(newBlocks, c.cumWork)
+	}
+	for _, b := range newBlocks {
+		if err := c.appendToDisk(b); err != nil {
+			return c.saveAll()
+		}
+	}
+	return nil
+}
+
+// commitRebuild persists the full current chain (reorg / genesis init).
+func (c *Chain) commitRebuild() error {
+	if c.store != nil {
+		return c.store.rebuild(c.blocks, c.cumWork)
+	}
+	return c.saveAll()
 }
 
 // rebuildDerived recomputes state and cumulative work from c.blocks.
@@ -731,7 +819,7 @@ func (c *Chain) AddBlock(b *Block) error {
 		c.mpDel(tx.ID())
 	}
 	c.pruneMempoolLocked()
-	err := c.appendToDisk(b)
+	err := c.commitExtend([]*Block{b})
 	cb := c.OnNewBlock
 	c.mu.Unlock()
 	if cb != nil {
@@ -856,15 +944,7 @@ func (c *Chain) TryAdoptChain(startHeight uint64, newBlocks []*Block) error {
 			}
 		}
 		c.pruneMempoolLocked()
-		for _, b := range newBlocks {
-			if err := c.appendToDisk(b); err != nil {
-				// A partial batch append leaves a GAP on disk that would load as a
-				// corrupt chain. State is already committed in memory, so rewrite the
-				// whole file atomically (tmp+rename) to match memory exactly.
-				return c.saveAll()
-			}
-		}
-		return nil
+		return c.commitExtend(newBlocks)
 	}
 
 	// REORG (depth>0, rare, bounded by MaxReorgDepth): rebuild candidate state from
@@ -894,7 +974,7 @@ func (c *Chain) TryAdoptChain(startHeight uint64, newBlocks []*Block) error {
 	c.cumWork = candWork
 	c.recomputeSupplyLocked()
 	c.pruneMempoolLocked()
-	return c.saveAll()
+	return c.commitRebuild()
 }
 
 // ---------------------------------------------------------------- mempool
