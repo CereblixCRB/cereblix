@@ -2,6 +2,7 @@ package core
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -11,6 +12,141 @@ import (
 
 	bolt "go.etcd.io/bbolt"
 )
+
+// addrHistory serves History(addr) straight from the DB index: a reverse
+// prefix-scan of addrTx (newest block first), emitting each block's txs in
+// ascending index order so the result is byte-identical to the in-memory path.
+// O(offset+limit) — it stops once the page is filled, never scanning the chain.
+func (s *blockStore) addrHistory(addr string, limit, offset int) []HistoryItem {
+	if offset < 0 {
+		offset = 0
+	}
+	out := make([]HistoryItem, 0, limit)
+	prefix := []byte(addr)
+	lp := len(prefix)
+	s.db.View(func(tx *bolt.Tx) error {
+		blocks := tx.Bucket(bkBlocks)
+		cur := tx.Bucket(bkAddrTx).Cursor()
+		// Position at this address's LAST key, then walk backwards.
+		upper := append(append([]byte{}, prefix...), bytes.Repeat([]byte{0xFF}, 12)...)
+		var k []byte
+		if k, _ = cur.Seek(upper); k == nil {
+			k, _ = cur.Last()
+		} else {
+			k, _ = cur.Prev()
+		}
+		skipped := 0
+		run := []int{} // idxs of the current block (collected descending)
+		var runH uint64
+		var blk *Block
+		flush := func() bool { // emit run ascending; returns false when limit hit
+			if len(run) == 0 {
+				return true
+			}
+			if blk == nil || blk.Height != runH {
+				raw := blocks.Get(u64be(runH))
+				if raw == nil {
+					run = run[:0]
+					return true
+				}
+				var b Block
+				if json.Unmarshal(raw, &b) != nil {
+					run = run[:0]
+					return true
+				}
+				blk = &b
+			}
+			for i := len(run) - 1; i >= 0; i-- {
+				idx := run[i]
+				if idx < 0 || idx >= len(blk.Txs) {
+					continue
+				}
+				if skipped < offset {
+					skipped++
+					continue
+				}
+				if len(out) >= limit {
+					run = run[:0]
+					return false
+				}
+				t := blk.Txs[idx]
+				from := "coinbase"
+				if !t.IsCoinbase() {
+					from, _ = t.FromAddr()
+				}
+				out = append(out, HistoryItem{TxID: t.ID(), Height: blk.Height, Time: blk.Time,
+					From: from, To: t.To, Amount: t.Amount, Fee: t.Fee})
+			}
+			run = run[:0]
+			return len(out) < limit
+		}
+		for k != nil && len(k) >= lp+12 && bytes.HasPrefix(k, prefix) {
+			h := binary.BigEndian.Uint64(k[lp : lp+8])
+			idx := int(binary.BigEndian.Uint32(k[lp+8 : lp+12]))
+			if len(run) > 0 && h != runH {
+				if !flush() {
+					return nil
+				}
+			}
+			runH = h
+			run = append(run, idx)
+			k, _ = cur.Prev()
+		}
+		flush()
+		return nil
+	})
+	return out
+}
+
+// findTx serves FindTx for confirmed txs from the DB index (mempool checked by the
+// caller). Returns (loc, true) if found in a block.
+func (s *blockStore) findTx(id string) (TxLocation, bool) {
+	var loc TxLocation
+	found := false
+	s.db.View(func(tx *bolt.Tx) error {
+		v := tx.Bucket(bkTxIndex).Get([]byte(id))
+		if v == nil || len(v) != 12 {
+			return nil
+		}
+		h := binary.BigEndian.Uint64(v[:8])
+		idx := int(binary.BigEndian.Uint32(v[8:]))
+		raw := tx.Bucket(bkBlocks).Get(u64be(h))
+		if raw == nil {
+			return nil
+		}
+		var b Block
+		if json.Unmarshal(raw, &b) != nil || idx < 0 || idx >= len(b.Txs) {
+			return nil
+		}
+		loc = txToLocation(b.Txs[idx])
+		loc.Height, loc.BlockHash, loc.Time = b.Height, b.Hash(), b.Time
+		found = true
+		return nil
+	})
+	return loc, found
+}
+
+// blockByHash serves BlockByHash from the DB hash->height index in O(log n).
+func (s *blockStore) blockByHash(hash string) *Block {
+	var b *Block
+	s.db.View(func(tx *bolt.Tx) error {
+		hv := tx.Bucket(bkBlockHash).Get([]byte(hash))
+		if hv == nil {
+			return nil
+		}
+		raw := tx.Bucket(bkBlocks).Get(hv)
+		if raw == nil {
+			return nil
+		}
+		var blk Block
+		if json.Unmarshal(raw, &blk) != nil {
+			return nil
+		}
+		b = &blk
+		return nil
+	})
+	return b
+}
 
 // ExportBoltToJSONL dumps the bbolt store's blocks back to blocks.jsonl so an
 // operator can roll back to the legacy jsonl binary. 2.3.0 rollback path.

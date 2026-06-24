@@ -295,7 +295,9 @@ func (c *Chain) rebuildDerived() {
 	c.recomputeSupplyLocked()
 	c.lwmaActivationC(c.blocks)      // populate the sticky activation cache once at (re)build
 	c.feeMarketActivationC(c.blocks) // (both no-op if not yet buried below the reorg horizon)
-	c.reindexAddrTxLocked()          // rebuild the per-address history index from the full chain
+	if c.store == nil {              // jsonl: in-memory nav index; bbolt: the DB owns it
+		c.reindexAddrTxLocked()
+	}
 }
 
 const maxVerifiedPow = 8192
@@ -809,7 +811,9 @@ func (c *Chain) AddBlock(b *Block) error {
 		return err
 	}
 	c.blocks = append(c.blocks, b)
-	c.indexBlockLocked(b)
+	if c.store == nil {
+		c.indexBlockLocked(b)
+	}
 	applyBlockToState(c.state, b)
 	applyBlockToTotals(c.totals, b)
 	c.recomputeSupplyLocked()
@@ -931,8 +935,10 @@ func (c *Chain) TryAdoptChain(startHeight uint64, newBlocks []*Block) error {
 			applyBlockToTotals(tot, b)
 		}
 		c.blocks = candidate
-		for _, b := range newBlocks {
-			c.indexBlockLocked(b)
+		if c.store == nil {
+			for _, b := range newBlocks {
+				c.indexBlockLocked(b)
+			}
 		}
 		c.state = st
 		c.totals = tot
@@ -968,7 +974,9 @@ func (c *Chain) TryAdoptChain(startHeight uint64, newBlocks []*Block) error {
 		applyBlockToTotals(tot, b)
 	}
 	c.blocks = candidate
-	c.reindexAddrTxLocked() // blocks above the fork changed -> rebuild the address index
+	if c.store == nil {
+		c.reindexAddrTxLocked() // jsonl in-memory index; bbolt rebuilt via commitRebuild
+	}
 	c.state = st
 	c.totals = tot
 	c.cumWork = candWork
@@ -1582,6 +1590,9 @@ type HistoryItem struct {
 // paging without re-sending earlier pages; the total count is AddrTotals().Txn.
 // The scan is over the in-RAM chain so even a deep offset is cheap.
 func (c *Chain) History(addr string, limit, offset int) []HistoryItem {
+	if c.store != nil { // bbolt owns the index; lock-free DB read (its own MVCC)
+		return c.store.addrHistory(addr, limit, offset)
+	}
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	if offset < 0 {
@@ -1656,6 +1667,19 @@ func txToLocation(t *Tx) TxLocation {
 
 // FindTx locates a transaction by id in the chain or mempool.
 func (c *Chain) FindTx(id string) TxLocation {
+	if c.store != nil {
+		if loc, ok := c.store.findTx(id); ok { // confirmed tx from the DB index
+			return loc
+		}
+		c.mu.RLock()
+		defer c.mu.RUnlock()
+		if t, ok := c.mempool[id]; ok {
+			loc := txToLocation(t)
+			loc.Pending = true
+			return loc
+		}
+		return TxLocation{Found: false, TxID: id}
+	}
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	for i := len(c.blocks) - 1; i >= 0; i-- {
@@ -1732,6 +1756,9 @@ func (c *Chain) AddrCount() int {
 
 // BlockByHash returns a block by its id hash, or nil.
 func (c *Chain) BlockByHash(hash string) *Block {
+	if c.store != nil {
+		return c.store.blockByHash(hash)
+	}
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	for _, b := range c.blocks {
