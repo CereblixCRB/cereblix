@@ -290,6 +290,51 @@ func ExportBoltToJSONL(dir string) (int, error) {
 	return n, w.Flush()
 }
 
+// CompactStore rewrites the bbolt chain.db into a fresh file, reclaiming the free
+// pages bbolt leaves behind on deletes/rewrites (it never shrinks the file in
+// place). Pure storage maintenance: data, indexes, schema and every byte served by
+// the API/P2P are unchanged. Run with the node STOPPED. Needs ~2x disk transiently;
+// the original is kept as chain.db.precompact (one-button rollback). Returns the old
+// and new file sizes.
+func CompactStore(dir string) (oldSize, newSize int64, err error) {
+	src := filepath.Join(dir, "chain.db")
+	tmp := src + ".compact"
+	si, err := os.Stat(src)
+	if err != nil {
+		return 0, 0, err
+	}
+	oldSize = si.Size()
+	sdb, err := bolt.Open(src, 0o600, &bolt.Options{Timeout: 0, ReadOnly: true})
+	if err != nil {
+		return 0, 0, err
+	}
+	_ = os.Remove(tmp)
+	ddb, err := bolt.Open(tmp, 0o600, &bolt.Options{Timeout: 0})
+	if err != nil {
+		sdb.Close()
+		return 0, 0, err
+	}
+	cErr := bolt.Compact(ddb, sdb, 64<<20) // 64MiB bounded txns so a big DB stays within memory
+	ddb.Close()
+	sdb.Close()
+	if cErr != nil {
+		os.Remove(tmp)
+		return 0, 0, cErr
+	}
+	di, err := os.Stat(tmp)
+	if err != nil {
+		return 0, 0, err
+	}
+	newSize = di.Size()
+	if err := os.Rename(src, src+".precompact"); err != nil {
+		return oldSize, newSize, err
+	}
+	if err := os.Rename(tmp, src); err != nil {
+		return oldSize, newSize, err
+	}
+	return oldSize, newSize, nil
+}
+
 // blockStore is the bbolt-backed chain storage for the 2.3.0 migration off
 // blocks.jsonl. Schema is laid out CONTRACT-READY now (state/code/storage buckets
 // exist though only blocks+indexes are populated in this slice) so the future

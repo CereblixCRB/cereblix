@@ -36,6 +36,7 @@ func main() {
 		store    = flag.String("store", "jsonl", "chain store backend: jsonl (default) | bbolt (2.3.0; re-syncs from peers on first start). NOTE: cereblix-pool reads blocks.jsonl directly, so pool nodes must stay jsonl until the pool reads via the node API")
 		expJSONL = flag.Bool("export-jsonl", false, "export the bbolt store to blocks.jsonl (rollback to jsonl), then exit")
 		impJSONL = flag.Bool("import-jsonl", false, "on first bbolt start, import an existing blocks.jsonl instead of re-syncing from peers (faster; for a trusted local chain)")
+		doCompact = flag.Bool("compact", false, "compact the bbolt chain.db (reclaim free pages into a fresh file), then exit; run with the node STOPPED (keeps chain.db.precompact as rollback)")
 	)
 	flag.Parse()
 	log.SetFlags(log.LstdFlags)
@@ -61,6 +62,18 @@ func main() {
 			log.Fatalf("export-jsonl: %v", err)
 		}
 		log.Printf("export-jsonl: wrote %d blocks to blocks.jsonl", n)
+		return
+	}
+	if *doCompact {
+		old, neu, err := core.CompactStore(*datadir)
+		if err != nil {
+			log.Fatalf("compact: %v", err)
+		}
+		pct := 0.0
+		if old > 0 {
+			pct = 100 * (1 - float64(neu)/float64(old))
+		}
+		log.Printf("compact: chain.db %d -> %d bytes (%.1f%% smaller); original kept as chain.db.precompact", old, neu, pct)
 		return
 	}
 	if *autoUpd != "" {
