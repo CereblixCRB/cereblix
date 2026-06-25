@@ -275,18 +275,27 @@ func (c *Chain) loadBolt() error {
 		return c.store.rebuild(c.blocks, c.cumWork) // persist the self-heal (writes v2 rows)
 	}
 	// Schema 1->2 backfill: populate materialized HistoryItem rows for existing
-	// addrTx entries so /api/history reads them instead of decoding whole blocks.
-	// Idempotent + batched; the reader falls back to the block for any not-yet-
-	// written row, so this is safe to interrupt and a no-op once done.
+	// addrTx entries IN THE BACKGROUND, so an upgrading node serves immediately
+	// instead of stalling for the migration. The reader falls back to the block for
+	// any not-yet-written row, so /api/history is correct throughout. Idempotent +
+	// batched + crash-safe (schema is bumped only on success, so an interrupted run
+	// just re-runs next start). The snapshot is length-capped so the live append
+	// path reallocates instead of writing into it — its [0:N] entries are immutable,
+	// so the goroutine reads them race-free.
 	if c.store.schema() < storeSchemaVersion {
-		log.Printf("store: backfilling history rows (schema -> %d) over %d blocks", storeSchemaVersion, len(c.blocks))
-		if e := c.store.backfillRows(c.blocks); e != nil {
-			log.Printf("store: history-row backfill failed (%v) — keeping fallback path", e)
-		} else if e := c.store.setSchema(storeSchemaVersion); e != nil {
-			return e
-		} else {
+		snapshot := c.blocks[:len(c.blocks):len(c.blocks)]
+		go func() {
+			log.Printf("store: backfilling history rows (schema -> %d) over %d blocks (background)", storeSchemaVersion, len(snapshot))
+			if e := c.store.backfillRows(snapshot); e != nil {
+				log.Printf("store: history-row backfill failed (%v) — keeping fallback path", e)
+				return
+			}
+			if e := c.store.setSchema(storeSchemaVersion); e != nil {
+				log.Printf("store: history-row backfill setSchema failed: %v", e)
+				return
+			}
 			log.Printf("store: history-row backfill done (schema %d)", storeSchemaVersion)
-		}
+		}()
 	}
 	return nil
 }
