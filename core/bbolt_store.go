@@ -13,10 +13,110 @@ import (
 	bolt "go.etcd.io/bbolt"
 )
 
+// --- Materialized history rows (schema v2) ----------------------------------
+// Each addrTx entry's VALUE holds the HistoryItem fields for that (address, tx),
+// so addrHistory answers /api/history with a pure index scan and NEVER loads or
+// JSON-decodes a block. Height comes from the key, so the value stores the other
+// six fields in a compact binary layout (no JSON, no reflection):
+//   Time(8 BE) | Amount(8 BE) | Fee(8 BE) | lp(TxID) | lp(From) | lp(To)
+// where lp = 1-byte length prefix + bytes (TxID hex<=64, addresses<=44 -> <256).
+// A nil/short/garbled value (old store, pre-backfill) makes the reader fall back
+// to the block-load path, so the new binary is correct on an un-migrated DB and
+// the OLD binary (which only reads the key) is unaffected on a migrated DB.
+
+func appendLPStr(b []byte, s string) []byte {
+	b = append(b, byte(len(s)))
+	return append(b, s...)
+}
+
+func readLPStr(b []byte) (string, []byte, bool) {
+	if len(b) < 1 {
+		return "", nil, false
+	}
+	n := int(b[0])
+	b = b[1:]
+	if len(b) < n {
+		return "", nil, false
+	}
+	return string(b[:n]), b[n:], true
+}
+
+func encodeHistRow(it HistoryItem) []byte {
+	b := make([]byte, 0, 24+3+len(it.TxID)+len(it.From)+len(it.To))
+	b = append(b, u64be(it.Time)...)
+	b = append(b, u64be(it.Amount)...)
+	b = append(b, u64be(it.Fee)...)
+	b = appendLPStr(b, it.TxID)
+	b = appendLPStr(b, it.From)
+	b = appendLPStr(b, it.To)
+	return b
+}
+
+// decodeHistRow parses a row value; height is taken from the addrTx key. Returns
+// ok=false for a nil/short/garbled value so the caller can fall back to the block.
+func decodeHistRow(v []byte, height uint64) (HistoryItem, bool) {
+	if len(v) < 24 {
+		return HistoryItem{}, false
+	}
+	it := HistoryItem{Height: height}
+	it.Time = binary.BigEndian.Uint64(v[0:8])
+	it.Amount = binary.BigEndian.Uint64(v[8:16])
+	it.Fee = binary.BigEndian.Uint64(v[16:24])
+	rest := v[24:]
+	var ok bool
+	if it.TxID, rest, ok = readLPStr(rest); !ok {
+		return HistoryItem{}, false
+	}
+	if it.From, rest, ok = readLPStr(rest); !ok {
+		return HistoryItem{}, false
+	}
+	if it.To, rest, ok = readLPStr(rest); !ok {
+		return HistoryItem{}, false
+	}
+	return it, true
+}
+
+// putAddrRows writes the materialized HistoryItem row under each addrTx key a
+// block touches (sender AND recipient, once for a self-send; coinbase by
+// recipient only) — mirrors the old nil-value indexing but stores the row. Used
+// by putBlockTx (live extend) and backfillRows (one-time migration).
+func putAddrRows(at *bolt.Bucket, b *Block) error {
+	for i, t := range b.Txs {
+		coinbase := t.IsCoinbase()
+		from := "coinbase"
+		if !coinbase {
+			f, ferr := t.FromAddr()
+			if ferr != nil {
+				continue
+			}
+			from = f
+		}
+		row := encodeHistRow(HistoryItem{TxID: t.ID(), Height: b.Height, Time: b.Time,
+			From: from, To: t.To, Amount: t.Amount, Fee: t.Fee})
+		if coinbase {
+			if err := at.Put(addrTxKey(t.To, b.Height, i), row); err != nil {
+				return err
+			}
+			continue
+		}
+		if err := at.Put(addrTxKey(from, b.Height, i), row); err != nil {
+			return err
+		}
+		if t.To != from {
+			if err := at.Put(addrTxKey(t.To, b.Height, i), row); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 // addrHistory serves History(addr) straight from the DB index: a reverse
 // prefix-scan of addrTx (newest block first), emitting each block's txs in
 // ascending index order so the result is byte-identical to the in-memory path.
 // O(offset+limit) — it stops once the page is filled, never scanning the chain.
+// Schema v2: the row value carries the HistoryItem, so a block is loaded ONLY as
+// a fallback for a nil/garbled value (old store / pre-backfill).
 func (s *blockStore) addrHistory(addr string, limit, offset int) []HistoryItem {
 	if offset < 0 {
 		offset = 0
@@ -29,38 +129,26 @@ func (s *blockStore) addrHistory(addr string, limit, offset int) []HistoryItem {
 		cur := tx.Bucket(bkAddrTx).Cursor()
 		// Position at this address's LAST key, then walk backwards.
 		upper := append(append([]byte{}, prefix...), bytes.Repeat([]byte{0xFF}, 12)...)
-		var k []byte
-		if k, _ = cur.Seek(upper); k == nil {
-			k, _ = cur.Last()
+		var k, v []byte
+		if k, v = cur.Seek(upper); k == nil {
+			k, v = cur.Last()
 		} else {
-			k, _ = cur.Prev()
+			k, v = cur.Prev()
 		}
 		skipped := 0
-		run := []int{} // idxs of the current block (collected descending)
+		type entry struct {
+			idx int
+			val []byte
+		}
+		run := []entry{} // entries of the current block (collected descending)
 		var runH uint64
-		var blk *Block
+		var blk *Block // lazily loaded ONLY on fallback
 		flush := func() bool { // emit run ascending; returns false when limit hit
 			if len(run) == 0 {
 				return true
 			}
-			if blk == nil || blk.Height != runH {
-				raw := blocks.Get(u64be(runH))
-				if raw == nil {
-					run = run[:0]
-					return true
-				}
-				var b Block
-				if json.Unmarshal(raw, &b) != nil {
-					run = run[:0]
-					return true
-				}
-				blk = &b
-			}
 			for i := len(run) - 1; i >= 0; i-- {
-				idx := run[i]
-				if idx < 0 || idx >= len(blk.Txs) {
-					continue
-				}
+				e := run[i]
 				if skipped < offset {
 					skipped++
 					continue
@@ -69,7 +157,26 @@ func (s *blockStore) addrHistory(addr string, limit, offset int) []HistoryItem {
 					run = run[:0]
 					return false
 				}
-				t := blk.Txs[idx]
+				if it, ok := decodeHistRow(e.val, runH); ok {
+					out = append(out, it)
+					continue
+				}
+				// FALLBACK: nil/garbled row -> load the block and extract the tx.
+				if blk == nil || blk.Height != runH {
+					raw := blocks.Get(u64be(runH))
+					if raw == nil {
+						continue
+					}
+					var b Block
+					if json.Unmarshal(raw, &b) != nil {
+						continue
+					}
+					blk = &b
+				}
+				if e.idx < 0 || e.idx >= len(blk.Txs) {
+					continue
+				}
+				t := blk.Txs[e.idx]
 				from := "coinbase"
 				if !t.IsCoinbase() {
 					from, _ = t.FromAddr()
@@ -87,10 +194,11 @@ func (s *blockStore) addrHistory(addr string, limit, offset int) []HistoryItem {
 				if !flush() {
 					return nil
 				}
+				blk = nil
 			}
 			runH = h
-			run = append(run, idx)
-			k, _ = cur.Prev()
+			run = append(run, entry{idx: idx, val: append([]byte(nil), v...)}) // copy: cursor reuses v
+			k, v = cur.Prev()
 		}
 		flush()
 		return nil
@@ -204,10 +312,13 @@ var (
 	bkCode      = []byte("code")      // contract address -> bytecode         (future: contracts)
 	bkStorage   = []byte("storage")   // contract addr ++ slot -> value       (future: contracts)
 	bkTxIndex   = []byte("txIndex")   // txid -> location {height,idx}
-	bkAddrTx    = []byte("addrTx")    // address(44B) ++ height(8B) ++ idx(4B) -> nil
+	bkAddrTx    = []byte("addrTx")    // address(44B) ++ height(8B) ++ idx(4B) -> HistoryItem row (schema>=2; nil in schema 1)
 )
 
-const storeSchemaVersion = 1
+// storeSchemaVersion 2: addrTx values hold materialized HistoryItem rows (were
+// nil in v1). The reader falls back to the block on a nil/short value, and the v1
+// binary ignores the value entirely — so up/down-grade is store-compatible.
+const storeSchemaVersion = 2
 
 var allBuckets = [][]byte{bkMeta, bkBlocks, bkBlockHash, bkState, bkCode, bkStorage, bkTxIndex, bkAddrTx}
 
@@ -258,10 +369,56 @@ func openBlockStore(path string) (*blockStore, error) {
 
 func (s *blockStore) close() error { return s.db.Close() }
 
+// schema reads the stored schema version (0 if unset/legacy).
+func (s *blockStore) schema() uint64 {
+	var v uint64
+	s.db.View(func(tx *bolt.Tx) error {
+		if b := tx.Bucket(bkMeta).Get([]byte("schema")); len(b) == 8 {
+			v = binary.BigEndian.Uint64(b)
+		}
+		return nil
+	})
+	return v
+}
+
+// setSchema stamps the schema version.
+func (s *blockStore) setSchema(v uint64) error {
+	return s.db.Update(func(tx *bolt.Tx) error {
+		return tx.Bucket(bkMeta).Put([]byte("schema"), u64be(v))
+	})
+}
+
+// backfillRows populates the materialized HistoryItem row for every addrTx entry
+// of the given blocks (the schema 1->2 migration). Batched + idempotent (each Put
+// overwrites with the same deterministic row), so a crash mid-run is harmless and
+// a re-run is a no-op. Reads nothing from disk — works off the in-RAM blocks the
+// chain already holds, so no 2x disk and no full rebuild.
+func (s *blockStore) backfillRows(blocks []*Block) error {
+	const batch = 500
+	for i := 0; i < len(blocks); i += batch {
+		end := i + batch
+		if end > len(blocks) {
+			end = len(blocks)
+		}
+		chunk := blocks[i:end]
+		if err := s.db.Update(func(tx *bolt.Tx) error {
+			at := tx.Bucket(bkAddrTx)
+			for _, b := range chunk {
+				if err := putAddrRows(at, b); err != nil {
+					return err
+				}
+			}
+			return nil
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // putBlockTx writes block b and ALL its indexes inside the caller's write txn, so
-// block + indexes commit atomically (no desync possible). Mirrors the in-memory
-// indexBlockLocked semantics: tx indexed by id; addr indexed by sender AND
-// recipient (once for a self-send); coinbase by recipient only.
+// block + indexes commit atomically (no desync possible). tx indexed by id; addr
+// indexed (with materialized HistoryItem rows) by sender AND recipient.
 func putBlockTx(tx *bolt.Tx, b *Block) error {
 	raw, err := json.Marshal(b)
 	if err != nil {
@@ -274,31 +431,13 @@ func putBlockTx(tx *bolt.Tx, b *Block) error {
 	if err := tx.Bucket(bkBlockHash).Put([]byte(b.Hash()), h); err != nil {
 		return err
 	}
-	txi, at := tx.Bucket(bkTxIndex), tx.Bucket(bkAddrTx)
+	txi := tx.Bucket(bkTxIndex)
 	for i, t := range b.Txs {
 		if err := txi.Put([]byte(t.ID()), txLocBytes(b.Height, i)); err != nil {
 			return err
 		}
-		if t.IsCoinbase() {
-			if err := at.Put(addrTxKey(t.To, b.Height, i), nil); err != nil {
-				return err
-			}
-			continue
-		}
-		from, ferr := t.FromAddr()
-		if ferr != nil {
-			continue
-		}
-		if err := at.Put(addrTxKey(from, b.Height, i), nil); err != nil {
-			return err
-		}
-		if t.To != from {
-			if err := at.Put(addrTxKey(t.To, b.Height, i), nil); err != nil {
-				return err
-			}
-		}
 	}
-	return nil
+	return putAddrRows(tx.Bucket(bkAddrTx), b)
 }
 
 // putMeta stamps tip (= last block height key) and cumwork in the meta bucket.

@@ -269,7 +269,24 @@ func (c *Chain) loadBolt() error {
 	}
 	c.rebuildDerived()
 	if truncated {
-		return c.store.rebuild(c.blocks, c.cumWork) // persist the self-heal
+		if e := c.store.setSchema(storeSchemaVersion); e != nil {
+			return e
+		}
+		return c.store.rebuild(c.blocks, c.cumWork) // persist the self-heal (writes v2 rows)
+	}
+	// Schema 1->2 backfill: populate materialized HistoryItem rows for existing
+	// addrTx entries so /api/history reads them instead of decoding whole blocks.
+	// Idempotent + batched; the reader falls back to the block for any not-yet-
+	// written row, so this is safe to interrupt and a no-op once done.
+	if c.store.schema() < storeSchemaVersion {
+		log.Printf("store: backfilling history rows (schema -> %d) over %d blocks", storeSchemaVersion, len(c.blocks))
+		if e := c.store.backfillRows(c.blocks); e != nil {
+			log.Printf("store: history-row backfill failed (%v) — keeping fallback path", e)
+		} else if e := c.store.setSchema(storeSchemaVersion); e != nil {
+			return e
+		} else {
+			log.Printf("store: history-row backfill done (schema %d)", storeSchemaVersion)
+		}
 	}
 	return nil
 }
