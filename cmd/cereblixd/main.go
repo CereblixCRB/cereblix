@@ -30,6 +30,8 @@ func main() {
 		maxReorg = flag.Uint64("maxreorg", 100, "reject reorgs deeper than N blocks (0 = unlimited); decentralized 51% guard")
 		reorgPen = flag.Uint64("reorg-penalty", 0, "extra work permille per reorg-depth block required (0 = off)")
 		noUpdate = flag.Bool("noupdate", false, "disable automatic node self-update for this run (one-off; see -autoupdate to persist)")
+		stallRst = flag.Bool("stall-restart", false, "let the liveness watchdog exit(1) for a supervisor restart if the node stays behind+stuck (off by default; needs Restart= in the unit)")
+		isolated = flag.Bool("isolated", false, "vacuum/testnet mode: do NOT dial the baked-in public seeds, peer ONLY with -peers (no contact with the live network)")
 		doUpdate = flag.Bool("update", false, "update to the latest released node (if newer) and exit")
 		doDiag   = flag.Bool("diagnose", false, "print a self-diagnosis (environment, update state, recent boots) and exit")
 		autoUpd  = flag.String("autoupdate", "", "persist auto-update preference: 'on' or 'off', then exit")
@@ -105,10 +107,14 @@ func main() {
 			seeds = append(seeds, p)
 		}
 	}
+	node.SetIsolated(*isolated)       // before New: gate the baked-in fallback seeds
 	node.SetTrustedSubnets(*trustSub) // before New: addPeer() consults the trusted set
-	node.SetOwnIPs(*public)           // before New: the dialer refuses to connect to our own IPs (kills seed round-robin self-dials)
+	if !*isolated {
+		node.SetOwnIPs(*public) // before New: dialer refuses our own IPs (kills seed round-robin self-dials). Skipped in -isolated so a vacuum testnet can peer over loopback.
+	}
 	n := node.New(chain, *datadir, *public, seeds)
 	n.Version = nodeVersion
+	n.StallRestart = *stallRst
 	log.Printf("node software v%s (consensus v%d)", nodeVersion, core.NodeConsensusVersion)
 	go autoUpdateLoop(n, !*noUpdate)
 

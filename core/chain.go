@@ -33,6 +33,27 @@ func (s State) get(addr string) *Account {
 	return a
 }
 
+// powKey identifies a pre-verified PoW result: a block hash under a specific epoch
+// seed. PoW is a pure function of (header, height, epoch-seed), so a result keyed
+// this way is reusable across the lock-free pre-verify and the locked validateBlock.
+type powKey struct{ seed, hash string }
+
+// powOKMax bounds the off-lock PoW memo. Sized far above any single catch-up batch
+// (fan-out chunks ~256, deep-recovery candidates size their own retain) so the prune
+// only fires between unrelated batches, never dropping a batch mid-verification.
+const powOKMax = 1 << 16
+
+// sigKey identifies a pre-verified tx signature: a tx ID at a specific block height.
+// The signature covers a height-bound ChainID payload (from ChainIDHeight on), so a
+// reorg re-including the same tx at a DIFFERENT height yields a different key → the
+// locked path correctly re-verifies. Mirror of powKey's seed-keying.
+type sigKey struct {
+	id     string
+	height uint64
+}
+
+const sigOKMax = 1 << 17 // bounds the off-lock tx-sig memo (a block holds up to MaxBlockTxs sigs)
+
 // Chain is the consensus engine: main chain, account state and mempool.
 type Chain struct {
 	mu      sync.RWMutex
@@ -55,8 +76,24 @@ type Chain struct {
 	mempool     map[string]*Tx
 	bySender    map[string][]*Tx // per-sender nonce-ordered mempool index; lets validateMempoolTxLocked walk one sender in O(k) instead of sorting the whole mempool O(n log n) per AddTx. Kept in lockstep with mempool via mpAdd/mpDel ONLY.
 	verifiedPow map[string]bool
+
+	// powOK memoizes off-lock PoW pre-verification (see PreVerifyPoW): the memory-hard
+	// NeuroMorph hash is run WITHOUT the chain write lock, so a multi-block catch-up no
+	// longer holds c.mu for ~N×4ms (the FD-death cause). validateBlock consults it to
+	// skip the re-hash. Guarded by its OWN mutex (NOT c.mu) so the lock-free pre-verify
+	// path can write it; bounded. Keyed by (epochSeed,blockHash) so a reorg that changed
+	// the epoch boundary block (different seed) misses → a correct re-hash under the lock.
+	powMu sync.Mutex
+	powOK map[powKey]bool
+
+	// sigOK memoizes off-lock tx-signature verification (see PreVerifySigs): the per-tx
+	// ed25519 verify is the OTHER heavy per-block cost validateBlock ran under the write
+	// lock. Same contract as powOK, keyed by (txID,height); guarded by sigMu; bounded.
+	sigMu sync.Mutex
+	sigOK map[sigKey]bool
 	feeAct      uint64 // cached fee-market activation height (0 = not yet). Set ONLY once buried below the reorg horizon -> immutable -> byte-identical to feeMarketActivation(). Written under the write lock; read-only under RLock.
 	lwmaAct     uint64 // cached LWMA activation height (same contract as feeAct).
+	drAct       uint64 // cached deep-recovery (v4 hardfork) activation height (same sticky contract).
 
 	paramsCache map[uint64]*nm.Params // epoch -> params
 	vmCache     map[uint64]*nm.VM     // epoch -> validation VM
@@ -74,6 +111,12 @@ type Chain struct {
 	// attacks: height -> block hash. Empty = fully decentralized. When set,
 	// the chain refuses any history that conflicts with a checkpoint.
 	Checkpoints map[uint64]string
+
+	// authAnchor is the latest signature-verified authority checkpoint, retained even
+	// when we hold no matching block (we are on a different fork). Trust root for the
+	// gated deep-reorg recovery (consensus v4): a reorg deeper than MaxReorgDepth is
+	// permitted ONLY if the candidate contains this anchor's (height,hash). Guarded by c.mu.
+	authAnchor Checkpoint
 
 	OnNewBlock func(b *Block) // called outside lock after a block is adopted
 
@@ -103,6 +146,8 @@ func OpenChain(dir string, useBolt, importJSONL bool) (*Chain, error) {
 		mempool:     map[string]*Tx{},
 		bySender:    map[string][]*Tx{},
 		verifiedPow: map[string]bool{},
+		powOK:       map[powKey]bool{},
+		sigOK:       map[sigKey]bool{},
 		paramsCache: map[uint64]*nm.Params{},
 		vmCache:     map[uint64]*nm.VM{},
 		vmSeed:      map[uint64]string{},
@@ -116,7 +161,8 @@ func OpenChain(dir string, useBolt, importJSONL bool) (*Chain, error) {
 		return nil, err
 	}
 	c.loadCheckpoints()
-	c.LoadMempool() // restore pending txns dropped by the restart
+	c.loadAuthAnchor() // restore the deep-recovery anchor across restarts
+	c.LoadMempool()    // restore pending txns dropped by the restart
 	return c, nil
 }
 
@@ -413,10 +459,15 @@ func spendable(bal uint64, immature uint64) uint64 {
 }
 
 // validateTxAgainstState checks a non-coinbase tx against a state snapshot.
-// `immature` maps address -> coinbase amount not yet matured at this height.
-func validateTxAgainstState(st State, t *Tx, immature map[string]uint64, height uint64) error {
-	if err := t.CheckSigAt(height); err != nil {
-		return err
+// `immature` maps address -> coinbase amount not yet matured at this height. Method so
+// the per-tx ed25519 verify is skipped when PreVerifySigs already validated THIS tx at
+// THIS height off-lock (consensus-identical: every other check still runs; a
+// (txID,height) miss re-verifies).
+func (c *Chain) validateTxAgainstState(st State, t *Tx, immature map[string]uint64, height uint64) error {
+	if !c.sigPreVerified(t.ID(), height) {
+		if err := t.CheckSigAt(height); err != nil {
+			return err
+		}
 	}
 	from, _ := t.FromAddr()
 	acc := st.get(from)
@@ -599,6 +650,50 @@ func (c *Chain) expectedTargetC(blocks []*Block) *big.Int {
 func (c *Chain) minFeeForC(blocks []*Block) uint64 {
 	a := c.feeMarketActivationC(blocks)
 	return minFeeForActive(blocks, a != 0 && uint64(len(blocks)) >= a)
+}
+
+// expectedTargetRO / minFeeForRO are RLock-SAFE (read-only) variants of the C
+// memoizers: they READ the cached activation height (immutable once set) and, if it
+// is not yet locked in, recompute it WITHOUT writing the cache. This lets BuildTemplate
+// (getwork) run under RLock — so it neither serializes behind nor blocks adopts — with
+// no data race on c.lwmaAct/c.feeAct. Result is identical to the cached path; the only
+// cost is an occasional uncached activation scan during the brief pre-lock-in window.
+func (c *Chain) expectedTargetRO(blocks []*Block) *big.Int {
+	a := c.lwmaAct
+	if a == 0 {
+		a = lwmaActivation(blocks)
+	}
+	return expectedTargetActive(blocks, a != 0 && uint64(len(blocks)) >= a)
+}
+
+func (c *Chain) minFeeForRO(blocks []*Block) uint64 {
+	a := c.feeAct
+	if a == 0 {
+		a = feeMarketActivation(blocks)
+	}
+	return minFeeForActive(blocks, a != 0 && uint64(len(blocks)) >= a)
+}
+
+// deepRecoveryActivationC is the sticky-cached v4 activation height (same contract as
+// lwmaActivationC: cache only once buried below the reorg horizon → immutable). Avoids
+// re-scanning the whole chain under the write lock on every deep-reorg attempt. MUST be
+// called under the write lock (may write c.drAct).
+func (c *Chain) deepRecoveryActivationC(blocks []*Block) uint64 {
+	if c.drAct != 0 {
+		return c.drAct
+	}
+	a := deepRecoveryActivation(blocks)
+	if a != 0 && uint64(len(blocks)) >= a+c.MaxReorgDepth {
+		c.drAct = a
+	}
+	return a
+}
+
+// deepRecoveryActiveC reports whether the gated v4 deep-reorg recovery governs the
+// current chain. Write-lock only (via the cache write).
+func (c *Chain) deepRecoveryActiveC() bool {
+	a := c.deepRecoveryActivationC(c.blocks)
+	return a != 0 && uint64(len(c.blocks)) >= a
 }
 
 // legacyTarget is the original windowed-average retarget (before LWMA activation).
@@ -796,10 +891,20 @@ func (c *Chain) validateBlock(prefix []*Block, st State, b *Block) error {
 	// txs below). Consensus outcome is unchanged — a block is accepted iff ALL
 	// checks pass, regardless of order.
 	if !c.verifiedPow[b.Hash()] {
-		vm := c.vmFor(prefix, b.Height)
-		pow := vm.Hash(b.HeaderBytes(), b.Height)
-		if !HashMeetsTarget(pow, got) {
-			return errors.New("insufficient proof of work")
+		// Skip the memory-hard re-hash if PreVerifyPoW already verified THIS block
+		// under THIS epoch seed off-lock (powOK). Seed-keyed: a reorg that changed the
+		// epoch boundary yields a different seed → miss → re-hash here. Outcome is
+		// byte-identical; this only moves the hashing off the write lock.
+		seed, _ := epochSeedFor(prefix, b.Height)
+		pk := powKey{hex.EncodeToString(seed), b.Hash()}
+		c.powMu.Lock()
+		pre := c.powOK[pk]
+		c.powMu.Unlock()
+		if !pre {
+			vm := c.vmFor(prefix, b.Height)
+			if !HashMeetsTarget(vm.Hash(b.HeaderBytes(), b.Height), got) {
+				return errors.New("insufficient proof of work")
+			}
 		}
 		c.markPowVerified(b.Hash())
 	}
@@ -846,7 +951,7 @@ func (c *Chain) validateBlock(prefix []*Block, st State, b *Block) error {
 		if t.Fee < minfee {
 			return fmt.Errorf("tx %s: fee %d below minimum %d", t.ID()[:16], t.Fee, minfee)
 		}
-		if err := validateTxAgainstState(work, t, imm, b.Height); err != nil {
+		if err := c.validateTxAgainstState(work, t, imm, b.Height); err != nil {
 			return fmt.Errorf("tx %s: %w", t.ID()[:16], err)
 		}
 		from, _ := t.FromAddr()
@@ -856,6 +961,119 @@ func (c *Chain) validateBlock(prefix []*Block, st State, b *Block) error {
 		work.get(t.To).Balance += t.Amount
 	}
 	return nil
+}
+
+// PreVerifyPoW runs the memory-hard NeuroMorph PoW for candidate blocks WITHOUT
+// holding the chain write lock, recording each pass in powOK so the subsequent
+// (locked) validateBlock skips the re-hash. THIS IS THE FD-DEATH CURE: a catch-up
+// of N blocks used to hold c.mu for ~N×verify-time (~4ms each), parking every read
+// handler on RLock → accepted sockets pile into CLOSE_WAIT → "too many open files".
+// With pre-verify the write lock is held only for the cheap state-splice + commit.
+// Consensus-identical: PoW is a pure function of (header,height,epoch-seed) and
+// validateBlock still re-runs ALL checks; this only memoizes the hash.
+//
+// Concurrency-safe: each call builds PRIVATE per-seed VMs (per-VM scratch buffers),
+// and the 64 MiB epoch dataset is shared read-only via the mutex-guarded getDataset,
+// so multiple PreVerifyPoW calls (parallel sync) may run at once. Snapshots the fork
+// prefix under a brief RLock (block pointers are immutable), then hashes lock-free.
+func (c *Chain) PreVerifyPoW(startHeight uint64, nb []*Block) {
+	if startHeight == 0 || len(nb) == 0 {
+		return
+	}
+	c.mu.RLock()
+	if startHeight > uint64(len(c.blocks)) {
+		c.mu.RUnlock()
+		return
+	}
+	prefix := append(make([]*Block, 0, startHeight+uint64(len(nb))), c.blocks[:startHeight]...)
+	c.mu.RUnlock()
+	// Bound powOK ONCE here, never mid-loop: wiping inside the loop would drop entries
+	// for THIS batch, forcing validateBlock to re-hash them under the write lock — the
+	// exact FD-death we prevent — on a deep (>powOKMax) recovery candidate. Pruning only
+	// at entry guarantees every block verified in this call survives the call.
+	c.powMu.Lock()
+	if len(c.powOK) > powOKMax {
+		c.powOK = make(map[powKey]bool, len(nb))
+	}
+	c.powMu.Unlock()
+	vms := map[string]*nm.VM{}
+	for i, b := range nb {
+		// Heights must run sequentially from startHeight; a misaligned (forged) height
+		// would mis-key the seed and could index the prefix out of range. Stop and let
+		// validateBlock reject under the lock — never panic in this lock-free path.
+		if b.Height != startHeight+uint64(i) {
+			break
+		}
+		seed, _ := epochSeedFor(prefix, b.Height) // boundary block is in prefix (or an earlier nb we appended)
+		sk := hex.EncodeToString(seed)
+		pk := powKey{sk, b.Hash()}
+		c.powMu.Lock()
+		done := c.powOK[pk]
+		c.powMu.Unlock()
+		if !done {
+			if got, err := b.TargetInt(); err == nil {
+				vm := vms[sk]
+				if vm == nil {
+					vm = nm.NewVM(nm.DeriveParams(seed))
+					vms[sk] = vm
+				}
+				if HashMeetsTarget(vm.Hash(b.HeaderBytes(), b.Height), got) {
+					c.powMu.Lock()
+					c.powOK[pk] = true
+					c.powMu.Unlock()
+				}
+			}
+		}
+		prefix = append(prefix, b)
+	}
+}
+
+// PreVerifySigs verifies every non-coinbase tx signature in the candidate blocks
+// WITHOUT the chain write lock, recording each pass in sigOK so the subsequent (locked)
+// validateTxAgainstState skips the re-verify. Mirror of PreVerifyPoW for the OTHER
+// heavy per-block cost (ed25519 verify, up to MaxBlockTxs per block) — together they
+// move both memory/CPU-hard checks off the lock, so a catch-up/recovery holds c.mu only
+// for the cheap state splice. Pure function of (tx, height) → consensus-identical;
+// sigMu-guarded so parallel sync calls are safe.
+func (c *Chain) PreVerifySigs(startHeight uint64, nb []*Block) {
+	if startHeight == 0 || len(nb) == 0 {
+		return
+	}
+	c.sigMu.Lock()
+	if len(c.sigOK) > sigOKMax {
+		c.sigOK = make(map[sigKey]bool, 64) // prune ONCE at entry; never mid-batch (see powOK)
+	}
+	c.sigMu.Unlock()
+	for i, b := range nb {
+		h := startHeight + uint64(i)
+		if b.Height != h {
+			break // misaligned/forged height — let validateBlock reject under the lock
+		}
+		for _, t := range b.Txs {
+			if t.IsCoinbase() {
+				continue
+			}
+			k := sigKey{t.ID(), h}
+			c.sigMu.Lock()
+			done := c.sigOK[k]
+			c.sigMu.Unlock()
+			if done {
+				continue
+			}
+			if t.CheckSigAt(h) == nil {
+				c.sigMu.Lock()
+				c.sigOK[k] = true
+				c.sigMu.Unlock()
+			}
+		}
+	}
+}
+
+// sigPreVerified reports whether PreVerifySigs already validated this tx at this height.
+func (c *Chain) sigPreVerified(id string, height uint64) bool {
+	c.sigMu.Lock()
+	defer c.sigMu.Unlock()
+	return c.sigOK[sigKey{id, height}]
 }
 
 // AddBlock validates and appends a block extending the current tip.
@@ -897,8 +1115,19 @@ func (c *Chain) TryAdoptChain(startHeight uint64, newBlocks []*Block) error {
 	if len(newBlocks) == 0 {
 		return errors.New("empty candidate")
 	}
+	// Fire OnNewBlock AFTER releasing the lock (same contract as AddBlock) so a
+	// chain adopted via sync/reorg also wakes long-poll subscribers + updates the
+	// cached tip snapshot — not only the AddBlock (tip-extension) path.
+	var adopted *Block
 	c.mu.Lock()
-	defer c.mu.Unlock()
+	defer func() {
+		c.mu.Unlock()
+		if adopted != nil {
+			if cb := c.OnNewBlock; cb != nil {
+				cb(adopted)
+			}
+		}
+	}()
 	if startHeight == 0 || startHeight > uint64(len(c.blocks)) {
 		return errors.New("bad fork point")
 	}
@@ -907,7 +1136,16 @@ func (c *Chain) TryAdoptChain(startHeight uint64, newBlocks []*Block) error {
 	// depth = how many of our own blocks would be discarded.
 	depth := uint64(len(c.blocks)) - startHeight
 	if c.MaxReorgDepth > 0 && depth > c.MaxReorgDepth {
-		return fmt.Errorf("reorg too deep: %d blocks (cap %d)", depth, c.MaxReorgDepth)
+		// Gated deep-reorg recovery (consensus v4): permit a deeper reorg ONLY when the
+		// rule is active AND the candidate contains a block matching the latest signed
+		// authority anchor. An anonymous attacker cannot forge the authority signature,
+		// so the anti-51% guard against UNSIGNED deep reorgs stays fully intact; an honest
+		// node >maxreorg behind re-converges to the operator-blessed chain on its own.
+		// Before v4 activation this is byte-identical to the old hard rejection.
+		if !c.deepRecoveryActiveC() ||
+			!candidateMeetsAnchor(c.authAnchor, startHeight, newBlocks) {
+			return fmt.Errorf("reorg too deep: %d blocks (cap %d)", depth, c.MaxReorgDepth)
+		}
 	}
 
 	// Break-glass guard: refuse only a SHORTENING attack — a reorg that would
@@ -1009,6 +1247,7 @@ func (c *Chain) TryAdoptChain(startHeight uint64, newBlocks []*Block) error {
 			}
 		}
 		c.pruneMempoolLocked()
+		adopted = newBlocks[len(newBlocks)-1]
 		return c.commitExtend(newBlocks)
 	}
 
@@ -1041,6 +1280,7 @@ func (c *Chain) TryAdoptChain(startHeight uint64, newBlocks []*Block) error {
 	c.cumWork = candWork
 	c.recomputeSupplyLocked()
 	c.pruneMempoolLocked()
+	adopted = newBlocks[len(newBlocks)-1]
 	return c.commitRebuild()
 }
 
@@ -1269,9 +1509,53 @@ func (c *Chain) loadCheckpoints() {
 	}
 }
 
+// writeFileAtomic writes via a temp file + rename so a crash mid-write can never
+// leave a truncated/corrupt file (rename is atomic on the same filesystem). Used for
+// the small finality files (checkpoints, authority anchor) whose truncation would
+// silently drop a safety/recovery guarantee.
+func writeFileAtomic(path string, data []byte) error {
+	tmp := path + ".tmp"
+	if err := os.WriteFile(tmp, data, 0o644); err != nil {
+		return err
+	}
+	return os.Rename(tmp, path)
+}
+
 func (c *Chain) saveCheckpoints() {
 	raw, _ := json.Marshal(c.Checkpoints)
-	_ = os.WriteFile(c.checkpointsFile(), raw, 0o644)
+	_ = writeFileAtomic(c.checkpointsFile(), raw)
+}
+
+// The authority anchor (deep-recovery trust root) is persisted separately so a
+// restart keeps its autonomous-recovery capability instead of waiting to re-learn a
+// checkpoint from peers. Re-verified on load (never trust an unsigned on-disk anchor).
+func (c *Chain) authAnchorFile() string { return filepath.Join(c.dir, "authanchor.json") }
+
+func (c *Chain) saveAuthAnchor() { // caller holds c.mu
+	raw, _ := json.Marshal(c.authAnchor)
+	_ = writeFileAtomic(c.authAnchorFile(), raw)
+}
+
+func (c *Chain) loadAuthAnchor() {
+	raw, err := os.ReadFile(c.authAnchorFile())
+	if err != nil {
+		return
+	}
+	var cp Checkpoint
+	if json.Unmarshal(raw, &cp) == nil && cp.Verify() { // re-check signature on load
+		c.authAnchor = cp
+	}
+}
+
+// ConsensusStatus returns hardfork-rollout telemetry for /api/status: how many of the
+// last DeepRecoveryWindow (50) blocks signal v4, the required count to activate
+// (95% = 48), the window, and the retained signed authority-anchor height. Cheap
+// (O(window), no full-chain scan) and read-only.
+func (c *Chain) ConsensusStatus() (v4Signal, v4Required, v4Window int, anchorHeight uint64) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	v4Signal = signalCountWin(c.blocks, uint64(len(c.blocks)), DeepRecoveryVersion, DeepRecoveryWindow)
+	return v4Signal, deepRecoveryRequired(), DeepRecoveryWindow, c.authAnchor.Height
 }
 
 // ApplyCheckpoint records a verified authority checkpoint if it matches our own
@@ -1294,6 +1578,33 @@ func (c *Chain) ApplyCheckpoint(cp Checkpoint) bool {
 	return true
 }
 
+// SetAuthorityAnchor records the latest signature-verified authority checkpoint as the
+// deep-reorg recovery anchor (see TryAdoptChain's maxreorg branch). The CALLER must have
+// verified cp.Verify() first; this stores only the highest one and does NOT enforce it
+// as a checkpoint (that is ApplyCheckpoint's job, which only succeeds when we hold the
+// matching block). Keeping the anchor even on a wrong fork is exactly what lets a
+// >maxreorg-behind honest node re-converge once v4 is active.
+func (c *Chain) SetAuthorityAnchor(cp Checkpoint) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if cp.Height > c.authAnchor.Height {
+		c.authAnchor = cp
+		c.saveAuthAnchor() // persist so a restart keeps autonomous-recovery capability
+	}
+}
+
+// candidateMeetsAnchor reports whether the candidate chain (newBlocks beginning at
+// startHeight) contains the authority anchor's (height,hash) — i.e. the candidate is on
+// the operator-blessed chain. The anchor's signature was verified before it was stored,
+// so a forged or absent anchor can never satisfy this.
+func candidateMeetsAnchor(a Checkpoint, startHeight uint64, newBlocks []*Block) bool {
+	if a.Height == 0 || a.Hash == "" || a.Height < startHeight {
+		return false
+	}
+	i := a.Height - startHeight
+	return i < uint64(len(newBlocks)) && newBlocks[i].Hash() == a.Hash
+}
+
 // HighestCheckpointHeight returns the greatest checkpointed height (0 if none).
 func (c *Chain) HighestCheckpointHeight() uint64 {
 	c.mu.RLock()
@@ -1314,8 +1625,13 @@ func (c *Chain) BuildTemplate(coinbase string) (*Block, error) {
 	if !ValidAddr(coinbase) {
 		return nil, errors.New("bad coinbase address")
 	}
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	// RLock (not Lock): template assembly is read-only mining POLICY (any valid block
+	// is accepted regardless of selection). Holding the write lock here made every hot
+	// /api/getwork serialize behind an in-progress adopt AND block all readers — a
+	// major contributor to the lock-starvation FD-death on stratum edge nodes. Uses the
+	// RO activation helpers so no c.* memoization write races under the shared lock.
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 	height := uint64(len(c.blocks))
 	prev := c.blocks[len(c.blocks)-1]
 
@@ -1328,7 +1644,7 @@ func (c *Chain) BuildTemplate(coinbase string) (*Block, error) {
 	imm := immatureCoinbase(c.blocks, height)
 	var minfee uint64
 	if height >= MinFeeHeight {
-		minfee = c.minFeeForC(c.blocks)
+		minfee = c.minFeeForRO(c.blocks)
 	}
 	// Bitcoin-style fee market: repeatedly include the HIGHEST-fee tx that is the
 	// next valid nonce for its sender (per-sender nonce order is mandatory). Under
@@ -1364,7 +1680,7 @@ func (c *Chain) BuildTemplate(coinbase string) (*Block, error) {
 			if t.Nonce != st.get(from).Nonce { // nonce gap - sender blocked for now
 				continue
 			}
-			if t.Fee < minfee || validateTxAgainstState(st, t, imm, height) != nil {
+			if t.Fee < minfee || c.validateTxAgainstState(st, t, imm, height) != nil {
 				continue
 			}
 			if best == nil || t.Fee > best.Fee || (t.Fee == best.Fee && t.ID() < best.ID()) {
@@ -1405,7 +1721,7 @@ func (c *Chain) BuildTemplate(coinbase string) (*Block, error) {
 		Time:     now,
 		PrevHash: prev.Hash(),
 		TxRoot:   ComputeTxRoot(txs),
-		Target:   TargetToHex(c.expectedTargetC(c.blocks)),
+		Target:   TargetToHex(c.expectedTargetRO(c.blocks)),
 		Nonce:    0,
 		Txs:      txs,
 	}

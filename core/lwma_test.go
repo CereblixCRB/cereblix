@@ -94,8 +94,13 @@ func TestFeeMarketActivationFrozen(t *testing.T) {
 	if FeeMarketVersion != 2 {
 		t.Fatalf("FeeMarketVersion must stay frozen at 2, got %d", FeeMarketVersion)
 	}
-	if LWMAVersion != NodeConsensusVersion {
-		t.Fatalf("LWMAVersion (%d) should equal the current NodeConsensusVersion (%d)", LWMAVersion, NodeConsensusVersion)
+	// The NEWEST fork constant must track the current node version; the older frozen
+	// ones stay strictly below it, so bumping the node version can never re-date them.
+	if DeepRecoveryVersion != NodeConsensusVersion {
+		t.Fatalf("DeepRecoveryVersion (%d) should equal the current NodeConsensusVersion (%d)", DeepRecoveryVersion, NodeConsensusVersion)
+	}
+	if !(FeeMarketVersion < LWMAVersion && LWMAVersion < DeepRecoveryVersion) {
+		t.Fatalf("frozen fork versions must be strictly increasing: fee=%d lwma=%d deep=%d", FeeMarketVersion, LWMAVersion, DeepRecoveryVersion)
 	}
 	// Build a v2-signaled chain past the fee-market floor.
 	n := int(FeeMarketHeight) + 200

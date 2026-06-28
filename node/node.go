@@ -34,6 +34,24 @@ const (
 	batchBlocks         = 200
 	templateMaxAge      = 8 * time.Second
 	templateRefresh     = 5 * time.Second // min interval between getwork template rebuilds (cf. Bitcoin GBT's few-second cache)
+	// Cap simultaneously-open accepted connections per listener. Generous for honest
+	// load (~tens of peers + the local stratum bridge), far below the FD ceiling: a
+	// handler stall (every HTTP handler blocked on the chain RLock while a long
+	// catch-up holds the write lock) must NOT pile up sockets until the process hits
+	// "accept4: too many open files" and wedges until a manual restart. See limitListener.
+	maxConnsP2P = 1024
+	maxConnsRPC = 1024
+	// adoptChunk bounds how many blocks one TryAdoptChain applies under the chain write
+	// lock during catch-up, so each hold is short and read handlers interleave between
+	// chunks (paired with Chain.PreVerifyPoW, which moves the memory-hard PoW off-lock).
+	// Applies to pure EXTENSIONS only; a reorg candidate is always adopted whole (it
+	// must outweigh our chain as a unit, so it can't be chunked).
+	adoptChunk = 256
+	// syncConcurrency caps how many peers SyncLoop contacts at once. The loop used to be
+	// serial, so one dead/slow peer (a full HTTP timeout) stalled the whole round and the
+	// node fell behind → heavy catch-up → lock pressure. Bounded fan-out keeps a round
+	// short without unbounded goroutine/connection growth.
+	syncConcurrency = 6
 )
 
 // fallbackSeeds are baked-in public nodes used to bootstrap and to keep the mesh
@@ -42,12 +60,21 @@ const (
 // simply marked dead. Mirrors Bitcoin's hardcoded seed fallback.
 var fallbackSeeds = []string{
 	"http://seed.cereblix.com:18750",
-	"http://188.34.181.191:18750", // main (seed IP literal, survives DNS failure)
-	"http://186.246.11.2:18750",   // relay
-	"http://13.140.141.180:18750", // mining-fleet node-5 (also a seed.cereblix.com A-record)
-	"http://13.140.141.179:18750", // mining-fleet node-6
-	"http://13.140.142.95:18750",  // mining-fleet node-7
+	"http://186.246.11.2:18750",   // relay (ru.cereblix.com)
+	"http://13.140.141.180:18750", // .180 stratum node (also a seed.cereblix.com A-record)
+	"http://13.140.142.95:18750",  // .95 pool-standby node (also a seed.cereblix.com A-record)
+	// Removed 2026-06-28: 188.34.181.191 (head — DECOMMISSIONED 2026-06-21, dead) and
+	// 13.140.141.179 (now web-origin, runs NO node). Both were re-added to every node's
+	// peers.json on each boot and dialed forever. See cereblix-node-fork-deadlock.
 }
+
+// skipFallbackSeeds, set by SetIsolated (-isolated flag), makes New() NOT add the
+// baked-in public seeds — so a node peers ONLY with its explicit -peers. Used for an
+// in-vacuum testnet (no contact with the live network). Default off; never set in prod.
+var skipFallbackSeeds bool
+
+// SetIsolated toggles vacuum mode (skip baked-in fallback seeds). Call before node.New.
+func SetIsolated(b bool) { skipFallbackSeeds = b }
 
 // workTemplate is one mining job: an unmined block plus when it was built. Several
 // jobs can coexist for a single tip (each mempool-changing refresh publishes a new
@@ -57,15 +84,31 @@ type workTemplate struct {
 	born time.Time
 }
 
+// peerHealth tracks per-peer sync reliability so one dead/wedged/doomed peer cannot
+// drain the (now bounded-concurrency) sync round: failures back off exponentially and
+// a peer that keeps failing is evicted; lastDoomed remembers a tip this peer served
+// that core rejected, so we stop re-fetching the identical losing chain every tick.
+type peerHealth struct {
+	fails      int
+	nextTry    time.Time
+	lastDoomed string
+}
+
 type Node struct {
 	Chain *core.Chain
 
-	dataDir   string
-	publicURL string // advertised to peers, may be empty
-	Version   string // node software version, surfaced in /api/status
+	dataDir      string
+	publicURL    string // advertised to peers, may be empty
+	Version      string // node software version, surfaced in /api/status
+	StallRestart bool   // -stall-restart: watchdog may exit(1) for a supervisor restart if hard-stuck (default off)
 
 	peersMu sync.Mutex
 	peers   map[string]time.Time // base URL -> last success
+
+	phMu    sync.Mutex
+	ph      map[string]*peerHealth  // per-peer sync health: backoff + last doomed tip
+	tipSnap atomic.Pointer[tipInfo] // cached current tip; lets /p2p/tip answer without taking the chain lock
+	seeds   []string                // configured -peers seeds; never evicted (with fallbackSeeds)
 
 	client    *http.Client
 	subClient *http.Client // longer timeout, for /p2p/subscribe long-polling
@@ -107,6 +150,8 @@ func New(chain *core.Chain, dataDir, publicURL string, seedPeers []string) *Node
 		dataDir:     dataDir,
 		publicURL:   strings.TrimRight(publicURL, "/"),
 		peers:       map[string]time.Time{},
+		ph:          map[string]*peerHealth{},
+		seeds:       append([]string(nil), seedPeers...),
 		client:      safePeerClient(),
 		subClient:   &http.Client{Timeout: subscribeHold + 15*time.Second, Transport: safePeerTransport()},
 		templates:   map[string]*workTemplate{},
@@ -119,13 +164,22 @@ func New(chain *core.Chain, dataDir, publicURL string, seedPeers []string) *Node
 	for _, p := range seedPeers {
 		n.addPeer(p)
 	}
-	for _, p := range fallbackSeeds {
-		n.addPeer(p)
+	if !skipFallbackSeeds { // -isolated skips the baked-in public seeds (vacuum/testnet)
+		for _, p := range fallbackSeeds {
+			n.addPeer(p)
+		}
 	}
-	// On a new block: wake long-poll subscribers instantly, then push to peers.
-	chain.OnNewBlock = func(b *core.Block) { n.fireNewBlock(); go n.broadcastBlock(b) }
+	// On a new block (tip extension OR sync/reorg adopt): refresh the cached tip
+	// snapshot, wake long-poll subscribers, then push to peers.
+	chain.OnNewBlock = func(b *core.Block) { n.updateTipSnap(); n.fireNewBlock(); go n.broadcastBlock(b) }
+	ti := n.myTip()
+	n.tipSnap.Store(&ti) // seed the snapshot so /p2p/tip answers before the first adopt
 	return n
 }
+
+// updateTipSnap refreshes the lock-free /p2p/tip snapshot. Called from OnNewBlock
+// (outside the chain lock) so the hottest peer poll never blocks on c.mu.
+func (n *Node) updateTipSnap() { ti := n.myTip(); n.tipSnap.Store(&ti) }
 
 // newBlockSignal returns a channel closed when the next block is adopted; a
 // long-poll subscriber selects on it to be woken the instant a block arrives.
@@ -282,10 +336,17 @@ func peerHostAllowed(raw string) bool {
 // peer I/O) and only read thereafter.
 var trustedNets []*net.IPNet
 
+// netGuardMu guards the dialer's set-once globals (trustedNets, ownIPs): they are
+// written by SetTrustedSubnets/SetOwnIPs (at startup, and re-set by tests) and READ by
+// the dialer Control hook (ipTrusted/ipIsOwn) on EVERY peer dial from background
+// goroutines. Set-once in prod so it never races there, but synchronizing makes it
+// correct under -race and safe if ever re-set.
+var netGuardMu sync.RWMutex
+
 // SetTrustedSubnets parses comma-separated CIDRs into the trusted-peer set,
 // skipping invalid entries with a warning. Call once, before node.New.
 func SetTrustedSubnets(csv string) {
-	trustedNets = nil
+	var nets []*net.IPNet
 	for _, c := range strings.Split(csv, ",") {
 		if c = strings.TrimSpace(c); c == "" {
 			continue
@@ -295,15 +356,20 @@ func SetTrustedSubnets(csv string) {
 			log.Printf("trustedsubnet: ignoring invalid CIDR %q: %v", c, err)
 			continue
 		}
-		trustedNets = append(trustedNets, netw)
+		nets = append(nets, netw)
 	}
-	if len(trustedNets) > 0 {
+	netGuardMu.Lock()
+	trustedNets = nets
+	netGuardMu.Unlock()
+	if len(nets) > 0 {
 		log.Printf("trustedsubnet: SSRF guard exempts operator-declared range(s): %s", csv)
 	}
 }
 
 // ipTrusted reports whether ip falls inside an operator-declared trusted subnet.
 func ipTrusted(ip net.IP) bool {
+	netGuardMu.RLock()
+	defer netGuardMu.RUnlock()
 	for _, netw := range trustedNets {
 		if netw.Contains(ip) {
 			return true
@@ -323,9 +389,10 @@ var ownIPs = map[string]bool{}
 // SetOwnIPs records this node's own addresses so the dialer can refuse to
 // connect to itself. Call once, before node.New. publicURL may be empty.
 func SetOwnIPs(publicURL string) {
+	m := map[string]bool{}
 	add := func(ip net.IP) {
 		if ip != nil {
-			ownIPs[ip.String()] = true
+			m[ip.String()] = true
 		}
 	}
 	if addrs, err := net.InterfaceAddrs(); err == nil {
@@ -346,11 +413,21 @@ func SetOwnIPs(publicURL string) {
 			}
 		}
 	}
-	log.Printf("self-dial guard: %d own address(es) will be refused as peers", len(ownIPs))
+	netGuardMu.Lock()
+	ownIPs = m
+	netGuardMu.Unlock()
+	log.Printf("self-dial guard: %d own address(es) will be refused as peers", len(m))
 }
 
 // ipIsOwn reports whether ip is one of this node's own addresses.
-func ipIsOwn(ip net.IP) bool { return ip != nil && ownIPs[ip.String()] }
+func ipIsOwn(ip net.IP) bool {
+	if ip == nil {
+		return false
+	}
+	netGuardMu.RLock()
+	defer netGuardMu.RUnlock()
+	return ownIPs[ip.String()]
+}
 
 func (n *Node) peerList() []string {
 	n.peersMu.Lock()
@@ -369,6 +446,101 @@ func (n *Node) markPeer(url string, ok bool) {
 	if ok {
 		n.peers[url] = time.Now()
 	}
+}
+
+// ---- peer health: backoff + eviction + doomed-tip memo (RC4) ----
+
+// isProtectedSeed reports whether p must never be evicted (a baked-in fallback seed
+// or a configured -peers seed) so eviction can't strand the node with no bootstrap.
+func (n *Node) isProtectedSeed(p string) bool {
+	q := strings.TrimRight(p, "/")
+	for _, s := range fallbackSeeds {
+		if strings.TrimRight(s, "/") == q {
+			return true
+		}
+	}
+	for _, s := range n.seeds {
+		if strings.TrimRight(s, "/") == q {
+			return true
+		}
+	}
+	return false
+}
+
+// peerReady reports whether a peer is past its backoff and worth contacting this tick.
+func (n *Node) peerReady(p string) bool {
+	n.phMu.Lock()
+	defer n.phMu.Unlock()
+	h := n.ph[p]
+	return h == nil || time.Now().After(h.nextTry)
+}
+
+// peerResult records a sync attempt's outcome: success clears backoff; failure backs
+// off exponentially and, past a threshold, evicts a non-seed peer (re-learnable).
+func (n *Node) peerResult(p string, ok bool) {
+	n.phMu.Lock()
+	h := n.ph[p]
+	if h == nil {
+		h = &peerHealth{}
+		n.ph[p] = h
+	}
+	if ok {
+		h.fails = 0
+		h.nextTry = time.Time{}
+		n.phMu.Unlock()
+		return
+	}
+	h.fails++
+	shift := h.fails
+	if shift > 6 {
+		shift = 6
+	}
+	h.nextTry = time.Now().Add(time.Duration(1<<uint(shift)) * syncInterval) // ~6s .. ~3.2min
+	evict := h.fails >= 20 && !n.isProtectedSeed(p)
+	n.phMu.Unlock()
+	if evict {
+		n.dropPeer(p)
+		log.Printf("peer: evicted unresponsive %s (re-learnable via discovery)", p)
+	}
+}
+
+// noteDoomed / isDoomed remember a peer tip that core rejected, so we stop re-fetching
+// the identical losing chain every tick (cleared implicitly when the peer's tip moves).
+func (n *Node) noteDoomed(p, tipHash string) {
+	n.phMu.Lock()
+	defer n.phMu.Unlock()
+	if h := n.ph[p]; h != nil {
+		h.lastDoomed = tipHash
+	} else {
+		n.ph[p] = &peerHealth{lastDoomed: tipHash}
+	}
+}
+
+func (n *Node) isDoomed(p, tipHash string) bool {
+	n.phMu.Lock()
+	defer n.phMu.Unlock()
+	h := n.ph[p]
+	return h != nil && h.lastDoomed != "" && h.lastDoomed == tipHash
+}
+
+// resetPeerBackoff clears all backoff (used by the watchdog to force a fresh sync pass).
+func (n *Node) resetPeerBackoff() {
+	n.phMu.Lock()
+	defer n.phMu.Unlock()
+	for _, h := range n.ph {
+		h.fails = 0
+		h.nextTry = time.Time{}
+	}
+}
+
+// dropPeer removes a peer from the active set + health map (re-learnable via discovery).
+func (n *Node) dropPeer(p string) {
+	n.peersMu.Lock()
+	delete(n.peers, p)
+	n.peersMu.Unlock()
+	n.phMu.Lock()
+	delete(n.ph, p)
+	n.phMu.Unlock()
 }
 
 // ------------------------------------------------------------ http helpers
@@ -456,12 +628,26 @@ func (n *Node) SyncLoop() {
 		// checkpoint pulls change rarely, so run them ~10x less often to cut
 		// steady-state gossip chatter (O(peers) HTTP requests per tick).
 		slow := tick%10 == 0
+		// Bounded-concurrency fan-out: skip peers in backoff so a dead/wedged peer can't
+		// drain the round; TryAdoptChain still serializes adopts under the chain lock.
+		sem := make(chan struct{}, syncConcurrency)
+		var wg sync.WaitGroup
 		for _, p := range n.peerList() {
-			n.syncWithPeer(p)
-			if slow {
-				n.fetchCheckpoint(p)
+			if !n.peerReady(p) {
+				continue
 			}
+			wg.Add(1)
+			sem <- struct{}{}
+			go func(p string) {
+				defer wg.Done()
+				defer func() { <-sem }()
+				n.syncWithPeer(p)
+				if slow {
+					n.fetchCheckpoint(p)
+				}
+			}(p)
 		}
+		wg.Wait()
 		n.savePeers()
 		if slow {
 			n.discoverPeers()
@@ -495,42 +681,65 @@ func (n *Node) peerAhead(tip tipInfo) bool {
 	return tipAhead(tip.CumWork, tip.Hash, n.Chain.CumWork(), n.Chain.Tip().Hash())
 }
 
+// healthyReject classifies a TryAdoptChain rejection that is NOT the peer's fault: we
+// lost a concurrent catch-up race (a winner goroutine already advanced us, so an
+// identical/already-held prefix now reads as a deep reorg) or the candidate is a
+// genuinely too-deep / equal-work losing fork. The peer stays healthy — no backoff,
+// no eviction. Anything else (bad/invalid data, truncation, transient) backs off.
+func healthyReject(err error) bool {
+	s := err.Error()
+	return strings.Contains(s, "lacks sufficient work") || strings.Contains(s, "reorg too deep")
+}
+
 func (n *Node) syncWithPeer(peer string) {
+	ok := n.syncWithPeerOnce(peer)
+	n.peerResult(peer, ok) // backoff/evict an unreachable or flaky peer; on-a-losing-fork counts as ok
+}
+
+// syncWithPeerOnce performs one sync attempt and reports whether the peer was
+// USABLE this round (reachable + protocol-sane + served what it advertised). A peer
+// merely on a losing fork returns true (we memo its doomed tip and stop re-fetching
+// it); an unreachable/flaky/bad-data peer returns false (→ exponential backoff).
+func (n *Node) syncWithPeerOnce(peer string) (ok bool) {
 	defer func() {
 		if rec := recover(); rec != nil {
 			log.Printf("sync: recovered from panic on peer %s: %v", peer, rec)
+			ok = false
 		}
 	}()
 	var their tipInfo
 	if err := n.getJSON(peer+"/p2p/tip", &their); err != nil {
-		return
+		return false
 	}
 	n.markPeer(peer, true)
 	if len(their.CumWork) > 80 { // a 256-bit cumwork is ~64 hex; reject absurd values
-		return
+		return true
 	}
-	theirWork, ok := new(big.Int).SetString(their.CumWork, 16)
-	if !ok {
-		return
+	theirWork, okw := new(big.Int).SetString(their.CumWork, 16)
+	if !okw {
+		return true
 	}
 	switch theirWork.Cmp(n.Chain.CumWork()) {
 	case -1:
-		return // we already have strictly more work
+		return true // we already have strictly more work
 	case 0:
-		// Equal cumulative work: pursue the peer's chain only if its tip wins the
-		// deterministic tie-break (smaller hash). If we win or share the tip,
-		// nudge the peer toward us instead and stop. This collapses a same-height
-		// fork in one round (see core.TryAdoptChain's tie-break) rather than
-		// leaving the network split until work randomly diverges.
+		// Equal cumulative work: pursue ONLY the deterministic tie-break winner
+		// (smaller tip hash), mirroring core.TryAdoptChain's tie-break so we never
+		// fetch a chain core will reject. Otherwise keep ours and nudge the peer.
 		ourTip := n.Chain.Tip()
 		if their.Hash == ourTip.Hash() {
-			return
+			return true
 		}
 		if their.Hash >= ourTip.Hash() {
 			go n.pushTip(peer)
-			return
+			return true
 		}
 		log.Printf("fork: peer %s on competing equal-work tip @%d (theirs wins tie-break, adopting)", peer, their.Height)
+	}
+	// Don't re-fetch a tip we already learned this peer can't make us adopt; the memo
+	// self-clears once the peer's tip advances (a different hash is not doomed).
+	if n.isDoomed(peer, their.Hash) {
+		return true
 	}
 	// Find the common ancestor (binary search over heights).
 	ourH := n.Chain.Height()
@@ -545,7 +754,7 @@ func (n *Node) syncWithPeer(peer string) {
 			Hash string `json:"hash"`
 		}
 		if err := n.getJSON(fmt.Sprintf("%s/p2p/hash?h=%d", peer, mid), &hr); err != nil {
-			return
+			return false // peer went flaky mid-search → back off; another peer covers it
 		}
 		ours := n.Chain.BlockAt(mid)
 		if ours != nil && ours.Hash() == hr.Hash {
@@ -553,47 +762,78 @@ func (n *Node) syncWithPeer(peer string) {
 			lo = mid + 1
 		} else {
 			if mid == 0 {
-				return // genesis mismatch: not our network
+				return true // genesis mismatch: not our network (reachable though)
 			}
 			hi = mid - 1
 		}
 	}
 	log.Printf("sync: peer %s ahead (h=%d vs %d), fetching from %d", peer, their.Height, ourH, anc+1)
-	if anc < ourH {
-		// Adopting a chain that branches below our tip = a reorg; surface depth so
-		// a deepening divergence (the rplant-style self-fork) is visible live, not
-		// only after the fact. A heavier-but-SHORTER candidate is the attack shape.
+	isReorg := anc < ourH
+	if isReorg {
 		log.Printf("fork: reorg depth %d from peer %s (ancestor %d, our tip %d, theirs %d)", ourH-anc, peer, anc, ourH, their.Height)
+	}
+	// A concurrent fan-out round may have already advanced us STRICTLY PAST this peer's
+	// work between the tip read and here. If so, pull nothing: avoids a wasted fetch AND
+	// a spurious "reorg too deep" on blocks we now hold. Use '> 0' (NOT '>= 0'): an
+	// EQUAL-work peer must still be pursued — that is the same-height tie-break path
+	// (RC1); the redundant case where we already adopted its tip is caught by
+	// healthyReject when TryAdoptChain reports it as already-held.
+	if n.Chain.CumWork().Cmp(theirWork) > 0 {
+		return true
 	}
 	var pending []*core.Block
 	from := anc + 1
+	truncated := false
+	// adopt verifies PoW off-lock, then applies under the chain lock. `complete` = we
+	// hold the whole advertised candidate, so a "lacks sufficient work" rejection is a
+	// genuine losing fork (memoize it); a partial/other rejection is not.
+	adopt := func(complete bool) error {
+		n.Chain.PreVerifyPoW(anc+1, pending)  // memory-hard PoW off-lock
+		n.Chain.PreVerifySigs(anc+1, pending) // per-tx ed25519 off-lock
+		if err := n.Chain.TryAdoptChain(anc+1, pending); err != nil {
+			log.Printf("sync: adopt failed: %v", err)
+			if complete && strings.Contains(err.Error(), "lacks sufficient work") {
+				n.noteDoomed(peer, their.Hash)
+			}
+			return err
+		}
+		anc = n.Chain.Height()
+		pending = nil
+		return nil
+	}
 	for {
 		var batch []*core.Block
 		url := fmt.Sprintf("%s/p2p/blocks?from=%d&count=%d", peer, from, batchBlocks)
 		if err := n.getJSON(url, &batch); err != nil || len(batch) == 0 {
+			if from <= their.Height {
+				truncated = true // peer didn't serve the full chain it advertised
+			}
 			break
 		}
 		pending = append(pending, batch...)
 		from += uint64(len(batch))
-		if from > their.Height || len(pending) >= 5000 {
-			if err := n.Chain.TryAdoptChain(anc+1, pending); err != nil {
-				log.Printf("sync: adopt failed: %v", err)
-				return
+		complete := from > their.Height
+		// Chunk only pure EXTENSIONS; a reorg candidate must be adopted whole (it has to
+		// outweigh our chain as a unit), so accumulate it until complete.
+		if complete || (!isReorg && len(pending) >= adoptChunk) {
+			if err := adopt(complete); err != nil {
+				return healthyReject(err) // raced/too-deep/losing-fork = peer healthy; only bad data backs off
 			}
-			anc = n.Chain.Height()
-			pending = nil
-			if from > their.Height {
+			if complete {
 				break
 			}
 		}
 	}
 	if len(pending) > 0 {
-		if err := n.Chain.TryAdoptChain(anc+1, pending); err != nil {
-			log.Printf("sync: adopt failed: %v", err)
-			return
+		if err := adopt(!truncated); err != nil {
+			return healthyReject(err)
 		}
 	}
+	if truncated {
+		return false // couldn't pull the full advertised chain → treat as flaky this round
+	}
 	log.Printf("sync: now at height %d", n.Chain.Height())
+	return true
 }
 
 // fetchCheckpoint pulls a peer's authority checkpoint, verifies its signature
@@ -606,6 +846,12 @@ func (n *Node) fetchCheckpoint(peer string) {
 	if !cp.Verify() {
 		return
 	}
+	// Retain the signature-verified checkpoint as a deep-reorg recovery ANCHOR even
+	// when ApplyCheckpoint returns false (we're on a wrong fork so we hold no matching
+	// block). It is NOT written into the enforced Checkpoints set; it only lets a
+	// >maxreorg-behind honest node re-converge to the authority chain once the gated
+	// deep-recovery rule (Stage 2) activates. Forgery-proof: signature already verified.
+	n.Chain.SetAuthorityAnchor(cp)
 	if n.Chain.ApplyCheckpoint(cp) {
 		n.cpMu.Lock()
 		isNew := cp.Height > n.checkpoint.Height
@@ -869,6 +1115,10 @@ func (n *Node) P2PHandler() http.Handler {
 	}
 	mux.HandleFunc("/p2p/tip", func(w http.ResponseWriter, r *http.Request) {
 		reg(w, r)
+		if ti := n.tipSnap.Load(); ti != nil {
+			writeJSON(w, *ti) // lock-free: the hottest peer poll never blocks on the chain lock
+			return
+		}
 		writeJSON(w, n.myTip())
 	})
 	mux.HandleFunc("/p2p/hash", func(w http.ResponseWriter, r *http.Request) {
@@ -1043,6 +1293,7 @@ func (n *Node) RPCHandler() http.Handler {
 			blockAge = 0
 		}
 		_, epoch := n.Chain.EpochSeedForNext()
+		v4sig, v4req, v4win, anchorH := n.Chain.ConsensusStatus()
 		writeJSON(w, map[string]any{
 			"height":            tip.Height,
 			"tip":               tip.Hash(),
@@ -1061,6 +1312,10 @@ func (n *Node) RPCHandler() http.Handler {
 			"fee_floor":         n.Chain.FeeFloor(),
 			"node_version":      n.Version,
 			"consensus_version": core.NodeConsensusVersion,
+			"v4_signal":         v4sig,   // blocks in the last v4_window signaling consensus v4 (deep-recovery hardfork gate)
+			"v4_required":       v4req,   // gate activates once v4_signal reaches this (95% of the window)
+			"v4_window":         v4win,   // size of the v4 signal window (blocks)
+			"authority_anchor":  anchorH, // height of the retained signed deep-recovery anchor (0 = none)
 			"chain_id":          core.ChainID,
 			"chain_id_height":   core.ChainIDHeight,
 		})
@@ -1547,6 +1802,45 @@ func harden(h http.Handler) http.Handler {
 	})
 }
 
+// limitListener bounds the number of simultaneously-open accepted connections.
+// Without it, a handler stall - every HTTP handler blocked on the chain RLock
+// while a long catch-up holds the write lock - lets accepted-but-unserved sockets
+// pile into CLOSE_WAIT until the process hits its file-descriptor ceiling and can
+// no longer accept OR dial ("accept4: too many open files"), wedging the node
+// until a manual restart. Capping concurrency turns that hard wedge into transient
+// backpressure that self-heals the instant the lock frees. (Same idea as
+// golang.org/x/net/netutil.LimitListener, inlined to avoid the dependency.)
+type limitListener struct {
+	net.Listener
+	sem chan struct{}
+}
+
+func newLimitListener(l net.Listener, n int) net.Listener {
+	return &limitListener{Listener: l, sem: make(chan struct{}, n)}
+}
+
+func (l *limitListener) Accept() (net.Conn, error) {
+	l.sem <- struct{}{}
+	c, err := l.Listener.Accept()
+	if err != nil {
+		<-l.sem
+		return nil, err
+	}
+	return &limitConn{Conn: c, release: func() { <-l.sem }}, nil
+}
+
+type limitConn struct {
+	net.Conn
+	once    sync.Once
+	release func()
+}
+
+func (c *limitConn) Close() error {
+	err := c.Conn.Close()
+	c.once.Do(c.release)
+	return err
+}
+
 // newServer builds an http.Server with timeouts that defeat slow-loris and
 // idle-socket exhaustion attacks (ListenAndServe's default has none).
 func newServer(addr string, h http.Handler) *http.Server {
@@ -1566,16 +1860,105 @@ func (n *Node) Serve(p2pAddr, rpcAddr string) error {
 	// Per-IP rate limit on the unauthenticated, internet-exposed P2P port.
 	// ~25 req/s/IP, burst 50 - far above honest peer sync, far below a flood.
 	p2pRL := newRateLimiter(25, 50)
-	go func() {
-		log.Printf("p2p listening on %s", p2pAddr)
-		errc <- newServer(p2pAddr, p2pRL.wrap(n.P2PHandler())).ListenAndServe()
-	}()
-	go func() {
-		log.Printf("rpc listening on %s", rpcAddr)
-		errc <- newServer(rpcAddr, n.RPCHandler()).ListenAndServe()
-	}()
+	// Serve on a connection-capped listener so a handler stall can never exhaust
+	// the process FD limit and wedge the node (see limitListener).
+	serve := func(name, addr string, h http.Handler, maxConns int) {
+		ln, err := net.Listen("tcp", addr)
+		if err != nil {
+			errc <- fmt.Errorf("%s listen %s: %w", name, addr, err)
+			return
+		}
+		log.Printf("%s listening on %s (max %d conns)", name, addr, maxConns)
+		errc <- newServer(addr, h).Serve(newLimitListener(ln, maxConns))
+	}
+	go serve("p2p", p2pAddr, p2pRL.wrap(n.P2PHandler()), maxConnsP2P)
+	go serve("rpc", rpcAddr, n.RPCHandler(), maxConnsRPC)
 	go n.SyncLoop()
 	go n.subscribeManager()
 	go n.rebroadcastLoop()
+	go n.livenessWatchdog()
 	return <-errc
+}
+
+// bestPeerWork polls a bounded sample of peers for their advertised cumulative work
+// and returns the maximum seen (0 if none reachable). Used by the watchdog to decide
+// whether we are genuinely behind.
+func (n *Node) bestPeerWork() *big.Int {
+	best := new(big.Int)
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, syncConcurrency)
+	for _, p := range n.peerList() {
+		wg.Add(1)
+		sem <- struct{}{}
+		go func(p string) {
+			defer wg.Done()
+			defer func() { <-sem }()
+			var t tipInfo
+			if err := n.getJSON(p+"/p2p/tip", &t); err != nil || len(t.CumWork) > 64 { // a real 256-bit cumwork is <=64 hex
+				return
+			}
+			w, ok := new(big.Int).SetString(t.CumWork, 16)
+			if !ok {
+				return
+			}
+			mu.Lock()
+			if w.Cmp(best) > 0 {
+				best.Set(w)
+			}
+			mu.Unlock()
+		}(p)
+	}
+	wg.Wait()
+	return best
+}
+
+// livenessWatchdog turns "silently stuck" (the limitListener band-aid's failure mode)
+// into self-detecting + self-correcting. Every 30s: if peers advertise strictly more
+// work AND our height has not advanced for stallWindow, it logs LOUDLY and forces a
+// fresh sync pass (clears per-peer backoff). With -stall-restart it escalates to ONE
+// controlled exit-for-restart after a longer window (OFF by default). NOTE: nothing in
+// selfheal rate-limits this — when enabled the operator MUST run under a supervisor
+// crash-loop guard (systemd Restart=on-failure + StartLimitIntervalSec/StartLimitBurst).
+func (n *Node) livenessWatchdog() {
+	const (
+		every       = 30 * time.Second
+		stallWindow = 15 * time.Minute
+		restartAt   = 30 * time.Minute
+	)
+	var lastH uint64
+	stuckSince := time.Time{}
+	t := time.NewTicker(every)
+	defer t.Stop()
+	for {
+		select {
+		case <-n.stop:
+			return
+		case <-t.C:
+		}
+		h := n.Chain.Height()
+		if h != lastH {
+			lastH = h
+			stuckSince = time.Time{}
+			continue
+		}
+		if n.bestPeerWork().Cmp(n.Chain.CumWork()) <= 0 {
+			stuckSince = time.Time{} // not behind — a flat height is fine (network is just quiet)
+			continue
+		}
+		if stuckSince.IsZero() {
+			stuckSince = time.Now()
+			continue
+		}
+		stuck := time.Since(stuckSince)
+		if stuck < stallWindow {
+			continue
+		}
+		log.Printf("WATCHDOG: behind peers but height stuck at %d for %s — clearing peer backoff, forcing fresh sync", h, stuck.Round(time.Second))
+		n.resetPeerBackoff()
+		if n.StallRestart && stuck > restartAt {
+			log.Printf("WATCHDOG: still stuck after %s with -stall-restart set — exiting for a clean supervisor restart", stuck.Round(time.Second))
+			os.Exit(1)
+		}
+	}
 }

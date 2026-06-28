@@ -152,7 +152,7 @@ func getDataset(key [16]byte) []uint64 {
 		d[i] = binary.LittleEndian.Uint64(out[0:8])
 		d[i+1] = binary.LittleEndian.Uint64(out[8:16])
 	}
-	if len(dsCache) >= 2 { // keep only the most recent epochs resident
+	if len(dsCache) >= 4 { // keep recent epochs resident (parallel pre-verify may span epochs)
 		for k := range dsCache {
 			delete(dsCache, k)
 			break
