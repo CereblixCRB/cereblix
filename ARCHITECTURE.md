@@ -3,9 +3,12 @@
 > Complete technical specification of Cereblix: the NeuroMorph proof-of-work,
 > the blockchain core, the node, miner and wallets.
 >
-> Document version: 4.0 - Network launched 2026-06-11 - Code license: MIT.
+> Document version: 4.1 - Network launched 2026-06-11 - Code license: MIT.
 > A free, open-source project. No premine, no fund, no fundraising.
 >
+> v4.1 (2026-06-28) adds: a checkpoint-anchored deep-reorg recovery hardfork (a
+> readiness-gated **consensus v4** change, see §4.5/§5) and node fork/FD-exhaustion
+> hardening (off-lock PoW + signature verification, sync hardening, liveness watchdog).
 > v4 adds: a Bitcoin-style fee market (flat anti-spam floor + fee-priority block
 > selection, readiness-gated activation) and a self-updating node (authority-
 > signed manifest, SHA-256-verified atomic swap, crash-loop rollback, self-diagnosis).
@@ -254,6 +257,12 @@ required-version constant - never the moving node version - so a later version
 bump cannot retroactively re-date an already-activated fork. The LWMA gate is
 **floorless**: it activates purely on the supermajority signal (90 of the last
 100 blocks on v3), which a large external pool can't reach until it too upgrades.
+The **deep-reorg recovery hardfork (consensus v4, from v2.4.0)** uses the same
+mechanism with its own window — it locks in only when **95% of the last 50 blocks**
+signal v4. Below activation it is byte-identical to v3; above it, a node that has
+fallen further than `-maxreorg` behind may re-converge to the canonical chain (§5),
+but only onto a candidate that carries a valid authority-signed checkpoint anchor,
+so an unsigned deep reorg is still rejected and the split-proofing is preserved.
 
 ### 4.6. Genesis
 Empty coinbase to an unspendable address, timestamp 2026-06-11 00:00:00 UTC.
@@ -270,6 +279,10 @@ bootstrap phase** - that kill the cheap catastrophic attack and buy time:
 
 - **Max reorg depth** (`-maxreorg`, default 100): any reorg that would rewrite
   more than N blocks is rejected outright, killing rewrite-from-genesis attacks.
+  (From consensus v4, an honest node that is itself stuck more than N blocks behind
+  may exceed this cap **only** to adopt a chain containing an authority-signed
+  checkpoint anchor — autonomous recovery, not an attack vector, since an anonymous
+  attacker cannot forge the authority signature.)
 - **Reorg-cost penalty** (`-reorg-penalty`, optional): deeper reorgs must carry
   disproportionately more work.
 - **Authority checkpoints** (bootstrap phase): an authority key signs the
