@@ -18,8 +18,30 @@ android {
         versionName "1.0.0"
     }
 
+    // Release signing reads the keystore + passwords from a gitignored properties
+    // file in the operator's .secrets (NEVER committed). On a public clone it is
+    // absent, and `assembleRelease` then produces an UNSIGNED apk (sign it with
+    // your own upload key). minify stays off: R8 is unverified against the gomobile
+    // JNI surface here (no on-device test), so we ship a release-signed, un-shrunk
+    // apk; enable minifyEnabled+shrinkResources once tested on a device.
+    def ksPropsFile = rootProject.file('../../.secrets/wallet-keystore.properties')
+    def ksProps = new Properties()
+    if (ksPropsFile.exists()) { ksPropsFile.withInputStream { ksProps.load(it) } }
+
+    signingConfigs {
+        release {
+            if (ksPropsFile.exists()) {
+                storeFile file(ksProps.getProperty('storeFile'))
+                storePassword ksProps.getProperty('storePassword')
+                keyAlias ksProps.getProperty('keyAlias')
+                keyPassword ksProps.getProperty('keyPassword')
+            }
+        }
+    }
+
     buildTypes {
         release {
+            if (ksPropsFile.exists()) signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
