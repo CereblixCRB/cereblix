@@ -21,3 +21,13 @@ func (c *Chain) MarkVerifiedForTest(blocks ...*Block) {
 		c.markPowVerified(b.Hash())
 	}
 }
+
+// commitStallForTest, when non-nil, is invoked at the START of commitExtend/commitRebuild
+// so a test can simulate a slow/stalled bbolt commit (fsync) on a sick disk. Since the
+// RC5 fix these commits run under diskMu with the chain write lock c.mu RELEASED, so the
+// hook lets a test prove a stalled commit no longer freezes c.mu readers (and that diskMu
+// still orders concurrent writers). nil (a no-op) in production; the daemon never sets it.
+var commitStallForTest func()
+
+// SetCommitStallForTest installs (or clears, with nil) the commit-stall hook. Test-only.
+func SetCommitStallForTest(f func()) { commitStallForTest = f }

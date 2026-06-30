@@ -57,6 +57,12 @@ const sigOKMax = 1 << 17 // bounds the off-lock tx-sig memo (a block holds up to
 // Chain is the consensus engine: main chain, account state and mempool.
 type Chain struct {
 	mu      sync.RWMutex
+	// diskMu is the OUTER commit lock (always acquired BEFORE c.mu). It serializes the
+	// block-commit paths (AddBlock / TryAdoptChain) and pins the on-disk write order to
+	// the in-memory commit order even under concurrent sync workers. The bbolt fsync
+	// runs while holding diskMu but with c.mu RELEASED, so a slow disk stall no longer
+	// freezes readers/miners/sync (the cause of the total-silence node wedge).
+	diskMu  sync.Mutex
 	dir     string
 	blocks  []*Block
 	state   State
@@ -359,9 +365,12 @@ func fileExists(p string) bool { _, err := os.Stat(p); return err == nil }
 
 // commitExtend persists newly appended tip blocks. bbolt: one atomic txn
 // (block+indexes+meta). jsonl: append, with a whole-file-rewrite fallback.
-func (c *Chain) commitExtend(newBlocks []*Block) error {
+func (c *Chain) commitExtend(newBlocks []*Block, snapWork *big.Int) error {
+	if commitStallForTest != nil {
+		commitStallForTest()
+	}
 	if c.store != nil {
-		return c.store.appendBlocks(newBlocks, c.cumWork)
+		return c.store.appendBlocks(newBlocks, snapWork)
 	}
 	for _, b := range newBlocks {
 		if err := c.appendToDisk(b); err != nil {
@@ -376,9 +385,9 @@ func (c *Chain) commitExtend(newBlocks []*Block) error {
 func (c *Chain) UsingBolt() bool { return c.store != nil }
 
 // commitRebuild persists the full current chain (reorg / genesis init).
-func (c *Chain) commitRebuild() error {
+func (c *Chain) commitRebuild(blocks []*Block, snapWork *big.Int) error {
 	if c.store != nil {
-		return c.store.rebuild(c.blocks, c.cumWork)
+		return c.store.rebuild(blocks, snapWork)
 	}
 	return c.saveAll()
 }
@@ -1078,6 +1087,13 @@ func (c *Chain) sigPreVerified(id string, height uint64) bool {
 
 // AddBlock validates and appends a block extending the current tip.
 func (c *Chain) AddBlock(b *Block) error {
+	// diskMu is the OUTER lock: it serializes block commits AND pins the on-disk
+	// write order to the in-memory commit order (concurrent sync workers and the
+	// block-push handler both reach the commit paths). It is held across the whole
+	// commit, but c.mu is released BEFORE the bbolt fsync so a slow disk never
+	// freezes readers/miners. Lock order is ALWAYS diskMu→c.mu (see TryAdoptChain).
+	c.diskMu.Lock()
+	defer c.diskMu.Unlock()
 	c.mu.Lock()
 	if b.PrevHash != c.blocks[len(c.blocks)-1].Hash() {
 		c.mu.Unlock()
@@ -1100,9 +1116,13 @@ func (c *Chain) AddBlock(b *Block) error {
 		c.mpDel(tx.ID())
 	}
 	c.pruneMempoolLocked()
-	err := c.commitExtend([]*Block{b})
+	// Snapshot cumWork and release c.mu BEFORE the disk write (bbolt fsync). The
+	// fsync runs under diskMu only, so readers, sync workers and miners are never
+	// frozen by slow disk IO — while diskMu keeps the on-disk block order correct.
+	snapWork := new(big.Int).Set(c.cumWork)
 	cb := c.OnNewBlock
 	c.mu.Unlock()
+	err := c.commitExtend([]*Block{b}, snapWork)
 	if cb != nil {
 		cb(b)
 	}
@@ -1111,17 +1131,30 @@ func (c *Chain) AddBlock(b *Block) error {
 
 // TryAdoptChain attempts a reorg: candidate blocks start at startHeight and
 // must connect to our chain there. Adopts only if cumulative work is higher.
-func (c *Chain) TryAdoptChain(startHeight uint64, newBlocks []*Block) error {
+func (c *Chain) TryAdoptChain(startHeight uint64, newBlocks []*Block) (retErr error) {
 	if len(newBlocks) == 0 {
 		return errors.New("empty candidate")
 	}
 	// Fire OnNewBlock AFTER releasing the lock (same contract as AddBlock) so a
 	// chain adopted via sync/reorg also wakes long-poll subscribers + updates the
 	// cached tip snapshot — not only the AddBlock (tip-extension) path.
+	// diskMu is the OUTER lock (acquired before c.mu — same order as AddBlock, so no
+	// deadlock): it serializes adopts and pins the on-disk write order to the
+	// memory-commit order even under concurrent sync workers. diskWrite is set inside
+	// c.mu and executed after c.mu.Unlock (still under diskMu) so the bbolt fsync never
+	// holds c.mu — fixing the freeze that caused total node silence.
 	var adopted *Block
+	var diskWrite func() error
+	c.diskMu.Lock()
+	defer c.diskMu.Unlock()
 	c.mu.Lock()
 	defer func() {
 		c.mu.Unlock()
+		if diskWrite != nil {
+			if err := diskWrite(); err != nil && retErr == nil {
+				retErr = err
+			}
+		}
 		if adopted != nil {
 			if cb := c.OnNewBlock; cb != nil {
 				cb(adopted)
@@ -1248,7 +1281,10 @@ func (c *Chain) TryAdoptChain(startHeight uint64, newBlocks []*Block) error {
 		}
 		c.pruneMempoolLocked()
 		adopted = newBlocks[len(newBlocks)-1]
-		return c.commitExtend(newBlocks)
+		commitBlocks := newBlocks
+		snapWork := new(big.Int).Set(candWork)
+		diskWrite = func() error { return c.commitExtend(commitBlocks, snapWork) }
+		return nil
 	}
 
 	// REORG (depth>0, rare, bounded by MaxReorgDepth): rebuild candidate state from
@@ -1281,7 +1317,11 @@ func (c *Chain) TryAdoptChain(startHeight uint64, newBlocks []*Block) error {
 	c.recomputeSupplyLocked()
 	c.pruneMempoolLocked()
 	adopted = newBlocks[len(newBlocks)-1]
-	return c.commitRebuild()
+	snapBlocks := make([]*Block, len(c.blocks))
+	copy(snapBlocks, c.blocks)
+	snapWork := new(big.Int).Set(c.cumWork)
+	diskWrite = func() error { return c.commitRebuild(snapBlocks, snapWork) }
+	return nil
 }
 
 // ---------------------------------------------------------------- mempool
