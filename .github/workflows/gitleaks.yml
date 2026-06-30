@@ -1,0 +1,37 @@
+name: gitleaks
+
+# Secret-scanning gate. This is the REAL net: the local .githooks/pre-commit
+# hook is convenient but bypassable (`git commit --no-verify`), whereas this
+# runs in CI on every push and pull request and fails the build if a secret is
+# detected. Uses the repo's .gitleaks.toml ruleset + allowlist.
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: write # let gitleaks-action post a summary comment on PRs
+
+jobs:
+  gitleaks:
+    name: Scan for leaked secrets
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (full history)
+        uses: actions/checkout@v4
+        with:
+          # Fetch the entire history so gitleaks scans every commit, not just the
+          # push tip (a secret could be buried in an earlier commit of the push).
+          fetch-depth: 0
+
+      - name: gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Use this repo's config (rules + allowlist) instead of the action default.
+          GITLEAKS_CONFIG: .gitleaks.toml
+          # GITLEAKS_LICENSE is ONLY required for repositories owned by a GitHub
+          # ORGANIZATION. CereblixCRB is a user account, so no license is needed.
+          # If these repos ever move under an org, add the secret and uncomment:
+          # GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}

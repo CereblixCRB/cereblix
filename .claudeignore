@@ -1,0 +1,29 @@
+# Repo-local ignore for agent / grep file-search (gitignore syntax).
+# Mirrors the build-noise subset of .gitignore so searches in the public coin
+# repo skip large/generated/vendored trees. Files stay ON DISK (active builds);
+# this only hides them from search.
+# Real source is preserved: desktop/*.go, desktop/frontend/js,
+# desktop/frontend/css, wallet-android/android-app/app/src, wallet-android/mobile.
+
+# Vendored toolchains
+toolchain/go/
+components/nmminer/zig-windows-*/
+
+# Caches & dependency trees
+.gocache/
+**/node_modules/
+
+# Desktop (Wails) wallet: build output + generated JS bindings
+desktop/build/
+desktop/frontend/wailsjs/
+
+# Android (gomobile + Gradle) wallet: build output, gradle cache, generated AAR/JAR
+wallet-android/android-app/app/build/
+wallet-android/**/.gradle/
+wallet-android/android-app/local.properties
+wallet-android/android-app/app/libs/*.aar
+wallet-android/android-app/app/libs/*.jar
+
+# Scratch / staging + compiled binaries
+staging/
+**/*.exe

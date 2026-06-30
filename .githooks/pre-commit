@@ -1,0 +1,59 @@
+#!/bin/sh
+# Cereblix pre-commit secret-scanning backstop.
+# ---------------------------------------------------------------------------
+# Runs gitleaks against the STAGED changes only, so a key or token can't slip
+# into a commit. This guard is LOCAL and BYPASSABLE (`git commit --no-verify`),
+# so it is a convenience, not the real net: CI enforces scanning on every push
+# and pull request via .github/workflows/gitleaks.yml.
+#
+# Enable once per clone:   git config core.hooksPath .githooks
+#
+# Secrets must NEVER leave .secrets/ (gitignored). This hook is a second line of
+# defense behind .gitignore.
+# ---------------------------------------------------------------------------
+
+set -u
+
+# Find the repo root so we locate .gitleaks.toml regardless of where git invoked
+# the hook from.
+ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+CONFIG="$ROOT/.gitleaks.toml"
+
+if command -v gitleaks >/dev/null 2>&1; then
+    echo "gitleaks: scanning staged changes..."
+
+    # protect --staged = scan only what's about to be committed.
+    # --redact        = never print the secret value itself in the output.
+    if [ -f "$CONFIG" ]; then
+        gitleaks protect --staged --redact --source "$ROOT" --config "$CONFIG"
+        status=$?
+    else
+        gitleaks protect --staged --redact --source "$ROOT"
+        status=$?
+    fi
+
+    if [ "$status" -ne 0 ]; then
+        echo "" >&2
+        echo "x gitleaks BLOCKED this commit - a potential secret is staged." >&2
+        echo "  Review the finding above. If it is a REAL secret:" >&2
+        echo "    - unstage it and move it under .secrets/ (gitignored)" >&2
+        echo "    - ROTATE the credential if it was ever written to a tracked path" >&2
+        echo "  If it is a VERIFIED false positive, add a narrow allowlist entry" >&2
+        echo "  to .gitleaks.toml, or (sparingly) bypass with: git commit --no-verify" >&2
+        exit "$status"
+    fi
+
+    echo "gitleaks: clean - no secrets in staged changes."
+    exit 0
+fi
+
+# gitleaks is not installed: WARN but do not hard-block (a teammate who hasn't
+# installed it yet can still commit; CI is the authoritative gate).
+echo "!! gitleaks is NOT installed - staged secret scan SKIPPED." >&2
+echo "   The local pre-commit secret backstop is disabled until you install it:" >&2
+echo "     macOS/Linux (brew):  brew install gitleaks" >&2
+echo "     Go:                  go install github.com/gitleaks/gitleaks/v8@latest" >&2
+echo "     Windows (scoop):     scoop install gitleaks" >&2
+echo "     Release binaries:    https://github.com/gitleaks/gitleaks/releases" >&2
+echo "   CI still enforces scanning on push/PR (.github/workflows/gitleaks.yml)." >&2
+exit 0

@@ -1,0 +1,52 @@
+# lychee link-checker config for the Cereblix public repo.
+# Reference: https://github.com/lycheeverse/lychee
+#
+# The PR gate runs lychee with --offline (relative/file links only, no network),
+# so third-party flakiness can never block a contributor. The daily scheduled job
+# drops --offline and validates external URLs too, using the settings below.
+
+# --- HTTP status codes treated as success -------------------------------------
+# 200 OK, 206 Partial Content (range responses), 429 Too Many Requests.
+# 429 is rate-limiting (GitHub / Cloudflare / forums throttle bots), not a broken
+# link - accepting it stops the scheduled sweep going red over transient throttle.
+accept = [200, 206, 429]
+
+# --- Network behaviour --------------------------------------------------------
+timeout = 20            # seconds per request
+max_retries = 2         # retry transient failures before reporting
+retry_wait_time = 2     # seconds between retries
+max_concurrency = 16
+
+# Some hosts 403 the default lychee UA; present a browser-ish one.
+user_agent = "Mozilla/5.0 (compatible; lychee link-checker; +https://github.com/lycheeverse/lychee)"
+
+# --- What never to probe ------------------------------------------------------
+# The docs are full of node RPC (127.0.0.1:18751), the WireGuard mesh
+# (10.10.0.0/24) and placeholder/example hosts. None are reachable from CI and
+# none are meant to be - skip every loopback / private-range / link-local target.
+exclude_all_private = true
+
+# Don't try to "resolve" mailto: links.
+exclude_mail = true
+
+# Skip generated / vendored trees that ship their own READMEs.
+exclude_path = [
+  "node_modules",
+  "desktop/frontend/node_modules",
+  "vendor",
+]
+
+# Regex excludes (matched against the URL).
+exclude = [
+  # placeholder / documentation hosts
+  '^https?://(www\.)?example\.(com|org|net)',
+  'example\.com',
+  # localhost in any scheme/port
+  '^https?://localhost',
+  'localhost(:\d+)?',
+  '127\.0\.0\.1',
+  # non-HTTP schemes used in mining command examples (stratum+tcp://host:3333)
+  '^stratum(\+tcp)?://',
+  # template placeholders inside example URLs (crb1YOURADDRESS, <wallet>, etc.)
+  'YOURADDRESS',
+]

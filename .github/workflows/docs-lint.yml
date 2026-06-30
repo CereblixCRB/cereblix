@@ -1,0 +1,100 @@
+# Docs-drift CI: lint Markdown + check links so the docs can't silently rot.
+#
+# Strategy (deliberate):
+#   * markdownlint        - style/hygiene of every **/*.md, on push + PR.
+#   * lychee (internal)   - --offline, relative/file links only, on push + PR.
+#                           No network => deterministic, safe to gate a PR on.
+#   * lychee (external)   - full check incl. third-party URLs, on a DAILY schedule
+#                           (and manual dispatch) ONLY - never on a PR, so a flaky
+#                           GitHub/Cloudflare/forum 503 can't block an unrelated PR.
+#
+# All actions are pinned to tagged major versions.
+
+name: docs-lint
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '**/*.md'
+      - '.markdownlint.json'
+      - 'lychee.toml'
+      - '.github/workflows/docs-lint.yml'
+  pull_request:
+    paths:
+      - '**/*.md'
+      - '.markdownlint.json'
+      - 'lychee.toml'
+      - '.github/workflows/docs-lint.yml'
+  schedule:
+    # 06:17 UTC daily - external-link sweep (kept off PRs on purpose).
+    - cron: '17 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-lint-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  markdownlint:
+    name: markdownlint (**/*.md)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Lint Markdown
+        # Auto-discovers .markdownlint.json at the repo root.
+        uses: DavidAnson/markdownlint-cli2-action@v19
+        with:
+          globs: |
+            **/*.md
+            !**/node_modules/**
+            !**/vendor/**
+            !desktop/frontend/node_modules/**
+
+  links-internal:
+    name: links - internal (offline, gates PRs)
+    runs-on: ubuntu-latest
+    # Only on push / PR: this is the deterministic gate.
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check internal / relative links (no network)
+        uses: lycheeverse/lychee-action@v2
+        with:
+          # --offline resolves only relative + file links against the working
+          # tree; it never touches the network, so it cannot flake on a 3rd party.
+          args: >-
+            --offline
+            --no-progress
+            --config lychee.toml
+            './**/*.md'
+          fail: true
+
+  links-external:
+    name: links - external (scheduled sweep)
+    runs-on: ubuntu-latest
+    # Never on a PR - external URLs are flaky and must not block contributors.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check all links incl. external
+        uses: lycheeverse/lychee-action@v2
+        with:
+          # Full check; lychee.toml supplies retries + accepted codes (200/206/429)
+          # to absorb transient throttling. A genuinely broken link fails the
+          # scheduled run (red X notifies maintainers) without ever touching a PR.
+          args: >-
+            --no-progress
+            --config lychee.toml
+            './**/*.md'
+          fail: true
+          jobSummary: true

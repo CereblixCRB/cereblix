@@ -1,0 +1,78 @@
+# Cereblix — gitleaks secret-scanning configuration
+# ---------------------------------------------------------------------------
+# This is a BACKSTOP, not a replacement for .gitignore. Secrets live ONLY in
+# .secrets/ (gitignored): cereblix_core_ed25519, cereblix_deploy_ed25519,
+# authority.key (signs releases + checkpoints), github_pat.txt. The project has
+# had a real secret-leak incident, so we scan on every commit (local hook) and
+# every push / pull request (CI gate, .github/workflows/gitleaks.yml).
+#
+# Strategy:
+#   1. Extend gitleaks' built-in ruleset (useDefault) so detection stays ON for
+#      ed25519 / PEM private keys, GitHub ghp_ tokens, generic API keys, cloud
+#      credentials, etc.
+#   2. Add a couple of project-specific reinforcing rules for the EXACT secret
+#      classes that matter most here (OpenSSH ed25519 keys, GitHub classic PATs).
+#   3. Allowlist a small set of intentionally-local / compiled-binary paths so
+#      they never produce a false positive (.secrets/, *.aar, *.wasm, *.exe).
+
+title = "Cereblix gitleaks config"
+
+[extend]
+# Inherit the upstream default ruleset. This is what keeps detection ON for
+# ed25519 / PEM private keys (`private-key`), GitHub tokens (`github-pat` etc.)
+# and generic API keys (`generic-api-key`). Do NOT set this to false.
+useDefault = true
+
+# ---------------------------------------------------------------------------
+# Project-specific reinforcing rules (additive to the defaults above)
+# ---------------------------------------------------------------------------
+
+[[rules]]
+id = "cereblix-openssh-private-key"
+description = "OpenSSH / ed25519 / PEM private key (cereblix_core_ed25519, cereblix_deploy_ed25519, authority.key)"
+regex = '''-----BEGIN (OPENSSH|RSA|EC|DSA|PGP|ENCRYPTED)? ?PRIVATE KEY( BLOCK)?-----'''
+keywords = [
+  "PRIVATE KEY",
+]
+
+[[rules]]
+id = "cereblix-github-pat-classic"
+description = "GitHub classic personal access token (.secrets/github_pat.txt)"
+regex = '''\bghp_[0-9A-Za-z]{36}\b'''
+keywords = [
+  "ghp_",
+]
+
+[[rules]]
+id = "cereblix-github-fine-grained-pat"
+description = "GitHub fine-grained personal access token"
+regex = '''\bgithub_pat_[0-9A-Za-z_]{82}\b'''
+keywords = [
+  "github_pat_",
+]
+
+# ---------------------------------------------------------------------------
+# Global allowlist — paths that are intentionally local or compiled binary and
+# must never trip the scanner. (Regexes are matched against the file path.)
+# ---------------------------------------------------------------------------
+
+[allowlist]
+description = "Intentionally-local secrets dir + compiled binary artifacts"
+paths = [
+  # The secrets directory is gitignored and holds the real keys on purpose
+  # (cereblix_core_ed25519, cereblix_deploy_ed25519, authority.key,
+  # github_pat.txt). It must never be committed; allowlist it so a stray scan of
+  # the working tree (or a force-add) does not flood with expected findings.
+  '''(^|/)\.secrets/''',
+  '''(^|/)KEYS\.txt$''',
+  '''(^|/)NETWORK_WALLET\.txt$''',
+  # gomobile-built Android library (wallet-android/.../libs/wallet.aar) and other
+  # compiled artifacts: opaque high-entropy blobs that resemble secrets but are
+  # build output, not source.
+  '''\.aar$''',
+  '''\.wasm$''',
+  '''\.exe$''',
+  # This config and go.sum reference token *patterns* / hashes by design.
+  '''(^|/)\.gitleaks\.toml$''',
+  '''(^|/)go\.sum$''',
+]
