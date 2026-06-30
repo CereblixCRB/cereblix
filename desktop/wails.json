@@ -1,0 +1,22 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "Cereblix Wallet",
+  "outputfilename": "cereblix-wallet",
+  "frontend:dir": "frontend",
+  "frontend:install": "",
+  "frontend:build": "",
+  "frontend:dev:watcher": "",
+  "frontend:dev:serverUrl": "",
+  "wailsjsdir": "./frontend",
+  "author": {
+    "name": "Cereblix",
+    "email": "support@cereblix.com"
+  },
+  "info": {
+    "companyName": "Cereblix",
+    "productName": "Cereblix Wallet",
+    "productVersion": "1.0.0",
+    "copyright": "Cereblix",
+    "comments": "Cereblix (CRB) desktop wallet. Local ed25519 keys, NeuroMorph PoW network. 100% vanilla frontend, no npm / no CDN / no bundler."
+  }
+}

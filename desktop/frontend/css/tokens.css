@@ -1,0 +1,106 @@
+/* ============================================================================
+   Cereblix Wallet — design tokens
+   A small, deliberate token system: color, type, space, radius, elevation,
+   motion. One brand accent ("synapse" mint) over a deep cool-charcoal canvas.
+   ========================================================================== */
+
+:root {
+  /* ---- palette: neutrals (cool charcoal) ---- */
+  --bg:            #090b10;
+  --bg-grad-a:     #0b0f16;
+  --bg-grad-b:     #070809;
+  --surface:       #111722;
+  --surface-2:     #161d2a;
+  --surface-3:     #1d2533;
+  --surface-hi:    #232d3d;
+  --line:          rgba(255,255,255,.07);
+  --line-2:        rgba(255,255,255,.12);
+  --line-strong:   rgba(255,255,255,.20);
+
+  /* ---- text ---- */
+  --text:          #e9eef6;
+  --text-dim:      #9aa7ba;
+  --text-faint:    #5f6b7d;
+  --text-on-accent:#062018;
+
+  /* ---- brand accent: synapse mint ---- */
+  --accent:        #4fe3b0;
+  --accent-bright: #6df7c6;
+  --accent-deep:   #1f9d77;
+  --accent-soft:   rgba(79,227,176,.13);
+  --accent-line:   rgba(79,227,176,.34);
+  --accent-glow:   rgba(79,227,176,.28);
+
+  /* ---- semantic ---- */
+  --pos:           #45dca0;   /* incoming */
+  --neg:           #ff7a85;   /* outgoing */
+  --warn:          #ffc861;   /* pending / caution */
+  --danger:        #ff5d63;
+  --danger-soft:   rgba(255,93,99,.12);
+  --info:          #6db5ff;
+
+  /* ---- typography ---- */
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
+               Arial, "Noto Sans", sans-serif;
+  --font-mono: "SF Mono", "Cascadia Code", "JetBrains Mono", "Roboto Mono",
+               ui-monospace, Menlo, Consolas, "Liberation Mono", monospace;
+
+  --fs-2xs: 11px;
+  --fs-xs:  12px;
+  --fs-sm:  13px;
+  --fs-md:  14px;
+  --fs-lg:  16px;
+  --fs-xl:  19px;
+  --fs-2xl: 24px;
+  --fs-3xl: 32px;
+  --fs-4xl: 44px;
+
+  --lh-tight: 1.15;
+  --lh:       1.5;
+
+  --fw-normal: 420;
+  --fw-medium: 530;
+  --fw-semi:   620;
+  --fw-bold:   720;
+
+  /* ---- spacing scale (4px base) ---- */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-7: 32px;
+  --sp-8: 40px;
+  --sp-9: 56px;
+  --sp-10: 72px;
+
+  /* ---- radius ---- */
+  --r-xs:  6px;
+  --r-sm:  9px;
+  --r-md:  13px;
+  --r-lg:  18px;
+  --r-xl:  24px;
+  --r-pill: 999px;
+
+  /* ---- elevation ---- */
+  --sh-1: 0 1px 2px rgba(0,0,0,.4);
+  --sh-2: 0 6px 22px -8px rgba(0,0,0,.55);
+  --sh-3: 0 18px 50px -16px rgba(0,0,0,.7);
+  --sh-glow: 0 0 0 1px var(--accent-line), 0 10px 40px -12px var(--accent-glow);
+
+  /* ---- motion ---- */
+  --ease: cubic-bezier(.22,.61,.36,1);
+  --ease-out: cubic-bezier(.16,.84,.44,1);
+  --dur-1: .12s;
+  --dur-2: .2s;
+  --dur-3: .34s;
+
+  /* ---- layout ---- */
+  --sidebar-w: 248px;
+  --content-max: 880px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --dur-1: 0s; --dur-2: 0s; --dur-3: 0s; }
+}

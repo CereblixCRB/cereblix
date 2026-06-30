@@ -1,0 +1,6 @@
+<resources>
+    <!-- Platform NoActionBar theme so we do NOT need the Material Components
+         (com.google.android.material) dependency. All real styling is done by
+         Compose Material3 in code (CereblixTheme). -->
+    <style name="Theme.CereblixWallet" parent="android:Theme.Material.Light.NoActionBar" />
+</resources>
