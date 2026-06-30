@@ -8,7 +8,7 @@
 
   function render(mount, params, ctx) {
     var suggested = "0.001";
-    API.SuggestedFee().then(function (f) { suggested = f || suggested; var fi = UI.$("#sd-fee"); if (fi && !fi.dataset.touched) fi.placeholder = "Suggested: " + UI.prettyCrb(suggested); }).catch(function () {});
+    API.SuggestedFee().then(function (f) { suggested = f || suggested; var fi = UI.$("#sd-fee"); if (fi && !fi.dataset.touched) fi.placeholder = "Auto · next block: " + UI.prettyCrb(suggested); }).catch(function () {});
 
     showForm({ to: params.to || "", from: params.from || "", amount: params.amount || "" });
 
@@ -46,7 +46,7 @@
       if (pre.to) checkTo();
 
       var amtInput = el("input", { class: "input mono", id: "sd-amount", inputmode: "decimal", placeholder: "0.00000000", value: pre.amount || "" });
-      var maxBtn = el("button", { type: "button", class: "link-btn", text: "Max" });
+      var maxBtn = el("button", { type: "button", class: "link-btn max-btn", text: "Max" });
       maxBtn.addEventListener("click", function () {
         var a = (Store.state.addresses || []).filter(function (x) { return x.Addr === fromSel.value; })[0];
         if (!a) { UI.toast("Choose a specific from-address to use Max", "info"); return; }
@@ -56,15 +56,15 @@
         amtInput.value = max.toFixed(8).replace(/0+$/, "").replace(/\.$/, "");
       });
 
-      var feeInput = el("input", { class: "input mono", id: "sd-fee", inputmode: "decimal", placeholder: "Suggested: " + UI.prettyCrb(suggested) });
+      var feeInput = el("input", { class: "input mono", id: "sd-fee", inputmode: "decimal", placeholder: "Auto · next block: " + UI.prettyCrb(suggested) });
       feeInput.addEventListener("input", function () { feeInput.dataset.touched = "1"; });
       var feeWrap = el("div", { class: "disclosure", style: "display:none" }, [
         el("div", { class: "field", style: "margin:0" }, [
           el("label", { for: "sd-fee", text: "Network fee (CRB)" }),
           el("div", { class: "input-affix" }, [feeInput, el("span", { class: "suffix", text: "CRB" })]),
           el("div", { class: "hint" }, [
-            "Higher fees confirm sooner. ",
-            el("button", { type: "button", class: "link-btn", text: "Use suggested", onclick: function () { feeInput.value = ""; delete feeInput.dataset.touched; } })
+            "The auto fee already aims for the next block (~1 min). Raise it only to outbid a congested mempool. ",
+            el("button", { type: "button", class: "link-btn", text: "Use auto", onclick: function () { feeInput.value = ""; delete feeInput.dataset.touched; } })
           ])
         ])
       ]);
@@ -79,8 +79,8 @@
         err,
         el("div", { class: "field" }, [el("label", { for: "sd-from", text: "From" }), fromSel]),
         el("div", { class: "field" }, [el("label", { for: "sd-to", text: "Recipient address" }), toInput, toMsg]),
-        el("div", { class: "field" }, [
-          el("label", { class: "row-between", for: "sd-amount" }, [el("span", { text: "Amount" }), maxBtn]),
+        el("div", { class: "field row-between" }, [
+          el("label", { for: "sd-amount" }, [el("span", { text: "Amount" }), maxBtn]),
           el("div", { class: "input-affix" }, [amtInput, el("span", { class: "suffix", text: "CRB" })])
         ]),
         el("div", { class: "field", style: "margin-bottom:8px" }, [advToggle, feeWrap]),
@@ -106,7 +106,7 @@
     function showReview(d) {
       UI.clear(mount);
       var err = el("div");
-      var feeDisplay = d.fee ? UI.prettyCrb(d.fee) : UI.prettyCrb(suggested) + "  (suggested)";
+      var feeDisplay = d.fee ? UI.prettyCrb(d.fee) : UI.prettyCrb(suggested) + "  (auto · next block)";
       var total = (parseFloat(d.amount) + parseFloat(d.fee || suggested)).toFixed(8).replace(/0+$/, "").replace(/\.$/, "");
       var confirmBtn = el("button", { class: "btn btn-primary btn-lg", text: "Confirm & send" });
       confirmBtn.style.flex = "1";
@@ -155,8 +155,8 @@
           el("div", { class: "review" }, [el("div", { class: "r-line" }, [UI.copyable(txid || "", { label: "Transaction ID", display: UI.shortMid(txid || "", 14, 12) })])])
         ]),
         el("div", { class: "btn-row", style: "justify-content:center;margin-top:8px" }, [
-          el("button", { class: "btn btn-sm", html: UI.icon("refresh", 15) + "<span>Speed up</span>", onclick: function () { bump("SpeedUp", txid); } }),
-          el("button", { class: "btn btn-sm btn-danger", html: UI.icon("x", 15) + "<span>Cancel tx</span>", onclick: function () { bump("Cancel", txid); } }),
+          el("button", { class: "btn btn-sm", html: UI.icon("refresh", 15) + "<span>Speed up</span>", onclick: function () { bump("SpeedUp", txid, d); } }),
+          el("button", { class: "btn btn-sm btn-danger", html: UI.icon("x", 15) + "<span>Cancel tx</span>", onclick: function () { bump("Cancel", txid, d); } }),
           el("button", { class: "btn btn-sm btn-ghost", html: UI.icon("explorer", 15) + "<span>View</span>", onclick: function () { Router.go("explorer", { q: txid }); } })
         ]),
         el("div", { style: "margin-top:24px;display:flex;gap:12px;justify-content:center" }, [
@@ -167,18 +167,44 @@
       mount.appendChild(card);
     }
 
-    function bump(method, txid) {
+    // bump previews a replace-by-fee (Speed up / Cancel) and, on confirm, broadcasts
+    // it. The confirm shows exactly what will be re-sent — recipient + amount for a
+    // Speed up (re-signed from this wallet's own record, NOT the node's claim), or a
+    // return-to-wallet note for a Cancel — plus the resolved (auto, capped) fee.
+    function bump(method, txid, d) {
+      d = d || {};
+      API.SuggestedFee().then(function (fee) { showBumpConfirm(method, txid, d, fee); })
+        .catch(function () { showBumpConfirm(method, txid, d, null); });
+    }
+
+    function showBumpConfirm(method, txid, d, fee) {
+      var isCancel = method === "Cancel";
+      var feeLine = rline("Network fee", (fee ? "~" + UI.prettyCrb(fee) : "auto") + " CRB (auto · raised to confirm sooner)");
+      var body = el("div", {}, [
+        el("p", { class: "dim", text: isCancel
+          ? "Broadcast a replacement at the same nonce that returns the funds to your own wallet (replace-by-fee). Only works while the original is still pending."
+          : "Rebroadcast the SAME payment with a higher fee so it confirms sooner (replace-by-fee). Only works while the original is still pending." }),
+        el("div", { class: "review", style: "margin-top:12px" }, isCancel
+          ? [
+              rline("Action", "Return funds to your wallet"),
+              rline("Original amount", (d.amount ? d.amount : "—") + " CRB"),
+              feeLine
+            ]
+          : [
+              rline("Recipient", d.to ? UI.shortMid(d.to, 12, 10) : "—"),
+              rline("Amount", (d.amount ? d.amount : "—") + " CRB"),
+              feeLine
+            ])
+      ]);
       UI.confirm({
-        title: method === "Cancel" ? "Cancel transaction?" : "Speed up transaction?",
-        message: method === "Cancel"
-          ? "Broadcast a replacement that returns the funds to you (replace-by-fee). Only works while the original is still pending."
-          : "Rebroadcast with a higher fee so it confirms sooner (replace-by-fee).",
-        okText: method === "Cancel" ? "Cancel tx" : "Speed up",
-        danger: method === "Cancel"
+        title: isCancel ? "Cancel transaction?" : "Speed up transaction?",
+        message: body,
+        okText: isCancel ? "Cancel tx" : "Speed up",
+        danger: isCancel
       }).then(function (yes) {
         if (!yes) return;
         API[method](txid, "").then(function (res) {
-          UI.toast((method === "Cancel" ? "Cancellation" : "Replacement") + " broadcast", "ok");
+          UI.toast((isCancel ? "Cancellation" : "Replacement") + " broadcast", "ok");
           Store.refreshAddresses().catch(function () {});
           if (res && res.Txid) Router.go("explorer", { q: res.Txid });
         }).catch(function (e) { UI.toast(e.message, "err", 4500); });

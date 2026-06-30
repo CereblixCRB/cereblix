@@ -110,3 +110,25 @@ func SignSend(privHex, to string, amount, fee, nonce, height int64) string {
 	}
 	return string(b)
 }
+
+// VerifyManifest reports whether sigHex is a valid ed25519 signature, produced by
+// the holder of the private key matching pubHex (a 32-byte ed25519 public key,
+// hex), over the raw UTF-8 bytes of payload.
+//
+// The Android wallet uses this to AUTHENTICATE the signed auto-update manifest
+// before ever showing an "update available" banner. Reusing crypto/ed25519 here
+// (the SAME library the node and the rest of this binding use) keeps verification
+// trivially correct on every Android API level, instead of relying on the
+// java.security Ed25519 provider that only exists on API 33+. It is fail-closed:
+// any malformed/short input returns false, and the app shows NO banner.
+func VerifyManifest(pubHex, payload, sigHex string) bool {
+	pub, err := hex.DecodeString(pubHex)
+	if err != nil || len(pub) != ed25519.PublicKeySize {
+		return false
+	}
+	sig, err := hex.DecodeString(sigHex)
+	if err != nil || len(sig) != ed25519.SignatureSize {
+		return false
+	}
+	return ed25519.Verify(ed25519.PublicKey(pub), []byte(payload), sig)
+}

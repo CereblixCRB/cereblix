@@ -15,7 +15,7 @@ android {
         minSdk 24
         targetSdk 34
         versionCode 1
-        versionName "1.0"
+        versionName "1.0.0"
     }
 
     buildTypes {
@@ -46,7 +46,18 @@ dependencies {
     implementation 'androidx.compose.ui:ui'
     implementation 'androidx.compose.ui:ui-graphics'
     implementation 'androidx.compose.material3:material3'
+    // Material Icons: the core set ships with material3, but the brand UI also uses
+    // Send / CallReceived / History / AccountBalanceWallet / ContentCopy / Visibility
+    // / VisibilityOff / ArrowDownward / ArrowUpward, which live in the extended set.
+    implementation 'androidx.compose.material:material-icons-extended'
     implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.8.2'
+
+    // ---- Biometric / device-credential gate (app open, payment broadcast, key
+    //      reveal). Pulls in androidx.fragment; MainActivity is a FragmentActivity
+    //      so BiometricPrompt can attach. Pin fragment to a version aligned with
+    //      activity-compose 1.9.0 to avoid a stale transitive (1.2.x) downgrade.
+    implementation 'androidx.biometric:biometric:1.1.0'
+    implementation 'androidx.fragment:fragment:1.8.2'
 
     // ---- Encrypted local key storage, backed by the Android Keystore.
     implementation 'androidx.security:security-crypto:1.1.0-alpha06'

@@ -72,10 +72,10 @@
       k._bal -= (a + parseFloat(fee || "0.001")) * UNIT;
       var tx = { txid: hex(64), height: 0, time: Math.floor(Date.now() / 1000), from: k.Addr, to: to, amount: a * UNIT, fee: parseFloat(fee || "0.001") * UNIT };
       fakeHist.unshift(tx);
-      return ms({ Txid: tx.txid });
+      return ms({ Txid: tx.txid, To: to, Amount: crb(a * UNIT) });
     },
-    SpeedUp: function (txid) { return ms({ Txid: hex(64) }); },
-    Cancel: function (txid) { return ms({ Txid: hex(64) }); },
+    SpeedUp: function (txid) { return ms({ Txid: hex(64), To: addr(), Amount: crb(12.5 * UNIT) }); },
+    Cancel: function (txid) { var me = W.keys[0] ? W.keys[0].Addr : addr(); return ms({ Txid: hex(64), To: me, Amount: crb(1) }); },
     History: function (q) {
       var rows = fakeHist.slice();
       if (q) { var k = find(q); if (k) rows = rows.filter(function (r) { return r.from === k.Addr || r.to === k.Addr; }); }
@@ -109,7 +109,11 @@
     SetNodeMode: function (mode, url) { W.settings.NodeMode = mode; if (mode === "custom" && url) W.settings.Endpoint = url; else if (mode === "lite") W.settings.Endpoint = W.settings.Endpoints[0]; else if (mode === "full") W.settings.Endpoint = "http://127.0.0.1:18751"; return ms(null); },
     NodeInfo: function () { return ms({ Mode: W.settings.NodeMode, Endpoint: W.settings.Endpoint, Reachable: true, Syncing: false, Height: W.height, SyncHeight: W.height }); },
     StartFullNode: function () { W.settings.NodeMode = "full"; return ms(null); },
-    StopFullNode: function () { W.settings.NodeMode = "lite"; return ms(null); }
+    StopFullNode: function () { W.settings.NodeMode = "lite"; return ms(null); },
+    SetLockTimeout: function (min) { W.settings.LockTimeoutMin = min | 0; return ms(null); },
+    // No signed manifest exists in a plain-browser preview, so report no update.
+    CheckUpdate: function () { return ms({ Available: false, Version: "", Notes: "", URL: "", Sha256: "" }); },
+    OpenExternal: function (url) { try { global.open(url, "_blank"); } catch (e) {} return ms(null); }
   };
 
   global.go = { main: { App: App } };

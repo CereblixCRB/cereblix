@@ -10,6 +10,7 @@
   var shell = null;           // cached shell refs
   var leaveFns = [];          // teardown callbacks for the active view
   var lockTimer = null, lastReset = 0, footerWired = false;
+  var updateInfo = null, updateChecked = false, updateDismissed = false; // signed-update banner
 
   var NAV = [
     { name: "dashboard", icon: "dashboard", label: "Dashboard" },
@@ -74,21 +75,30 @@
     var subEl = el("div", { class: "sub", id: "tb-sub" });
     var actionsEl = el("div", { class: "actions", id: "tb-actions" });
     var viewEl = el("div", { class: "inner", id: "view" });
+    var updateHost = el("div", { class: "update-host", id: "update-host" });
 
     var layout = el("div", { class: "layout" }, [
       el("aside", { class: "sidebar" }, [
-        el("div", { class: "brand" }, [el("div", { class: "logo" }), el("div", { class: "name" }, ["Cereblix", el("small", { text: "Wallet" })])]),
+        el("div", { class: "brand" }, [
+          el("img", { class: "brand-logo", src: "assets/logo.svg", alt: "Cereblix", width: "34", height: "34" }),
+          el("div", { class: "name brand-wordmark" }, [
+            el("span", { class: "brand-word" }, ["Cereb", el("span", { class: "brand-accent", text: "lix" })]),
+            el("small", { text: "Wallet" })
+          ])
+        ]),
         navEl,
         el("div", { class: "sidebar-foot" }, [nodePill, lockBtn])
       ]),
       el("div", { class: "main" }, [
+        updateHost,
         el("header", { class: "topbar" }, [el("div", {}, [titleEl, subEl]), el("div", { class: "spacer" }), actionsEl]),
         el("div", { class: "content" }, [viewEl])
       ])
     ]);
 
     UI.clear(root); root.appendChild(layout);
-    shell = { navEl: navEl, titleEl: titleEl, subEl: subEl, actionsEl: actionsEl, viewEl: viewEl, nodePill: nodePill, lockBtn: lockBtn };
+    shell = { navEl: navEl, titleEl: titleEl, subEl: subEl, actionsEl: actionsEl, viewEl: viewEl, nodePill: nodePill, lockBtn: lockBtn, updateHost: updateHost };
+    renderUpdateBanner();
     updateFooter();
     // Wire footer updates once (updateFooter reads the module-level `shell`), so
     // repeated lock/unlock shell rebuilds never accumulate stale subscriptions.
@@ -100,8 +110,40 @@
 
   function showApp(name, params) {
     if (Router.APP_ROUTES.indexOf(name) === -1) name = "dashboard";
-    if (mode !== "app" || !shell) { mode = "app"; buildShell(); Store.startPolling(); resetLockTimer(); }
+    if (mode !== "app" || !shell) { mode = "app"; buildShell(); Store.startPolling(); resetLockTimer(); maybeCheckUpdate(); }
     mountView(name, params || {});
+  }
+
+  // --------------------------- signed update banner ---------------------------
+  // Runs once per session, after the wallet is unlocked. CheckUpdate only returns
+  // Available:true for a manifest whose ed25519 signature verifies against the
+  // pinned release key AND that advertises a strictly-newer version (all enforced
+  // in Go). A dismiss only hides it for this session; it shows again next launch.
+  function maybeCheckUpdate() {
+    if (updateChecked) return;
+    updateChecked = true;
+    API.CheckUpdate().then(function (info) {
+      if (info && info.Available) { updateInfo = info; renderUpdateBanner(); }
+    }).catch(function () {});
+  }
+  function renderUpdateBanner() {
+    if (!shell || !shell.updateHost) return;
+    UI.clear(shell.updateHost);
+    if (!updateInfo || updateDismissed) return;
+    var bar = el("div", { class: "update-banner", role: "status" }, [
+      el("span", { class: "ub-dot" }),
+      el("span", { class: "ub-txt" }, [
+        el("b", { text: "Update available — v" + (updateInfo.Version || "") }),
+        updateInfo.Notes ? el("span", { class: "ub-notes", text: " · " + updateInfo.Notes }) : null
+      ]),
+      el("button", { class: "btn btn-sm btn-primary", text: "Update", onclick: function () {
+        if (!updateInfo.URL) { UI.toast("No download link provided", "err"); return; }
+        API.OpenExternal(updateInfo.URL).catch(function (e) { UI.toast(e.message, "err"); });
+      } }),
+      el("button", { class: "btn btn-sm btn-ghost btn-icon", title: "Dismiss", "aria-label": "Dismiss update notice", html: UI.icon("x", 16),
+        onclick: function () { updateDismissed = true; renderUpdateBanner(); } })
+    ]);
+    shell.updateHost.appendChild(bar);
   }
 
   function mountView(name, params) {
@@ -169,6 +211,9 @@
   }
   function setLockTimeout(min) {
     try { localStorage.setItem("crb.lockTimeoutMin", String(min)); } catch (e) {}
+    // Persist to the backend too, so the backend idle-lock fail-safe (which wipes
+    // keys independently of this renderer) honors the same timeout the user picked.
+    if (API.SetLockTimeout) API.SetLockTimeout(min).catch(function () {});
     resetLockTimer();
   }
   function clearLockTimer() { if (lockTimer) clearTimeout(lockTimer); lockTimer = null; }

@@ -1,11 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Only permission needed: talk to the node RPC over HTTPS. -->
+    <!-- Talk to the node RPC over HTTPS + fetch the signed update manifest. -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Biometric / device-credential gate (app open, payment, key reveal). -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
 
     <application
         android:allowBackup="false"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/Theme.CereblixWallet">

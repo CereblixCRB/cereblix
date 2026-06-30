@@ -74,21 +74,21 @@
     function showCreate() {
       UI.clear(card);
       var err = el("div");
-      var pf = passField("nw-pass", "Leave blank for no encryption");
+      var pf = passField("nw-pass", "Passphrase (min 8 characters)");
       var cf = passField("nw-pass2", "Confirm passphrase");
       var meter = el("i"); var meterLabel = el("span", { class: "hint" });
       pf.input.addEventListener("input", function () {
         var st = strength(pf.input.value);
         meter.style.width = st.w + "%"; meter.style.background = st.color;
-        meterLabel.textContent = pf.input.value ? "Passphrase strength: " + st.label : "Optional — encrypts wallet.json with AES-GCM";
+        meterLabel.textContent = pf.input.value ? "Passphrase strength: " + st.label : "Required — encrypts wallet.json with AES-GCM";
       });
-      meterLabel.textContent = "Optional — encrypts wallet.json with AES-GCM";
+      meterLabel.textContent = "Required — encrypts wallet.json with AES-GCM";
 
       var btn = el("button", { class: "btn btn-primary btn-lg btn-block", text: "Create wallet" });
       var form = el("form", { onsubmit: function (e) { e.preventDefault(); submit(); } }, [
-        header("Create a new wallet", "Set an optional passphrase to encrypt your keys at rest."),
+        header("Create a new wallet", "Set a passphrase to encrypt your keys at rest."),
         err,
-        el("div", { class: "field" }, [el("label", { for: "nw-pass", text: "Passphrase (optional)" }), pf.wrap,
+        el("div", { class: "field" }, [el("label", { for: "nw-pass", text: "Passphrase" }), pf.wrap,
           el("div", { class: "meter" }, [meter]), meterLabel]),
         el("div", { class: "field" }, [el("label", { for: "nw-pass2", text: "Confirm passphrase" }), cf.wrap]),
         el("div", { class: "btn-row", style: "margin-top:8px" }, [
@@ -103,8 +103,8 @@
       function submit() {
         UI.clear(err);
         var p1 = pf.input.value, p2 = cf.input.value;
+        if (!p1 || p1.length < 8) { err.appendChild(UI.banner("Choose a passphrase of at least 8 characters.", "err")); pf.input.focus(); return; }
         if (p1 !== p2) { err.appendChild(UI.banner("Passphrases do not match.", "err")); return; }
-        if (p1 && p1.length < 8) { err.appendChild(UI.banner("Use at least 8 characters, or leave blank.", "warn")); return; }
         setBusy(btn, true, "Creating…");
         API.CreateWallet(p1).then(function (k) {
           return Store.refreshWallet().then(Store.refreshAddresses).then(function () { showCreated(k); });
@@ -122,7 +122,7 @@
         ]),
         el("div", { class: "field" }, [
           el("label", { text: (k && k.Label) ? k.Label : "Your address" }),
-          el("div", { class: "review" }, [el("div", { class: "r-line" }, [UI.copyable((k && k.Addr) || "", { label: "Address", display: (k && k.Addr) || "" })])])
+          UI.copyable((k && k.Addr) || "", { label: "Address", display: (k && k.Addr) || "", class: "copyable-block" })
         ]),
         UI.banner("Back up your wallet: export the private key from Settings → Security and store it somewhere safe. Lost keys cannot be recovered.", "warn"),
         el("button", { class: "btn btn-primary btn-lg btn-block", text: "Open wallet", onclick: function () { global.App.enterApp(); } })
@@ -135,7 +135,8 @@
       var err = el("div");
       var keyInput = el("textarea", { class: "input mono", id: "imp-key", rows: "3", placeholder: "128 hexadecimal characters", autocomplete: "off", spellcheck: "false" });
       var labelInput = el("input", { class: "input", id: "imp-label", placeholder: "e.g. Main", maxlength: "40" });
-      var pf = passField("imp-pass", "Leave blank for no encryption");
+      var pf = passField("imp-pass", "Passphrase (min 8 characters)");
+      var cf = passField("imp-pass2", "Confirm passphrase");
       var btn = el("button", { class: "btn btn-primary btn-lg", text: "Import key" });
       var form = el("form", { onsubmit: function (e) { e.preventDefault(); submit(); } }, [
         header("Import a private key", "Paste a 128-hex ed25519 private key to restore an address."),
@@ -143,7 +144,8 @@
         el("div", { class: "field" }, [el("label", { for: "imp-key", text: "Private key" }), keyInput,
           el("div", { class: "hint", text: "Stays on this device. Never share it." })]),
         el("div", { class: "field" }, [el("label", { for: "imp-label", text: "Label (optional)" }), labelInput]),
-        el("div", { class: "field" }, [el("label", { for: "imp-pass", text: "Encrypt with passphrase (optional)" }), pf.wrap]),
+        el("div", { class: "field" }, [el("label", { for: "imp-pass", text: "Encrypt with passphrase" }), pf.wrap]),
+        el("div", { class: "field" }, [el("label", { for: "imp-pass2", text: "Confirm passphrase" }), cf.wrap]),
         el("div", { class: "btn-row", style: "margin-top:8px" }, [
           el("button", { class: "btn btn-ghost", type: "button", text: "Back", onclick: showChoice }),
           btn
@@ -157,11 +159,14 @@
         UI.clear(err);
         var key = keyInput.value.trim().toLowerCase();
         if (!/^[0-9a-f]{128}$/.test(key)) { err.appendChild(UI.banner("Private key must be exactly 128 hexadecimal characters.", "err")); return; }
-        var pass = pf.input.value;
+        var pass = pf.input.value, pass2 = cf.input.value;
+        if (!pass || pass.length < 8) { err.appendChild(UI.banner("Choose a passphrase of at least 8 characters to encrypt the wallet.", "err")); pf.input.focus(); return; }
+        if (pass !== pass2) { err.appendChild(UI.banner("Passphrases do not match.", "err")); return; }
         setBusy(btn, true, "Importing…");
         API.ImportKey(key, labelInput.value.trim()).then(function (k) {
-          var after = pass ? API.EncryptWallet(pass) : Promise.resolve();
-          return after.then(function () { return Store.refreshWallet().then(Store.refreshAddresses); }).then(function () { showCreated(k); });
+          return API.EncryptWallet(pass)
+            .then(function () { return Store.refreshWallet().then(Store.refreshAddresses); })
+            .then(function () { showCreated(k); });
         }).catch(function (e) { setBusy(btn, false, "Import key"); err.appendChild(UI.banner(e.message, "err")); });
       }
     }

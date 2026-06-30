@@ -17,6 +17,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -27,7 +29,7 @@ const (
 	// defaultLiteEndpoint is the seed of the built-in Lite endpoint list.
 	defaultLiteEndpoint = "https://cereblix.com/api"
 
-	defaultLockTimeoutMin = 15
+	defaultLockTimeoutMin = 10
 )
 
 // settingsFile is the on-disk settings document.
@@ -245,8 +247,15 @@ func (m *NodeManager) setMode(mode, customURL string) error {
 		if u == "" {
 			return errors.New("custom mode requires a node URL")
 		}
-		if !strings.HasPrefix(u, "http://") && !strings.HasPrefix(u, "https://") {
-			return errors.New("custom node URL must start with http:// or https://")
+		parsed, err := url.Parse(u)
+		if err != nil || parsed.Host == "" || (parsed.Scheme != "http" && parsed.Scheme != "https") {
+			return errors.New("custom node URL must be a valid http:// or https:// URL")
+		}
+		// Plaintext http is only allowed for a loopback node (an embedded/local
+		// node has no TLS). A REMOTE custom node must use https so the wallet's RPC
+		// (balances, broadcasts) is not exposed to network tampering.
+		if parsed.Scheme == "http" && !isLoopbackHost(parsed.Hostname()) {
+			return errors.New("a remote custom node must use https:// (http:// is only allowed for a loopback node such as http://127.0.0.1:18751/api)")
 		}
 		m.mu.Lock()
 		m.customURL = u
@@ -299,6 +308,23 @@ func (m *NodeManager) setLockTimeout(min int) error {
 	m.lockTimeoutMin = min
 	m.mu.Unlock()
 	return m.saveSettings()
+}
+
+// lockTimeout returns the configured auto-lock idle timeout in minutes (0 = off),
+// read by the backend idle-lock fail-safe.
+func (m *NodeManager) lockTimeout() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.lockTimeoutMin
+}
+
+// isLoopbackHost reports whether host is localhost or a loopback IP literal.
+func isLoopbackHost(host string) bool {
+	if strings.EqualFold(host, "localhost") {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
 }
 
 // nodeInfo probes the active node for reachability, height and sync state.

@@ -45,6 +45,19 @@ class NodeClient(baseUrl: String) {
         val fee: Long,
     )
 
+    /** A transaction's location + fields, from GET /tx?id= — used to drive RBF. */
+    data class TxLocation(
+        val found: Boolean,
+        val pending: Boolean,
+        val txid: String,
+        val from: String,
+        val to: String,
+        val amount: Long,
+        val fee: Long,
+        val nonce: Long,
+        val coinbase: Boolean,
+    )
+
     fun balance(addr: String): Balance {
         val o = getJson("/balance?addr=" + enc(addr))
         return Balance(o.optLong("balance"), o.optLong("nonce"))
@@ -89,6 +102,22 @@ class NodeClient(baseUrl: String) {
             )
         }
         return out
+    }
+
+    /** Look up a transaction by id (confirmed or pending). Drives RBF speed-up/cancel. */
+    fun txLocation(txid: String): TxLocation {
+        val o = getJson("/tx?id=" + enc(txid))
+        return TxLocation(
+            found = o.optBoolean("found"),
+            pending = o.optBoolean("pending"),
+            txid = o.optString("txid"),
+            from = o.optString("from"),
+            to = o.optString("to"),
+            amount = o.optLong("amount"),
+            fee = o.optLong("fee"),
+            nonce = o.optLong("nonce"),
+            coinbase = o.optBoolean("coinbase"),
+        )
     }
 
     /** POST a signed tx JSON (from WalletStore.signSend). Returns the txid. */

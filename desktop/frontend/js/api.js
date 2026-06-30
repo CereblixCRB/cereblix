@@ -83,9 +83,14 @@
     // ---- settings / node ----
     GetSettings:       function () { return call("GetSettings"); },
     SetNodeMode:       function (mode, customURL) { return call("SetNodeMode", [mode, customURL || ""]); },
+    SetLockTimeout:    function (min) { return call("SetLockTimeout", [min | 0]); },
     NodeInfo:          function () { return call("NodeInfo"); },
     StartFullNode:     function () { return call("StartFullNode"); },
-    StopFullNode:      function () { return call("StopFullNode"); }
+    StopFullNode:      function () { return call("StopFullNode"); },
+
+    // ---- updates ----
+    CheckUpdate:       function () { return call("CheckUpdate"); },
+    OpenExternal:      function (url) { return call("OpenExternal", [url]); }
   };
 
   global.API = API;

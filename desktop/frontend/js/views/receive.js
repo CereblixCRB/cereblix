@@ -40,9 +40,9 @@
       catch (e) { card = UI.banner("Could not render QR: " + e.message, "err"); }
       UI.append(qrHost, [
         card,
-        el("div", { style: "text-align:center" }, [
-          el("div", { style: "font-weight:620;margin-bottom:4px", text: selected.Label || "Address" }),
-          el("div", { class: "mono dim", style: "font-size:12px;word-break:break-all;max-width:260px", text: selected.Addr })
+        el("div", { style: "width:100%;max-width:340px" }, [
+          el("div", { class: "center-text", style: "font-family:var(--fd);font-weight:600;margin-bottom:8px", text: selected.Label || "Address" }),
+          UI.copyable(selected.Addr, { label: "Address", display: selected.Addr, class: "copyable-block" })
         ]),
         el("div", { class: "btn-row", style: "justify-content:center" }, [
           el("button", { class: "btn btn-primary", html: UI.icon("copy", 16) + "<span>Copy address</span>", onclick: function () { UI.copy(selected.Addr, "Address"); } }),
@@ -55,7 +55,6 @@
       UI.clear(listHost);
       (Store.state.addresses || []).forEach(function (a) {
         var row = VC.addrRow(a, { you: false, onclick: function () { selected = a; renderQR(); markActive(); } });
-        if (a.Addr === selected.Addr) row.classList.add("active-row");
         row.dataset.addr = a.Addr;
         listHost.appendChild(row);
       });
@@ -63,9 +62,7 @@
     }
     function markActive() {
       UI.$$(".addr-row", listHost).forEach(function (r) {
-        var on = r.dataset.addr === selected.Addr;
-        r.style.background = on ? "var(--accent-soft)" : "";
-        r.style.borderColor = on ? "var(--accent-line)" : "";
+        r.classList.toggle("active-row", r.dataset.addr === selected.Addr);
       });
     }
 

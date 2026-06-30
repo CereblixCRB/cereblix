@@ -27,8 +27,32 @@ type rpcClient struct {
 	http *http.Client
 }
 
+// maxRPCBody caps how much of a node response we read, so a malicious or broken
+// node cannot exhaust memory with an unbounded body.
+const maxRPCBody = 8 << 20 // 8 MiB
+
 func newRPCClient() *rpcClient {
-	return &rpcClient{http: &http.Client{Timeout: 20 * time.Second}}
+	return &rpcClient{http: &http.Client{
+		Timeout: 20 * time.Second,
+		// The node API never redirects; refuse to follow one so a hostile endpoint
+		// cannot bounce the wallet to an attacker-controlled URL.
+		CheckRedirect: func(*http.Request, []*http.Request) error {
+			return errors.New("redirects are not allowed for node RPC")
+		},
+	}}
+}
+
+// readCapped reads at most maxRPCBody bytes from r, returning an error if the body
+// would exceed the cap.
+func readCapped(r io.Reader) ([]byte, error) {
+	body, err := io.ReadAll(io.LimitReader(r, maxRPCBody+1))
+	if err != nil {
+		return nil, err
+	}
+	if len(body) > maxRPCBody {
+		return nil, errors.New("node response too large")
+	}
+	return body, nil
 }
 
 // netError marks a transport-level / server-down failure (as opposed to a logical
@@ -51,7 +75,10 @@ func (c *rpcClient) get(base, path string, out any) error {
 		return &netError{err}
 	}
 	defer resp.Body.Close()
-	body, _ := io.ReadAll(resp.Body)
+	body, err := readCapped(resp.Body)
+	if err != nil {
+		return &netError{fmt.Errorf("node %s: %w", base, err)}
+	}
 	if resp.StatusCode >= 500 {
 		return &netError{fmt.Errorf("node %s: HTTP %d", base, resp.StatusCode)}
 	}
@@ -75,7 +102,10 @@ func (c *rpcClient) post(base, path string, body, out any) error {
 		return &netError{err}
 	}
 	defer resp.Body.Close()
-	data, _ := io.ReadAll(resp.Body)
+	data, err := readCapped(resp.Body)
+	if err != nil {
+		return &netError{fmt.Errorf("node %s: %w", base, err)}
+	}
 	if resp.StatusCode >= 500 {
 		return &netError{fmt.Errorf("node %s: HTTP %d", base, resp.StatusCode)}
 	}

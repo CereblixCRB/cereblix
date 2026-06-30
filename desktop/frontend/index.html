@@ -3,11 +3,22 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <!-- Strict CSP: the renderer makes NO network requests of its own (all I/O goes
+       through the Go bindings over the native Wails bridge). 'unsafe-inline' is
+       granted to styles only, because the app uses inline style attributes. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'; object-src 'none'" />
   <title>Cereblix Wallet</title>
   <link rel="stylesheet" href="css/tokens.css" />
   <link rel="stylesheet" href="css/app.css" />
 </head>
 <body>
+  <!-- fixed brand background (aurora glow + masked grid + grain), behind the app -->
+  <div class="app-bg" aria-hidden="true">
+    <div class="bg-glow"></div>
+    <div class="bg-grid"></div>
+    <div class="bg-grain"></div>
+  </div>
+
   <div id="app" aria-live="polite"></div>
 
   <!-- core libs -->

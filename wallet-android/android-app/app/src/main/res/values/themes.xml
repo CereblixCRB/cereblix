@@ -1,6 +1,13 @@
 <resources>
-    <!-- Platform NoActionBar theme so we do NOT need the Material Components
+    <!-- Platform DARK NoActionBar theme so we do NOT need the Material Components
          (com.google.android.material) dependency. All real styling is done by
-         Compose Material3 in code (CereblixTheme). -->
-    <style name="Theme.CereblixWallet" parent="android:Theme.Material.Light.NoActionBar" />
+         Compose Material3 in code (CereblixTheme). The dark parent + navy window
+         background avoid a white launch flash; light system-bar icons sit on the
+         brand navy bars. -->
+    <style name="Theme.CereblixWallet" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/brand_navy</item>
+        <item name="android:statusBarColor">@color/brand_navy</item>
+        <item name="android:navigationBarColor">@color/brand_navy</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
 </resources>

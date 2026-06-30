@@ -1,50 +1,97 @@
 /* ============================================================================
-   Cereblix Wallet — design tokens
-   A small, deliberate token system: color, type, space, radius, elevation,
-   motion. One brand accent ("synapse" mint) over a deep cool-charcoal canvas.
+   Cereblix Wallet — design tokens + brand foundation
+   Matches the live site cereblix.com: deep navy canvas, cyan→violet gradient,
+   "aurora" glow background, DNA-helix mark. Fonts are bundled locally (no CDN).
+
+   This file owns: @font-face, the canonical brand tokens, a full set of legacy
+   token aliases (so existing component CSS + JS inline-styles keep resolving to
+   the new palette), base element styles, the fixed aurora background layers,
+   and the brand mark in the shell.
    ========================================================================== */
 
+/* ----------------------------- local fonts ------------------------------ */
+@font-face{font-family:'Space Grotesk';font-weight:500;font-style:normal;font-display:swap;src:url('../fonts/spacegrotesk-500.woff2') format('woff2')}
+@font-face{font-family:'Space Grotesk';font-weight:700;font-style:normal;font-display:swap;src:url('../fonts/spacegrotesk-700.woff2') format('woff2')}
+@font-face{font-family:'Inter';font-weight:400;font-style:normal;font-display:swap;src:url('../fonts/inter-400.woff2') format('woff2')}
+@font-face{font-family:'Inter';font-weight:500;font-style:normal;font-display:swap;src:url('../fonts/inter-500.woff2') format('woff2')}
+@font-face{font-family:'Inter';font-weight:700;font-style:normal;font-display:swap;src:url('../fonts/inter-700.woff2') format('woff2')}
+
 :root {
-  /* ---- palette: neutrals (cool charcoal) ---- */
-  --bg:            #090b10;
-  --bg-grad-a:     #0b0f16;
-  --bg-grad-b:     #070809;
-  --surface:       #111722;
-  --surface-2:     #161d2a;
-  --surface-3:     #1d2533;
-  --surface-hi:    #232d3d;
-  --line:          rgba(255,255,255,.07);
-  --line-2:        rgba(255,255,255,.12);
-  --line-strong:   rgba(255,255,255,.20);
+  /* ============ canonical brand tokens (the site palette) ============ */
+  --bg:#06080f;            /* page background, very dark navy */
+  --panel:#0e1424;         /* raised surface */
+  --glass:rgba(146,180,255,.05);
+  --glass2:rgba(146,180,255,.08);
+  --border:rgba(146,180,255,.13);
+  --border2:rgba(120,200,255,.35);
 
-  /* ---- text ---- */
-  --text:          #e9eef6;
-  --text-dim:      #9aa7ba;
-  --text-faint:    #5f6b7d;
-  --text-on-accent:#062018;
+  --acc:#22d3ee;           /* cyan   */
+  --acc2:#a78bfa;          /* violet */
+  --acc3:#38bdf8;          /* sky    */
 
-  /* ---- brand accent: synapse mint ---- */
-  --accent:        #4fe3b0;
-  --accent-bright: #6df7c6;
-  --accent-deep:   #1f9d77;
-  --accent-soft:   rgba(79,227,176,.13);
-  --accent-line:   rgba(79,227,176,.34);
-  --accent-glow:   rgba(79,227,176,.28);
+  --txt:#e8ecf6;
+  --mut:#90a0bd;
+  --ok:#34d399;
+  --bad:#f87171;
+  --ink:#06121f;
 
-  /* ---- semantic ---- */
-  --pos:           #45dca0;   /* incoming */
-  --neg:           #ff7a85;   /* outgoing */
-  --warn:          #ffc861;   /* pending / caution */
-  --danger:        #ff5d63;
-  --danger-soft:   rgba(255,93,99,.12);
-  --info:          #6db5ff;
+  --fd:'Space Grotesk',system-ui,sans-serif;            /* display / headings / buttons / brand / numbers */
+  --fb:'Inter',system-ui,'Segoe UI',Roboto,sans-serif;  /* body */
+  --grad:linear-gradient(115deg,var(--acc),var(--acc2));/* SIGNATURE gradient */
+  --mono:ui-monospace,Consolas,'SF Mono',monospace;
 
-  /* ---- typography ---- */
-  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
-               Arial, "Noto Sans", sans-serif;
-  --font-mono: "SF Mono", "Cascadia Code", "JetBrains Mono", "Roboto Mono",
-               ui-monospace, Menlo, Consolas, "Liberation Mono", monospace;
+  /* derived brand helpers */
+  --acc-soft:rgba(34,211,238,.13);
+  --acc-line:var(--border2);
+  --acc-glow:rgba(34,211,238,.5);     /* primary-button glow */
+  --acc-glow-soft:rgba(34,211,238,.28);
 
+  /* ============ legacy aliases — remapped onto the brand palette ============
+     The existing component stylesheet (app.css) and several view inline-styles
+     reference these names. Keeping them defined (and pointed at the brand
+     colours) guarantees the whole app renders on-brand even before/independent
+     of the app.css restyle. Do not remove without auditing app.css + js/views. */
+
+  /* surfaces */
+  --surface:       var(--panel);
+  --surface-2:     #121a2e;
+  --surface-3:     #18223a;
+  --surface-hi:    #1f2b46;
+  --bg-grad-a:     #0a0f1c;
+  --bg-grad-b:     #06080f;
+
+  /* lines / borders */
+  --line:          var(--border);
+  --line-2:        rgba(146,180,255,.18);
+  --line-strong:   var(--border2);
+
+  /* text */
+  --text:          var(--txt);
+  --text-dim:      var(--mut);
+  --text-faint:    #61708c;
+  --text-on-accent:var(--ink);
+
+  /* accent family */
+  --accent:        var(--acc);
+  --accent-bright: #5fe0f4;
+  --accent-deep:   #0e9cb8;
+  --accent-soft:   var(--acc-soft);
+  --accent-line:   var(--border2);
+  --accent-glow:   var(--acc-glow-soft);
+
+  /* semantic */
+  --pos:           var(--ok);
+  --neg:           var(--bad);
+  --warn:          #fbbf24;
+  --danger:        var(--bad);
+  --danger-soft:   rgba(248,113,113,.12);
+  --info:          var(--acc3);
+
+  /* fonts (legacy names) */
+  --font-sans:     var(--fb);
+  --font-mono:     var(--mono);
+
+  /* ============ type scale ============ */
   --fs-2xs: 11px;
   --fs-xs:  12px;
   --fs-sm:  13px;
@@ -58,49 +105,161 @@
   --lh-tight: 1.15;
   --lh:       1.5;
 
-  --fw-normal: 420;
-  --fw-medium: 530;
-  --fw-semi:   620;
-  --fw-bold:   720;
+  /* weights mapped to the locally-bundled static faces (Inter 400/500/700,
+     Space Grotesk 500/700) so nothing is faux-bolded blurry. */
+  --fw-normal: 400;
+  --fw-medium: 500;
+  --fw-semi:   600;   /* resolves to the real 700 face for Inter */
+  --fw-bold:   700;
 
-  /* ---- spacing scale (4px base) ---- */
-  --sp-1: 4px;
-  --sp-2: 8px;
-  --sp-3: 12px;
-  --sp-4: 16px;
-  --sp-5: 20px;
-  --sp-6: 24px;
-  --sp-7: 32px;
-  --sp-8: 40px;
-  --sp-9: 56px;
-  --sp-10: 72px;
+  /* ============ spacing (4px base) ============ */
+  --sp-1: 4px;  --sp-2: 8px;  --sp-3: 12px; --sp-4: 16px; --sp-5: 20px;
+  --sp-6: 24px; --sp-7: 32px; --sp-8: 40px; --sp-9: 56px; --sp-10: 72px;
 
-  /* ---- radius ---- */
-  --r-xs:  6px;
-  --r-sm:  9px;
-  --r-md:  13px;
-  --r-lg:  18px;
-  --r-xl:  24px;
+  /* ============ radius ============ */
+  --r-xs:  6px;  --r-sm: 9px;  --r-md: 13px; --r-lg: 18px; --r-xl: 24px;
   --r-pill: 999px;
 
-  /* ---- elevation ---- */
-  --sh-1: 0 1px 2px rgba(0,0,0,.4);
-  --sh-2: 0 6px 22px -8px rgba(0,0,0,.55);
-  --sh-3: 0 18px 50px -16px rgba(0,0,0,.7);
-  --sh-glow: 0 0 0 1px var(--accent-line), 0 10px 40px -12px var(--accent-glow);
+  /* ============ elevation ============ */
+  --sh-1: 0 1px 2px rgba(0,0,0,.45);
+  --sh-2: 0 6px 24px -10px rgba(0,0,0,.6);
+  --sh-3: 0 22px 60px -20px rgba(2,6,16,.78);
+  --sh-glow: 0 0 0 1px var(--border2), 0 12px 44px -14px var(--acc-glow);
 
-  /* ---- motion ---- */
+  /* ============ motion ============ */
   --ease: cubic-bezier(.22,.61,.36,1);
   --ease-out: cubic-bezier(.16,.84,.44,1);
   --dur-1: .12s;
   --dur-2: .2s;
   --dur-3: .34s;
 
-  /* ---- layout ---- */
+  /* ============ layout ============ */
   --sidebar-w: 248px;
   --content-max: 880px;
+
+  color-scheme: dark;
 }
 
 @media (prefers-reduced-motion: reduce) {
   :root { --dur-1: 0s; --dur-2: 0s; --dur-3: 0s; }
 }
+
+/* ============================================================================
+   base element styles
+   ========================================================================== */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html {
+  height: 100%;
+  background: var(--bg);
+  scrollbar-color: rgba(146,180,255,.28) transparent;
+}
+
+body {
+  height: 100%;
+  margin: 0;
+  font-family: var(--fb);
+  font-size: var(--fs-md);
+  line-height: var(--lh);
+  color: var(--txt);
+  background: transparent;            /* the .app-bg layer paints the canvas */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* the app root sits above the fixed background layers */
+#app { position: relative; z-index: 1; }
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--fd);
+  letter-spacing: -.01em;
+}
+
+a { color: var(--acc); text-decoration: none; }
+a:hover { color: var(--acc3); }
+
+::selection { background: rgba(34,211,238,.28); color: #fff; }
+
+/* scrollbars — brand-tinted, track transparent so the aurora shows through */
+::-webkit-scrollbar { width: 11px; height: 11px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(146,180,255,.20);
+  border-radius: 99px; border: 3px solid transparent; background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--border2); background-clip: padding-box; }
+
+/* long mono strings (addresses, hashes, keys) must never spill their box */
+.mono { overflow-wrap: anywhere; }
+
+/* ============================================================================
+   fixed brand background — aurora glow + masked grid + grain
+   (markup lives in index.html as .app-bg > .bg-glow/.bg-grid/.bg-grain)
+   ========================================================================== */
+
+.app-bg {
+  position: fixed; inset: 0; z-index: 0;
+  overflow: hidden; pointer-events: none;
+  background: var(--bg);
+}
+
+/* layered cyan / violet / sky glows, heavily softened, slowly drifting */
+.bg-glow {
+  position: absolute; inset: -25%;
+  background:
+    radial-gradient(38% 38% at 14% 6%,  rgba(34,211,238,.30), transparent 62%),
+    radial-gradient(40% 40% at 88% 4%,  rgba(167,139,250,.26), transparent 62%),
+    radial-gradient(46% 42% at 56% 40%, rgba(56,189,248,.13), transparent 66%);
+  filter: blur(42px);
+  animation: bg-drift 28s ease-in-out infinite alternate;
+  will-change: transform;
+}
+@keyframes bg-drift {
+  from { transform: translate3d(-2%, -1.2%, 0) scale(1.02); }
+  to   { transform: translate3d(2.4%, 2%, 0)  scale(1.09); }
+}
+
+/* faint 56px grid, faded out toward the bottom (strongest at the top) */
+.bg-grid {
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(rgba(146,180,255,.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(146,180,255,.06) 1px, transparent 1px);
+  background-size: 56px 56px;
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, rgba(0,0,0,.5) 32%, transparent 74%);
+          mask-image: linear-gradient(to bottom, #000 0%, rgba(0,0,0,.5) 32%, transparent 74%);
+}
+
+/* ~3.5% grain overlay */
+.bg-grain {
+  position: absolute; inset: 0; opacity: .035;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bg-glow { animation: none; }
+}
+
+/* ============================================================================
+   brand mark in the shell (sidebar) — DNA helix logo + "Cereblix" wordmark
+   markup lives in app.js (.brand > img.brand-logo + .name.brand-wordmark)
+   ========================================================================== */
+
+.brand-logo {
+  width: 34px; height: 34px; flex: none; border-radius: 10px;
+  filter: drop-shadow(0 4px 13px rgba(34,211,238,.4));
+}
+
+.brand-wordmark {
+  font-family: var(--fd);
+  font-weight: 700;
+  letter-spacing: .2px;
+  line-height: 1.04;
+  color: var(--txt);
+}
+.brand-wordmark small { font-family: var(--fb); }
+
+/* the final syllable of the wordmark, in brand violet */
+.brand-accent { color: var(--acc2); }

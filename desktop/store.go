@@ -13,6 +13,7 @@ package main
 // demand by Unlock(). Private keys never leave this file except via Export().
 
 import (
+	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/ed25519"
@@ -32,7 +33,17 @@ import (
 	"cereblix/core"
 )
 
-const kdfIters = 200_000
+// kdfIters is the PBKDF2 iteration count for NEW saves (OWASP 2023 guidance for
+// PBKDF2-HMAC-SHA256). Decryption uses the per-file stored Iter, so wallets written
+// with the previous 200000-iteration count still open unchanged.
+const kdfIters = 600_000
+
+// minPassphrase is the minimum passphrase length enforced on every set/change.
+const minPassphrase = 8
+
+// maxKdfIters caps the iteration count honored when opening a wallet, so a tampered
+// file cannot make decryption hang on an absurd work factor.
+const maxKdfIters = 5_000_000
 
 // KeyEntry is one address: label, 128-hex ed25519 private key, crb1 address.
 // Wire-identical to the CLI wallet so files interoperate.
@@ -119,6 +130,14 @@ func (s *Store) isLocked() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.locked
+}
+
+// isEncrypted reports whether the wallet is passphrase-encrypted (used by the
+// backend idle-lock to decide whether there is anything to seal).
+func (s *Store) isEncrypted() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.encrypted
 }
 
 // unlock decrypts an encrypted wallet. Returns (false,nil) on a wrong passphrase,
@@ -231,12 +250,27 @@ func (s *Store) save() error {
 }
 
 func decryptKeys(ff *fileFormat, pass []byte) ([]KeyEntry, error) {
-	salt, _ := hex.DecodeString(ff.Salt)
-	nonce, _ := hex.DecodeString(ff.Nonce)
-	ct, _ := hex.DecodeString(ff.Cipher)
+	// Validate the on-disk fields BEFORE touching the cipher: a 12-byte nonce is a
+	// hard requirement for AES-GCM (gcm.Open panics on a wrong-size nonce), and a
+	// bounded Iter keeps a tampered file from hanging on an absurd work factor.
+	salt, err := hex.DecodeString(ff.Salt)
+	if err != nil || len(salt) < 16 {
+		return nil, errors.New("corrupt wallet: bad salt")
+	}
+	nonce, err := hex.DecodeString(ff.Nonce)
+	if err != nil || len(nonce) != 12 {
+		return nil, errors.New("corrupt wallet: bad nonce")
+	}
+	ct, err := hex.DecodeString(ff.Cipher)
+	if err != nil || len(ct) == 0 {
+		return nil, errors.New("corrupt wallet: bad ciphertext")
+	}
 	iter := ff.Iter
 	if iter == 0 {
 		iter = kdfIters
+	}
+	if iter < 1 || iter > maxKdfIters {
+		return nil, errors.New("corrupt wallet: invalid kdf iteration count")
 	}
 	key := pbkdf2(pass, salt, iter, 32)
 	blk, err := aes.NewCipher(key)
@@ -299,22 +333,25 @@ func (s *Store) list() ([]KeyEntry, error) {
 	return out, nil
 }
 
-// create makes the wallet's FIRST address and, if passphrase != "", encrypts the
-// new wallet in one step. Errors if a wallet already exists.
+// create makes the wallet's FIRST address and encrypts the new wallet in one step.
+// A passphrase (min length minPassphrase) is REQUIRED - encryption-at-rest is the
+// default, so there is no plaintext-wallet path through onboarding. Errors if a
+// wallet already exists.
 func (s *Store) create(passphrase string) (KeyEntry, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.exists || len(s.keys) > 0 {
 		return KeyEntry{}, errors.New("a wallet already exists at " + s.path)
 	}
+	if len(passphrase) < minPassphrase {
+		return KeyEntry{}, fmt.Errorf("passphrase too short (min %d)", minPassphrase)
+	}
 	e, err := s.newKeyLocked("main")
 	if err != nil {
 		return KeyEntry{}, err
 	}
-	if passphrase != "" {
-		s.encrypted = true
-		s.passphrase = []byte(passphrase)
-	}
+	s.encrypted = true
+	s.passphrase = []byte(passphrase)
 	s.locked = false
 	if err := s.save(); err != nil {
 		return KeyEntry{}, err
@@ -371,14 +408,31 @@ func (s *Store) importKey(privHex, label string) (KeyEntry, error) {
 	if err != nil || len(raw) != ed25519.PrivateKeySize {
 		return KeyEntry{}, errors.New("private key must be 128 hex characters")
 	}
+	priv := ed25519.PrivateKey(raw)
+	// Integrity check: a 128-hex blob is seed(32)||pubkey(32); a malformed key can
+	// carry a public half that does not match its seed. Re-derive the canonical key
+	// from the seed and confirm the embedded public half matches, then round-trip a
+	// signature. This rejects a mismatched/garbage key instead of storing one whose
+	// address signs nothing.
+	pub, ok := priv.Public().(ed25519.PublicKey)
+	if !ok || len(pub) != ed25519.PublicKeySize {
+		return KeyEntry{}, errors.New("invalid private key")
+	}
+	canonical := ed25519.NewKeyFromSeed(priv.Seed())
+	if !bytes.Equal(canonical.Public().(ed25519.PublicKey), pub) {
+		return KeyEntry{}, errors.New("invalid private key: public half does not match its seed")
+	}
+	probe := []byte("cereblix-import-integrity-check")
+	if !ed25519.Verify(pub, probe, ed25519.Sign(priv, probe)) {
+		return KeyEntry{}, errors.New("invalid private key: failed sign/verify check")
+	}
 	if label == "" {
 		label = "imported"
 	}
 	if _, ok := s.findLocked(label); ok {
 		label = fmt.Sprintf("%s-%d", label, len(s.keys)+1)
 	}
-	priv := ed25519.PrivateKey(raw)
-	addr := core.AddrFromPub(priv.Public().(ed25519.PublicKey))
+	addr := core.AddrFromPub(pub)
 	if _, ok := s.findLocked(addr); ok {
 		return KeyEntry{}, errors.New("address already in wallet")
 	}
@@ -420,8 +474,8 @@ func (s *Store) encrypt(passphrase string) error {
 	if len(s.keys) == 0 {
 		return errors.New("nothing to encrypt - create an address first")
 	}
-	if len(passphrase) < 6 {
-		return errors.New("passphrase too short (min 6)")
+	if len(passphrase) < minPassphrase {
+		return fmt.Errorf("passphrase too short (min %d)", minPassphrase)
 	}
 	s.encrypted = true
 	s.passphrase = []byte(passphrase)
@@ -443,8 +497,8 @@ func (s *Store) changePassphrase(oldp, newp string) error {
 	if !passMatch(s.passphrase, []byte(oldp)) {
 		return errors.New("old passphrase is incorrect")
 	}
-	if len(newp) < 6 {
-		return errors.New("new passphrase too short (min 6)")
+	if len(newp) < minPassphrase {
+		return fmt.Errorf("new passphrase too short (min %d)", minPassphrase)
 	}
 	s.passphrase = []byte(newp)
 	return s.save()
