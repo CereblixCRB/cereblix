@@ -1,5 +1,7 @@
 package core
 
+import "time"
+
 // MarkVerifiedForTest preseeds the PoW-verification cache for the given blocks.
 //
 // It exists solely so a CROSS-PACKAGE test harness (node/sim_test.go) can stand up
@@ -31,3 +33,15 @@ var commitStallForTest func()
 
 // SetCommitStallForTest installs (or clears, with nil) the commit-stall hook. Test-only.
 func SetCommitStallForTest(f func()) { commitStallForTest = f }
+
+// HoldWriteLockForTest acquires the chain write lock c.mu for d, simulating a long
+// in-memory adopt (a chunked catch-up holds c.mu across up to adoptChunk validateBlock
+// calls). It lets a CROSS-PACKAGE test (node/rc6_test.go) prove that readers which do
+// NOT take c.mu — /p2p/tip and, since RC6, /p2p/subscribe (both served from the lock-free
+// tipSnap) — stay responsive while a writer holds c.mu, whereas the old myTip()-based
+// subscribe would block for the whole hold. Test-only; nothing in the daemon calls it.
+func (c *Chain) HoldWriteLockForTest(d time.Duration) {
+	c.mu.Lock()
+	time.Sleep(d)
+	c.mu.Unlock()
+}

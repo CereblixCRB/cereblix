@@ -533,6 +533,19 @@ func (n *Node) resetPeerBackoff() {
 	}
 }
 
+// clearDoomed forgets every memoized doomed-tip. WATCHDOG-ONLY: after a long
+// behind+stuck stall, re-probe forks we previously rejected in case a concurrent
+// catch-up race memoized the WINNING chain by mistake (resetPeerBackoff does not
+// touch lastDoomed). MUST NOT be called on the normal sync path — that re-opens the
+// RC4 doomed-refetch storm (guarded by sim_test.go scenario 4).
+func (n *Node) clearDoomed() {
+	n.phMu.Lock()
+	defer n.phMu.Unlock()
+	for _, h := range n.ph {
+		h.lastDoomed = ""
+	}
+}
+
 // dropPeer removes a peer from the active set + health map (re-learnable via discovery).
 func (n *Node) dropPeer(p string) {
 	n.peersMu.Lock()
@@ -648,6 +661,7 @@ func (n *Node) SyncLoop() {
 			}(p)
 		}
 		wg.Wait()
+		n.updateTipSnap() // RC6: re-publish the true tip every tick so a missed OnNewBlock callback (e.g. a swallowed commit-path panic) can't strand /p2p/tip + /p2p/subscribe on a stale snapshot.
 		n.savePeers()
 		if slow {
 			n.discoverPeers()
@@ -1190,6 +1204,10 @@ func (n *Node) P2PHandler() http.Handler {
 		case <-n.newBlockSignal():
 		case <-time.After(subscribeHold):
 		case <-r.Context().Done():
+			return
+		}
+		if ti := n.tipSnap.Load(); ti != nil {
+			writeJSON(w, *ti) // RC6: lock-free, same path as /p2p/tip — a woken subscriber never blocks on the chain lock (myTip's RLock), so a catch-up holding c.mu can't pile these handlers into CLOSE_WAIT.
 			return
 		}
 		writeJSON(w, n.myTip())
@@ -1924,7 +1942,7 @@ func (n *Node) livenessWatchdog() {
 	const (
 		every       = 30 * time.Second
 		stallWindow = 15 * time.Minute
-		restartAt   = 30 * time.Minute
+		restartAt   = 20 * time.Minute
 	)
 	var lastH uint64
 	stuckSince := time.Time{}
@@ -1954,8 +1972,9 @@ func (n *Node) livenessWatchdog() {
 		if stuck < stallWindow {
 			continue
 		}
-		log.Printf("WATCHDOG: behind peers but height stuck at %d for %s — clearing peer backoff, forcing fresh sync", h, stuck.Round(time.Second))
+		log.Printf("WATCHDOG: behind peers but height stuck at %d for %s — clearing peer backoff + doomed memo, forcing fresh sync", h, stuck.Round(time.Second))
 		n.resetPeerBackoff()
+		n.clearDoomed() // RC6: watchdog-only — re-probe doomed forks in case a race memoized the winning tip.
 		if n.StallRestart && stuck > restartAt {
 			log.Printf("WATCHDOG: still stuck after %s with -stall-restart set — exiting for a clean supervisor restart", stuck.Round(time.Second))
 			os.Exit(1)
