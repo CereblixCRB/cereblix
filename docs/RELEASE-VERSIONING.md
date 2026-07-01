@@ -45,7 +45,7 @@ The node carries **two** independent version numbers, and they must not be
 conflated:
 
 - **Software version** - the SemVer release line. It is the constant
-  `nodeVersion` in `cmd/cereblixd/update.go` (currently `2.4.1`) and is what the
+  `nodeVersion` in `cmd/cereblixd/update.go` (currently `2.4.2`) and is what the
   `node/vX.Y.Z` tag and the auto-update manifest track. It changes on every node
   release, consensus-affecting or not.
 - **Consensus version** - `core.NodeConsensusVersion` in `core/upgrade.go`
