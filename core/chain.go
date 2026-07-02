@@ -384,12 +384,39 @@ func (c *Chain) commitExtend(newBlocks []*Block, snapWork *big.Int) error {
 // auto-fallback to jsonl).
 func (c *Chain) UsingBolt() bool { return c.store != nil }
 
-// commitRebuild persists the full current chain (reorg / genesis init).
-func (c *Chain) commitRebuild(blocks []*Block, snapWork *big.Int) error {
+// commitReorg persists a reorg: discard the on-disk blocks from forkHeight up,
+// then append the adopted branch. bbolt: ONE atomic O(depth+branch) txn
+// (truncateAndAppend) — never the full-chain rewrite (a ~30k-block rewrite txn
+// outlived the stall watchdog's restart, rolled back on every kill and pinned the
+// on-disk chain at the losing tip forever; 2026-07-02 CORE/SG restart loop).
+// jsonl: whole-file rewrite as always (sequential buffered write, legacy path).
+func (c *Chain) commitReorg(forkHeight uint64, branch []*Block, snapWork *big.Int) error {
+	if commitStallForTest != nil {
+		commitStallForTest()
+	}
 	if c.store != nil {
-		return c.store.rebuild(blocks, snapWork)
+		return c.store.truncateAndAppend(forkHeight, branch, snapWork)
 	}
 	return c.saveAll()
+}
+
+// runCommit executes a disk-commit closure, converting a panic into a logged,
+// returned error — a commit panic used to unwind past the OnNewBlock callback
+// into the sync path's recover(), silently freezing the tip snapshot (RC6) —
+// and logging commits slow enough to matter (early warning before a wedge).
+func runCommit(name string, fn func() error) (err error) {
+	defer func() {
+		if rec := recover(); rec != nil {
+			err = fmt.Errorf("%s commit panic: %v", name, rec)
+			log.Printf("store: %v", err)
+		}
+	}()
+	start := time.Now()
+	err = fn()
+	if d := time.Since(start); d > 5*time.Second {
+		log.Printf("store: SLOW %s commit took %s", name, d.Round(time.Millisecond))
+	}
+	return err
 }
 
 // rebuildDerived recomputes state and cumulative work from c.blocks.
@@ -1122,7 +1149,7 @@ func (c *Chain) AddBlock(b *Block) error {
 	snapWork := new(big.Int).Set(c.cumWork)
 	cb := c.OnNewBlock
 	c.mu.Unlock()
-	err := c.commitExtend([]*Block{b}, snapWork)
+	err := runCommit("extend", func() error { return c.commitExtend([]*Block{b}, snapWork) })
 	if cb != nil {
 		cb(b)
 	}
@@ -1151,7 +1178,11 @@ func (c *Chain) TryAdoptChain(startHeight uint64, newBlocks []*Block) (retErr er
 	defer func() {
 		c.mu.Unlock()
 		if diskWrite != nil {
-			if err := diskWrite(); err != nil && retErr == nil {
+			// runCommit: a commit panic becomes a logged error (NOT an unwind past
+			// OnNewBlock — that silently froze the tip snapshot, RC6) and a slow
+			// commit is logged. On a commit error memory keeps the adopted branch;
+			// the on-disk chain self-heals via loadBolt's linkage truncation.
+			if err := runCommit("adopt", diskWrite); err != nil && retErr == nil {
 				retErr = err
 			}
 		}
@@ -1309,7 +1340,7 @@ func (c *Chain) TryAdoptChain(startHeight uint64, newBlocks []*Block) (retErr er
 	}
 	c.blocks = candidate
 	if c.store == nil {
-		c.reindexAddrTxLocked() // jsonl in-memory index; bbolt rebuilt via commitRebuild
+		c.reindexAddrTxLocked() // jsonl in-memory index; bbolt indexes updated via commitReorg
 	}
 	c.state = st
 	c.totals = tot
@@ -1317,10 +1348,14 @@ func (c *Chain) TryAdoptChain(startHeight uint64, newBlocks []*Block) (retErr er
 	c.recomputeSupplyLocked()
 	c.pruneMempoolLocked()
 	adopted = newBlocks[len(newBlocks)-1]
-	snapBlocks := make([]*Block, len(c.blocks))
-	copy(snapBlocks, c.blocks)
+	// Persist the reorg incrementally: only the branch from the fork point changes
+	// on disk (truncate discarded blocks + append the new branch). Snapshot the
+	// branch so the closure never reads c.* after c.mu is released.
+	snapStart := startHeight
+	snapBranch := make([]*Block, len(c.blocks)-int(startHeight))
+	copy(snapBranch, c.blocks[startHeight:])
 	snapWork := new(big.Int).Set(c.cumWork)
-	diskWrite = func() error { return c.commitRebuild(snapBlocks, snapWork) }
+	diskWrite = func() error { return c.commitReorg(snapStart, snapBranch, snapWork) }
 	return nil
 }
 

@@ -24,7 +24,7 @@ func (c *Chain) MarkVerifiedForTest(blocks ...*Block) {
 	}
 }
 
-// commitStallForTest, when non-nil, is invoked at the START of commitExtend/commitRebuild
+// commitStallForTest, when non-nil, is invoked at the START of commitExtend/commitReorg
 // so a test can simulate a slow/stalled bbolt commit (fsync) on a sick disk. Since the
 // RC5 fix these commits run under diskMu with the chain write lock c.mu RELEASED, so the
 // hook lets a test prove a stalled commit no longer freezes c.mu readers (and that diskMu

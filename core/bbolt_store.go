@@ -509,11 +509,148 @@ func (s *blockStore) appendBlocks(blocks []*Block, cumwork *big.Int) error {
 	})
 }
 
-// rebuild clears the block + index buckets and rewrites the full chain in one
-// transaction. Used on reorg (rare) and genesis init. state/code/storage/meta-schema
-// are left untouched.
+// deleteBlockTx removes block b and ALL its index entries inside the caller's
+// write txn — the exact mirror of putBlockTx (same key derivations, including the
+// FromAddr-error skip), so a truncate leaves no stale blockHash/txIndex/addrTx rows.
+func deleteBlockTx(tx *bolt.Tx, b *Block) error {
+	if err := tx.Bucket(bkBlocks).Delete(u64be(b.Height)); err != nil {
+		return err
+	}
+	if err := tx.Bucket(bkBlockHash).Delete([]byte(b.Hash())); err != nil {
+		return err
+	}
+	txi := tx.Bucket(bkTxIndex)
+	at := tx.Bucket(bkAddrTx)
+	for i, t := range b.Txs {
+		if err := txi.Delete([]byte(t.ID())); err != nil {
+			return err
+		}
+		if t.IsCoinbase() {
+			if err := at.Delete(addrTxKey(t.To, b.Height, i)); err != nil {
+				return err
+			}
+			continue
+		}
+		from, ferr := t.FromAddr()
+		if ferr != nil {
+			continue // putAddrRows skipped this tx too — no rows were written
+		}
+		if err := at.Delete(addrTxKey(from, b.Height, i)); err != nil {
+			return err
+		}
+		if t.To != from {
+			if err := at.Delete(addrTxKey(t.To, b.Height, i)); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// deleteRangeTx removes stored blocks lo..hi (inclusive) with all their index
+// rows inside the caller's write txn. Heights are dense by construction
+// (putBlockTx keys by height, loadBolt enforces contiguous linkage).
+func deleteRangeTx(tx *bolt.Tx, lo, hi uint64) error {
+	bb := tx.Bucket(bkBlocks)
+	for h := lo; h <= hi; h++ {
+		raw := bb.Get(u64be(h))
+		if raw == nil {
+			continue
+		}
+		var b Block
+		if err := json.Unmarshal(raw, &b); err != nil {
+			return fmt.Errorf("truncate: corrupt stored block %d: %w", h, err)
+		}
+		if err := deleteBlockTx(tx, &b); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// truncateAndAppend persists a reorg INCREMENTALLY: discard the stored blocks
+// from fromHeight up (with their indexes), then write the replacement branch and
+// re-stamp meta. O(discarded+appended) — NOT O(chain).
+//
+// This replaced rebuild() on the live reorg path after the 2026-07-02 CORE/SG
+// incident: rebuild's full-chain rewrite in ONE bbolt txn (delete-buckets +
+// ~30k putBlockTx) ran for tens of minutes on the grown chain, the stall
+// watchdog/operator restarted the node before the txn could commit, bbolt rolled
+// it back, and the on-disk chain stayed pinned at the pre-reorg tip forever —
+// every restart reloaded the losing tip, re-triggered the same depth-1 reorg and
+// re-entered the same never-finishing rewrite.
+//
+// A normal reorg (small depth, small branch) commits in ONE fully atomic txn.
+// A HUGE job — a long-stranded node whose fork point is far behind the network
+// tip, or a gated v4 deep-recovery reorg — is BATCHED so no single txn can
+// outlive the stall watchdog (the wedge above): deletes run TOP-DOWN so a crash
+// always leaves a contiguous valid prefix (and the losing tip is gone after the
+// FIRST txn, so the restart loop cannot recur), appends run bottom-up in height
+// order, meta stamps last. loadBolt's linkage check self-heals any prefix.
+func (s *blockStore) truncateAndAppend(fromHeight uint64, blocks []*Block, cumwork *big.Int) error {
+	const batch = 1000
+	tip, have := s.tipHeight()
+	toDelete := 0
+	if have && tip >= fromHeight {
+		toDelete = int(tip-fromHeight) + 1
+	}
+	if toDelete+len(blocks) <= batch {
+		// Common case (every prompt reorg): ONE fully atomic transaction.
+		return s.db.Update(func(tx *bolt.Tx) error {
+			if toDelete > 0 {
+				if err := deleteRangeTx(tx, fromHeight, tip); err != nil {
+					return err
+				}
+			}
+			for _, b := range blocks {
+				if err := putBlockTx(tx, b); err != nil {
+					return err
+				}
+			}
+			return putMeta(tx, cumwork)
+		})
+	}
+	for hi := int64(tip); have && hi >= int64(fromHeight); {
+		lo := hi - batch + 1
+		if lo < int64(fromHeight) {
+			lo = int64(fromHeight)
+		}
+		if err := s.db.Update(func(tx *bolt.Tx) error {
+			return deleteRangeTx(tx, uint64(lo), uint64(hi))
+		}); err != nil {
+			return err
+		}
+		hi = lo - 1
+	}
+	for i := 0; i < len(blocks); i += batch {
+		end := i + batch
+		if end > len(blocks) {
+			end = len(blocks)
+		}
+		chunk := blocks[i:end]
+		if err := s.db.Update(func(tx *bolt.Tx) error {
+			for _, b := range chunk {
+				if err := putBlockTx(tx, b); err != nil {
+					return err
+				}
+			}
+			return nil
+		}); err != nil {
+			return err
+		}
+	}
+	return s.db.Update(func(tx *bolt.Tx) error { return putMeta(tx, cumwork) })
+}
+
+// rebuild clears the block + index buckets and rewrites the full chain in BATCHED
+// transactions. STARTUP-ONLY callers (genesis init, loadBolt corruption self-heal —
+// the node is not serving yet, nothing runs concurrently). It is NEVER called on
+// the live reorg path any more — that is truncateAndAppend (see its comment for
+// the incident this prevents). Crash-safety of the batched form: an interrupted
+// run leaves a valid chain PREFIX in height order, which loadBolt's linkage check
+// accepts and the node re-syncs forward — the same self-heal as a truncated jsonl.
 func (s *blockStore) rebuild(blocks []*Block, cumwork *big.Int) error {
-	return s.db.Update(func(tx *bolt.Tx) error {
+	if err := s.db.Update(func(tx *bolt.Tx) error {
 		for _, name := range [][]byte{bkBlocks, bkBlockHash, bkTxIndex, bkAddrTx} {
 			if err := tx.DeleteBucket(name); err != nil && err != bolt.ErrBucketNotFound {
 				return err
@@ -522,13 +659,29 @@ func (s *blockStore) rebuild(blocks []*Block, cumwork *big.Int) error {
 				return err
 			}
 		}
-		for _, b := range blocks {
-			if err := putBlockTx(tx, b); err != nil {
-				return err
-			}
+		return nil
+	}); err != nil {
+		return err
+	}
+	const batch = 1000
+	for i := 0; i < len(blocks); i += batch {
+		end := i + batch
+		if end > len(blocks) {
+			end = len(blocks)
 		}
-		return putMeta(tx, cumwork)
-	})
+		chunk := blocks[i:end]
+		if err := s.db.Update(func(tx *bolt.Tx) error {
+			for _, b := range chunk {
+				if err := putBlockTx(tx, b); err != nil {
+					return err
+				}
+			}
+			return nil
+		}); err != nil {
+			return err
+		}
+	}
+	return s.db.Update(func(tx *bolt.Tx) error { return putMeta(tx, cumwork) })
 }
 
 // forEachBlock iterates stored blocks in ascending height order in one read txn.
